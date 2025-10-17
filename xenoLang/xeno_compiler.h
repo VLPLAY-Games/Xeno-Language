@@ -12,6 +12,7 @@ private:
     std::vector<XenoInstruction> bytecode;
     std::vector<String> string_table;
     std::map<String, int> variable_map;
+    std::vector<int> if_stack; // Stack for tracking if-else jumps
     
     // Remove comments and trim whitespace
     String cleanLine(const String& line) {
@@ -70,11 +71,17 @@ private:
         return str == "abs";
     }
     
+    // Check if string is a comparison operator
+    bool isComparisonOperator(const String& str) {
+        return str == "==" || str == "!=" || str == "<" || str == ">" || str == "<=" || str == ">=";
+    }
+    
     // Get operator precedence
     int getPrecedence(const String& op) {
         if (op == "^") return 4;
         if (op == "*" || op == "/" || op == "%") return 3;
         if (op == "+" || op == "-") return 2;
+        if (isComparisonOperator(op)) return 1;
         return 0;
     }
     
@@ -93,7 +100,6 @@ private:
             int endPos = findMatchingParenthesis(result, absPos + 3);
             if (endPos > absPos) {
                 String inner = result.substring(absPos + 4, endPos);
-                // Recursively process inner expression
                 inner = processFunctions(inner);
                 result = result.substring(0, absPos) + "[" + inner + "]" + result.substring(endPos + 1);
             } else {
@@ -136,7 +142,7 @@ private:
                 }
                 if (!operators.empty()) operators.pop();
             }
-            else if (token == "+" || token == "-" || token == "*" || token == "/" || token == "%" || token == "^") {
+            else if (isComparisonOperator(token) || token == "+" || token == "-" || token == "*" || token == "/" || token == "%" || token == "^") {
                 while (!operators.empty() && 
                        operators.top() != "(" &&
                        (getPrecedence(operators.top()) > getPrecedence(token) ||
@@ -195,7 +201,22 @@ private:
                 continue;
             }
             
-            if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^' || c == '(' || c == ')') {
+            // Handle comparison operators (2 characters)
+            if (i + 1 < expr.length()) {
+                String twoChar = expr.substring(i, i + 2);
+                if (twoChar == "==" || twoChar == "!=" || twoChar == "<=" || twoChar == ">=") {
+                    if (currentToken.length() > 0) {
+                        tokens.push_back(currentToken);
+                        currentToken = "";
+                    }
+                    tokens.push_back(twoChar);
+                    i++; // Skip next character
+                    continue;
+                }
+            }
+            
+            // Handle single character operators
+            if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^' || c == '<' || c == '>' || c == '(' || c == ')') {
                 if (currentToken.length() > 0) {
                     tokens.push_back(currentToken);
                     currentToken = "";
@@ -226,10 +247,8 @@ private:
                 emitInstruction(OP_LOAD, var_index);
             }
             else if (token.startsWith("[") && token.endsWith("]")) {
-                // This is a function call - process the inner expression
                 String innerExpr = token.substring(1, token.length() - 1);
                 compileExpression(innerExpr);
-                // Apply abs function
                 emitInstruction(OP_ABS);
             }
             else if (token == "+") {
@@ -250,19 +269,32 @@ private:
             else if (token == "^") {
                 emitInstruction(OP_POW);
             }
+            else if (token == "==") {
+                emitInstruction(OP_EQ);
+            }
+            else if (token == "!=") {
+                emitInstruction(OP_NEQ);
+            }
+            else if (token == "<") {
+                emitInstruction(OP_LT);
+            }
+            else if (token == ">") {
+                emitInstruction(OP_GT);
+            }
+            else if (token == "<=") {
+                emitInstruction(OP_LTE);
+            }
+            else if (token == ">=") {
+                emitInstruction(OP_GTE);
+            }
         }
     }
     
     // Compile expression with proper operator precedence
     void compileExpression(const String& expr) {
-        // First process function calls
         String processedExpr = processFunctions(expr);
-        
-        // Then tokenize and convert to postfix
         std::vector<String> tokens = tokenizeExpression(processedExpr);
         std::vector<String> postfix = infixToPostfix(tokens);
-        
-        // Compile the postfix expression
         compilePostfix(postfix);
     }
     
@@ -277,6 +309,11 @@ private:
     // Create instruction
     void emitInstruction(uint8_t opcode, uint16_t arg1 = 0, uint16_t arg2 = 0) {
         bytecode.push_back(XenoInstruction(opcode, arg1, arg2));
+    }
+    
+    // Get current instruction address
+    int getCurrentAddress() {
+        return bytecode.size();
     }
     
     // Compile one line
@@ -394,6 +431,48 @@ private:
                 Serial.println("ERROR: Invalid SET command at line " + String(line_number));
             }
         }
+        else if (lowerCommand == "if") {
+            // Format: if condition then
+            int thenPos = args.indexOf(" then");
+            if (thenPos > 0) {
+                String condition = args.substring(0, thenPos);
+                compileExpression(condition);
+                
+                // Store jump address placeholder (will be filled at endif)
+                int jump_addr = getCurrentAddress();
+                emitInstruction(OP_JUMP_IF, 0); // Placeholder
+                if_stack.push_back(jump_addr);
+            } else {
+                Serial.println("ERROR: Invalid IF command at line " + String(line_number));
+            }
+        }
+        else if (lowerCommand == "else") {
+            if (!if_stack.empty()) {
+                // Jump to end of else block
+                int else_jump_addr = getCurrentAddress();
+                emitInstruction(OP_JUMP, 0); // Placeholder
+                
+                // Update the previous if jump to point to current position
+                int if_jump_addr = if_stack.back();
+                bytecode[if_jump_addr].arg1 = getCurrentAddress();
+                
+                // Replace with else jump address
+                if_stack.pop_back();
+                if_stack.push_back(else_jump_addr);
+            } else {
+                Serial.println("ERROR: ELSE without IF at line " + String(line_number));
+            }
+        }
+        else if (lowerCommand == "endif") {
+            if (!if_stack.empty()) {
+                // Update jump address to current position
+                int jump_addr = if_stack.back();
+                bytecode[jump_addr].arg1 = getCurrentAddress();
+                if_stack.pop_back();
+            } else {
+                Serial.println("ERROR: ENDIF without IF at line " + String(line_number));
+            }
+        }
         else if (lowerCommand == "halt") {
             emitInstruction(OP_HALT);
         }
@@ -407,6 +486,7 @@ public:
         bytecode.clear();
         string_table.clear();
         variable_map.clear();
+        if_stack.clear();
     }
     
     // Compile Xeno source code to bytecode
@@ -414,6 +494,7 @@ public:
         bytecode.clear();
         string_table.clear();
         variable_map.clear();
+        if_stack.clear();
         
         int line_number = 0;
         int startPos = 0;
@@ -468,6 +549,12 @@ public:
                 case OP_MOD: Serial.println("MOD"); break;
                 case OP_ABS: Serial.println("ABS"); break;
                 case OP_POW: Serial.println("POW"); break;
+                case OP_EQ: Serial.println("EQ"); break;
+                case OP_NEQ: Serial.println("NEQ"); break;
+                case OP_LT: Serial.println("LT"); break;
+                case OP_GT: Serial.println("GT"); break;
+                case OP_LTE: Serial.println("LTE"); break;
+                case OP_GTE: Serial.println("GTE"); break;
                 case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
                 case OP_STORE: 
                     if (bytecode[i].arg1 < string_table.size()) {

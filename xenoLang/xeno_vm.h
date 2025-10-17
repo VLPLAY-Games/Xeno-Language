@@ -28,6 +28,12 @@ enum XenoOpcodes {
     OP_MOD = 16,     // Modulo (remainder)
     OP_ABS = 17,     // Absolute value
     OP_POW = 18,     // Power (exponentiation)
+    OP_EQ = 19,      // Equal to
+    OP_NEQ = 20,     // Not equal to
+    OP_LT = 21,      // Less than
+    OP_GT = 22,      // Greater than
+    OP_LTE = 23,     // Less than or equal
+    OP_GTE = 24,     // Greater than or equal
     OP_HALT = 255    // Stop execution
 };
 
@@ -56,7 +62,6 @@ private:
     void executeInstruction(const XenoInstruction& instr) {
         switch (instr.opcode) {
             case OP_NOP:
-                // Do nothing
                 break;
                 
             case OP_PRINT:
@@ -179,6 +184,67 @@ private:
                     stack[stack_pointer++] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for POW");
+                }
+                break;
+                
+            // Comparison operations
+            case OP_EQ:
+                if (stack_pointer >= 2) {
+                    uint32_t b = stack[--stack_pointer];
+                    uint32_t a = stack[--stack_pointer];
+                    stack[stack_pointer++] = (a == b) ? 0 : 1;
+                } else {
+                    Serial.println("ERROR: Not enough values for EQ");
+                }
+                break;
+                
+            case OP_NEQ:
+                if (stack_pointer >= 2) {
+                    uint32_t b = stack[--stack_pointer];
+                    uint32_t a = stack[--stack_pointer];
+                    stack[stack_pointer++] = (a != b) ? 0 : 1;
+                } else {
+                    Serial.println("ERROR: Not enough values for NEQ");
+                }
+                break;
+                
+            case OP_LT:
+                if (stack_pointer >= 2) {
+                    uint32_t b = stack[--stack_pointer];
+                    uint32_t a = stack[--stack_pointer];
+                    stack[stack_pointer++] = (a < b) ? 0 : 1;
+                } else {
+                    Serial.println("ERROR: Not enough values for LT");
+                }
+                break;
+                
+            case OP_GT:
+                if (stack_pointer >= 2) {
+                    uint32_t b = stack[--stack_pointer];
+                    uint32_t a = stack[--stack_pointer];
+                    stack[stack_pointer++] = (a > b) ? 0 : 1;
+                } else {
+                    Serial.println("ERROR: Not enough values for GT");
+                }
+                break;
+                
+            case OP_LTE:
+                if (stack_pointer >= 2) {
+                    uint32_t b = stack[--stack_pointer];
+                    uint32_t a = stack[--stack_pointer];
+                    stack[stack_pointer++] = (a <= b) ? 0 : 1;
+                } else {
+                    Serial.println("ERROR: Not enough values for LTE");
+                }
+                break;
+                
+            case OP_GTE:
+                if (stack_pointer >= 2) {
+                    uint32_t b = stack[--stack_pointer];
+                    uint32_t a = stack[--stack_pointer];
+                    stack[stack_pointer++] = (a >= b) ? 0 : 1;
+                } else {
+                    Serial.println("ERROR: Not enough values for GTE");
                 }
                 break;
                 
@@ -351,6 +417,12 @@ public:
                 case OP_MOD: Serial.println("MOD"); break;
                 case OP_ABS: Serial.println("ABS"); break;
                 case OP_POW: Serial.println("POW"); break;
+                case OP_EQ: Serial.println("EQ"); break;
+                case OP_NEQ: Serial.println("NEQ"); break;
+                case OP_LT: Serial.println("LT"); break;
+                case OP_GT: Serial.println("GT"); break;
+                case OP_LTE: Serial.println("LTE"); break;
+                case OP_GTE: Serial.println("GTE"); break;
                 case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
                 case OP_STORE: 
                     if (instr.arg1 < string_table.size()) {

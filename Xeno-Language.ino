@@ -1,4 +1,4 @@
-// Example of using Xeno VM with proper variable names
+// Example of using Xeno VM with comparisons and if-else
 #include "xenoLang/xeno_vm.h"
 #include "xenoLang/xeno_compiler.h"
 
@@ -9,83 +9,142 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     
-    Serial.println("Xeno VM with Fixed Math Operations");
-    Serial.println("==================================");
+    Serial.println("Xeno VM with Comparisons and If-Else");
+    Serial.println("====================================");
     
-    // Example: Fixed math operations
-    String mathProgram = R"(
-        print "Fixed Math Operations Demo"
+    // Example: Comparisons and conditional logic
+    String logicProgram = R"(
+        print "Comparisons and If-Else Demo"
         
-        // Modulo (remainder) operations
-        set a 17 % 5
-        print "17 % 5 = "
-        print $a
+        // Simple comparisons
+        set a 10
+        set b 20
         
-        set b 23 % 7
-        print "23 % 7 = "
-        print $b
+        print "Testing a=10, b=20:"
         
-        set c 100 % 3
-        print "100 % 3 = "
-        print $c
+        if a == b then
+            print "a equals b"
+        else
+            print "a does not equal b"
+        endif
         
-        // Absolute value operations - FIXED
-        set d abs(-10)
-        print "abs(-10) = "
-        print $d
+        if a < b then
+            print "a is less than b"
+        else
+            print "a is not less than b"
+        endif
         
-        set e abs(15)
-        print "abs(15) = "
-        print $e
+        if a > b then
+            print "a is greater than b"
+        else
+            print "a is not greater than b"
+        endif
         
-        set f abs(0)
-        print "abs(0) = "
-        print $f
+        // Complex conditions
+        set x 15
+        set y 15
         
-        // Power (exponentiation) operations
-        set g 2 ^ 3
-        print "2 ^ 3 = "
-        print $g
+        if x == y then
+            print "x equals y"
+            set result 100
+            print "Setting result to 100"
+        else
+            print "x does not equal y"
+            set result 200
+            print "Setting result to 200"
+        endif
         
-        set h 5 ^ 2
-        print "5 ^ 2 = "
-        print $h
-        
-        set i 3 ^ 4
-        print "3 ^ 4 = "
-        print $i
-        
-        // Complex expressions with new operations - FIXED
-        set j (17 % 5) ^ 2
-        print "(17 % 5) ^ 2 = "
-        print $j
-        
-        set k abs(-10) + abs(20)
-        print "abs(-10) + abs(20) = "
-        print $k
-        
-        set m (2 ^ 3) % 5
-        print "(2 ^ 3) % 5 = "
-        print $m
-        
-        set n abs(-15) ^ 2
-        print "abs(-15) ^ 2 = "
-        print $n
-        
-        // Combined operations - FIXED
-        set result (10 + abs(-5)) % 3 ^ 2
-        print "(10 + abs(-5)) % 3 ^ 2 = "
+        print "Final result: "
         print $result
         
-        print "All math operations work correctly!"
+        // Multiple conditions with math
+        set num1 25
+        set num2 30
+        
+        if num1 + 5 == num2 then
+            print "num1 + 5 equals num2"
+        else
+            print "num1 + 5 does not equal num2"
+        endif
+        
+        if num1 * 2 > num2 then
+            print "num1 * 2 is greater than num2"
+        else
+            print "num1 * 2 is not greater than num2"
+        endif
+        
+        // Testing with hardware
+        set counter 0
+        
+        if counter == 0 then
+            print "Counter is zero - turning LED on"
+            led 2 on
+            delay 1000
+            led 2 off
+        else
+            print "Counter is not zero"
+        endif
+        
+        // Complex expression in condition
+        set value 17
+        
+        if value % 2 == 0 then
+            print "Value is even"
+        else
+            print "Value is odd"
+        endif
+        
+        // Testing all comparison operators
+        set test1 10
+        set test2 20
+        
+        print "Testing all comparison operators:"
+        
+        if test1 == test2 then
+            print "10 == 20: true"
+        else
+            print "10 == 20: false"
+        endif
+        
+        if test1 != test2 then
+            print "10 != 20: true"
+        else
+            print "10 != 20: false"
+        endif
+        
+        if test1 < test2 then
+            print "10 < 20: true"
+        else
+            print "10 < 20: false"
+        endif
+        
+        if test1 > test2 then
+            print "10 > 20: true"
+        else
+            print "10 > 20: false"
+        endif
+        
+        if test1 <= test2 then
+            print "10 <= 20: true"
+        else
+            print "10 <= 20: false"
+        endif
+        
+        if test1 >= test2 then
+            print "10 >= 20: true"
+        else
+            print "10 >= 20: false"
+        endif
+        
+        print "Conditional logic demo completed!"
         halt
     )";
     
-    Serial.println("\n--- Compiling fixed math program ---");
-    compiler.compile(mathProgram);
+    Serial.println("\n--- Compiling logic program ---");
+    compiler.compile(logicProgram);
     compiler.printCompiledCode();
     
-    Serial.println("\n--- Executing fixed math program ---");
+    Serial.println("\n--- Executing logic program ---");
     vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
     vm.run();
 }
