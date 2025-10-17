@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <vector>
 #include <map>
+#include <stack>
+#include <cmath>
 
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
@@ -23,6 +25,9 @@ enum XenoOpcodes {
     OP_PRINT_NUM = 13, // Print number from stack
     OP_STORE = 14,   // Store to variable
     OP_LOAD = 15,    // Load from variable
+    OP_MOD = 16,     // Modulo (remainder)
+    OP_ABS = 17,     // Absolute value
+    OP_POW = 18,     // Power (exponentiation)
     OP_HALT = 255    // Stop execution
 };
 
@@ -45,7 +50,7 @@ private:
     uint32_t stack[64];
     uint32_t stack_pointer;
     uint32_t registers[8];
-    std::map<String, uint32_t> variables; // Variable storage
+    std::map<String, uint32_t> variables;
     bool running;
     
     void executeInstruction(const XenoInstruction& instr) {
@@ -139,6 +144,44 @@ private:
                 }
                 break;
                 
+            case OP_MOD:
+                if (stack_pointer >= 2) {
+                    uint32_t b = stack[--stack_pointer];
+                    uint32_t a = stack[--stack_pointer];
+                    if (b != 0) {
+                        stack[stack_pointer++] = a % b;
+                    } else {
+                        Serial.println("ERROR: Modulo by zero");
+                        stack[stack_pointer++] = 0;
+                    }
+                } else {
+                    Serial.println("ERROR: Not enough values for MOD");
+                }
+                break;
+                
+            case OP_ABS:
+                if (stack_pointer >= 1) {
+                    int32_t value = (int32_t)stack[stack_pointer - 1];
+                    stack[stack_pointer - 1] = abs(value);
+                } else {
+                    Serial.println("ERROR: Not enough values for ABS");
+                }
+                break;
+                
+            case OP_POW:
+                if (stack_pointer >= 2) {
+                    uint32_t exponent = stack[--stack_pointer];
+                    uint32_t base = stack[--stack_pointer];
+                    uint32_t result = 1;
+                    for (uint32_t i = 0; i < exponent; i++) {
+                        result *= base;
+                    }
+                    stack[stack_pointer++] = result;
+                } else {
+                    Serial.println("ERROR: Not enough values for POW");
+                }
+                break;
+                
             case OP_PRINT_NUM:
                 if (stack_pointer > 0) {
                     Serial.println(String(stack[stack_pointer - 1]));
@@ -168,7 +211,7 @@ private:
                 } else {
                     Serial.println("ERROR: Variable not found: " + var_name);
                     if (stack_pointer < 64) {
-                        stack[stack_pointer++] = 0; // Default to 0
+                        stack[stack_pointer++] = 0;
                     }
                 }
                 break;
@@ -305,6 +348,9 @@ public:
                 case OP_SUB: Serial.println("SUB"); break;
                 case OP_MUL: Serial.println("MUL"); break;
                 case OP_DIV: Serial.println("DIV"); break;
+                case OP_MOD: Serial.println("MOD"); break;
+                case OP_ABS: Serial.println("ABS"); break;
+                case OP_POW: Serial.println("POW"); break;
                 case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
                 case OP_STORE: 
                     if (instr.arg1 < string_table.size()) {

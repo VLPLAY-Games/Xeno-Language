@@ -1,6 +1,6 @@
 // Example of using Xeno VM with proper variable names
-#include "xenoLang/xeno_vm.h"
-#include "xenoLang/xeno_compiler.h"
+#include "../xenoLang/xeno_vm.h"
+#include "../xenoLang/xeno_compiler.h"
 
 XenoCompiler compiler;
 XenoVM vm;
@@ -55,7 +55,7 @@ void setup() {
         print "3 ^ 4 = "
         print $i
         
-        // Complex expressions with new operations - FIXED
+        // Complex expressions with new operations
         set j (17 % 5) ^ 2
         print "(17 % 5) ^ 2 = "
         print $j
@@ -72,7 +72,7 @@ void setup() {
         print "abs(-15) ^ 2 = "
         print $n
         
-        // Combined operations - FIXED
+        // Combined operations
         set result (10 + abs(-5)) % 3 ^ 2
         print "(10 + abs(-5)) % 3 ^ 2 = "
         print $result

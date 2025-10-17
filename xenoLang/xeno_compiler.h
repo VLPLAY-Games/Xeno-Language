@@ -65,11 +65,56 @@ private:
         return true;
     }
     
+    // Check if string is a math function
+    bool isMathFunction(const String& str) {
+        return str == "abs";
+    }
+    
     // Get operator precedence
     int getPrecedence(const String& op) {
-        if (op == "*" || op == "/") return 2;
-        if (op == "+" || op == "-") return 1;
+        if (op == "^") return 4;
+        if (op == "*" || op == "/" || op == "%") return 3;
+        if (op == "+" || op == "-") return 2;
         return 0;
+    }
+    
+    // Check if operator is right-associative
+    bool isRightAssociative(const String& op) {
+        return op == "^";
+    }
+    
+    // Process function calls in expression
+    String processFunctions(const String& expr) {
+        String result = expr;
+        
+        // Process abs function
+        int absPos = result.indexOf("abs(");
+        while (absPos >= 0) {
+            int endPos = findMatchingParenthesis(result, absPos + 3);
+            if (endPos > absPos) {
+                String inner = result.substring(absPos + 4, endPos);
+                // Recursively process inner expression
+                inner = processFunctions(inner);
+                result = result.substring(0, absPos) + "[" + inner + "]" + result.substring(endPos + 1);
+            } else {
+                break;
+            }
+            absPos = result.indexOf("abs(");
+        }
+        
+        return result;
+    }
+    
+    // Find matching parenthesis
+    int findMatchingParenthesis(const String& expr, int start) {
+        int count = 1;
+        for (int i = start + 1; i < expr.length(); i++) {
+            if (expr[i] == '(') count++;
+            else if (expr[i] == ')') count--;
+            
+            if (count == 0) return i;
+        }
+        return -1;
     }
     
     // Convert infix expression to postfix (RPN)
@@ -78,7 +123,7 @@ private:
         std::stack<String> operators;
         
         for (const String& token : tokens) {
-            if (isNumber(token) || isValidVariable(token)) {
+            if (isNumber(token) || isValidVariable(token) || (token.startsWith("[") && token.endsWith("]"))) {
                 output.push_back(token);
             }
             else if (token == "(") {
@@ -89,11 +134,13 @@ private:
                     output.push_back(operators.top());
                     operators.pop();
                 }
-                if (!operators.empty()) operators.pop(); // Remove "("
+                if (!operators.empty()) operators.pop();
             }
-            else if (token == "+" || token == "-" || token == "*" || token == "/") {
+            else if (token == "+" || token == "-" || token == "*" || token == "/" || token == "%" || token == "^") {
                 while (!operators.empty() && 
-                       getPrecedence(operators.top()) >= getPrecedence(token)) {
+                       operators.top() != "(" &&
+                       (getPrecedence(operators.top()) > getPrecedence(token) ||
+                       (getPrecedence(operators.top()) == getPrecedence(token) && !isRightAssociative(token)))) {
                     output.push_back(operators.top());
                     operators.pop();
                 }
@@ -113,9 +160,32 @@ private:
     std::vector<String> tokenizeExpression(const String& expr) {
         std::vector<String> tokens;
         String currentToken;
+        bool inBrackets = false;
         
         for (size_t i = 0; i < expr.length(); i++) {
             char c = expr[i];
+            
+            if (c == '[') {
+                if (currentToken.length() > 0) {
+                    tokens.push_back(currentToken);
+                    currentToken = "";
+                }
+                inBrackets = true;
+                currentToken += c;
+                continue;
+            }
+            else if (c == ']') {
+                currentToken += c;
+                tokens.push_back(currentToken);
+                currentToken = "";
+                inBrackets = false;
+                continue;
+            }
+            
+            if (inBrackets) {
+                currentToken += c;
+                continue;
+            }
             
             if (isspace(c)) {
                 if (currentToken.length() > 0) {
@@ -125,7 +195,7 @@ private:
                 continue;
             }
             
-            if (c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')') {
+            if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^' || c == '(' || c == ')') {
                 if (currentToken.length() > 0) {
                     tokens.push_back(currentToken);
                     currentToken = "";
@@ -155,6 +225,13 @@ private:
                 int var_index = getVariableIndex(token);
                 emitInstruction(OP_LOAD, var_index);
             }
+            else if (token.startsWith("[") && token.endsWith("]")) {
+                // This is a function call - process the inner expression
+                String innerExpr = token.substring(1, token.length() - 1);
+                compileExpression(innerExpr);
+                // Apply abs function
+                emitInstruction(OP_ABS);
+            }
             else if (token == "+") {
                 emitInstruction(OP_ADD);
             }
@@ -167,13 +244,25 @@ private:
             else if (token == "/") {
                 emitInstruction(OP_DIV);
             }
+            else if (token == "%") {
+                emitInstruction(OP_MOD);
+            }
+            else if (token == "^") {
+                emitInstruction(OP_POW);
+            }
         }
     }
     
     // Compile expression with proper operator precedence
     void compileExpression(const String& expr) {
-        std::vector<String> tokens = tokenizeExpression(expr);
+        // First process function calls
+        String processedExpr = processFunctions(expr);
+        
+        // Then tokenize and convert to postfix
+        std::vector<String> tokens = tokenizeExpression(processedExpr);
         std::vector<String> postfix = infixToPostfix(tokens);
+        
+        // Compile the postfix expression
         compilePostfix(postfix);
     }
     
@@ -197,7 +286,6 @@ private:
             return;
         }
         
-        // Don't convert to lowercase - preserve original case for variable names
         String originalLine = cleanedLine;
         
         int firstSpace = originalLine.indexOf(' ');
@@ -205,7 +293,6 @@ private:
         String args = (firstSpace > 0) ? originalLine.substring(firstSpace + 1) : "";
         args.trim();
         
-        // Convert command to lowercase for comparison, but keep args in original case
         String lowerCommand = command;
         lowerCommand.toLowerCase();
         
@@ -213,7 +300,6 @@ private:
             String text = args;
             String var_name = extractVariableName(text);
             if (var_name.length() > 0) {
-                // Print variable value
                 if (isValidVariable(var_name)) {
                     int var_index = getVariableIndex(var_name);
                     emitInstruction(OP_LOAD, var_index);
@@ -222,7 +308,6 @@ private:
                     Serial.println("ERROR: Invalid variable name in print at line " + String(line_number));
                 }
             } else {
-                // Print string literal
                 if (text.startsWith("\"") && text.endsWith("\"")) {
                     text = text.substring(1, text.length() - 1);
                 }
@@ -254,7 +339,6 @@ private:
             }
         }
         else if (lowerCommand == "delay") {
-            // For now, only support numeric delays
             int time = args.toInt();
             emitInstruction(OP_DELAY, time);
         }
@@ -282,6 +366,15 @@ private:
         else if (lowerCommand == "div") {
             emitInstruction(OP_DIV);
         }
+        else if (lowerCommand == "mod") {
+            emitInstruction(OP_MOD);
+        }
+        else if (lowerCommand == "abs") {
+            emitInstruction(OP_ABS);
+        }
+        else if (lowerCommand == "pow") {
+            emitInstruction(OP_POW);
+        }
         else if (lowerCommand == "set") {
             int space1 = args.indexOf(' ');
             if (space1 > 0) {
@@ -293,10 +386,8 @@ private:
                     return;
                 }
                 
-                // Compile the expression with proper operator precedence
                 compileExpression(expression);
                 
-                // Store result in variable
                 int var_index = getVariableIndex(var_name);
                 emitInstruction(OP_STORE, var_index);
             } else {
@@ -374,6 +465,9 @@ public:
                 case OP_SUB: Serial.println("SUB"); break;
                 case OP_MUL: Serial.println("MUL"); break;
                 case OP_DIV: Serial.println("DIV"); break;
+                case OP_MOD: Serial.println("MOD"); break;
+                case OP_ABS: Serial.println("ABS"); break;
+                case OP_POW: Serial.println("POW"); break;
                 case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
                 case OP_STORE: 
                     if (bytecode[i].arg1 < string_table.size()) {
