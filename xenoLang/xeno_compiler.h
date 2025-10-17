@@ -19,7 +19,7 @@ class XenoCompiler {
 private:
     std::vector<XenoInstruction> bytecode;
     std::vector<String> string_table;
-    std::map<String, int> variable_map;
+    std::map<String, XenoValue> variable_map;
     std::vector<int> if_stack;
     std::vector<LoopInfo> loop_stack; // Стек для циклов
     
@@ -50,12 +50,35 @@ private:
         return addString(var_name);
     }
     
-    // Check if string is a number
-    bool isNumber(const String& str) {
+    // Check if string is an integer
+    bool isInteger(const String& str) {
+        if (str.length() == 0) return false;
+        
         for (size_t i = 0; i < str.length(); i++) {
-            if (!isdigit(str[i])) return false;
+            if (!isdigit(str[i]) && !(i == 0 && str[i] == '-')) return false;
         }
-        return str.length() > 0;
+        return true;
+    }
+    
+    // Check if string is a float
+    bool isFloat(const String& str) {
+        if (str.length() == 0) return false;
+        
+        bool has_decimal = false;
+        for (size_t i = 0; i < str.length(); i++) {
+            if (str[i] == '.') {
+                if (has_decimal) return false; // Multiple decimals
+                has_decimal = true;
+            } else if (!isdigit(str[i]) && !(i == 0 && str[i] == '-')) {
+                return false;
+            }
+        }
+        return has_decimal && str.length() > 1; // Must have decimal and at least one digit
+    }
+    
+    // Check if string is a quoted string
+    bool isQuotedString(const String& str) {
+        return str.length() >= 2 && str[0] == '"' && str[str.length() - 1] == '"';
     }
     
     // Check if string is a valid variable name (letters, numbers, and underscores)
@@ -138,7 +161,8 @@ private:
         std::stack<String> operators;
         
         for (const String& token : tokens) {
-            if (isNumber(token) || isValidVariable(token) || (token.startsWith("[") && token.endsWith("]"))) {
+            if (isInteger(token) || isFloat(token) || isQuotedString(token) || isValidVariable(token) || 
+                (token.startsWith("[") && token.endsWith("]"))) {
                 output.push_back(token);
             }
             else if (token == "(") {
@@ -175,10 +199,33 @@ private:
     std::vector<String> tokenizeExpression(const String& expr) {
         std::vector<String> tokens;
         String currentToken;
+        bool inQuotes = false;
         bool inBrackets = false;
         
         for (size_t i = 0; i < expr.length(); i++) {
             char c = expr[i];
+            
+            if (c == '"' && !inBrackets) {
+                if (inQuotes) {
+                    currentToken += c;
+                    tokens.push_back(currentToken);
+                    currentToken = "";
+                    inQuotes = false;
+                } else {
+                    if (currentToken.length() > 0) {
+                        tokens.push_back(currentToken);
+                        currentToken = "";
+                    }
+                    inQuotes = true;
+                    currentToken += c;
+                }
+                continue;
+            }
+            
+            if (inQuotes) {
+                currentToken += c;
+                continue;
+            }
             
             if (c == '[') {
                 if (currentToken.length() > 0) {
@@ -247,9 +294,20 @@ private:
     // Compile postfix expression
     void compilePostfix(const std::vector<String>& postfix) {
         for (const String& token : postfix) {
-            if (isNumber(token)) {
+            if (isInteger(token)) {
                 int num = token.toInt();
                 emitInstruction(OP_PUSH, num);
+            }
+            else if (isFloat(token)) {
+                float fval = token.toFloat();
+                uint32_t fbits;
+                memcpy(&fbits, &fval, sizeof(float));
+                emitInstruction(OP_PUSH_FLOAT, fbits);
+            }
+            else if (isQuotedString(token)) {
+                String str = token.substring(1, token.length() - 1);
+                int str_id = addString(str);
+                emitInstruction(OP_PUSH_STRING, str_id);
             }
             else if (isValidVariable(token)) {
                 int var_index = getVariableIndex(token);
@@ -315,8 +373,54 @@ private:
         return "";
     }
     
+    // Determine value type from string
+    XenoDataType determineValueType(const String& value) {
+        if (isQuotedString(value)) {
+            return TYPE_STRING;
+        } else if (isFloat(value)) {
+            return TYPE_FLOAT;
+        } else if (isInteger(value)) {
+            return TYPE_INT;
+        } else if (isValidVariable(value)) {
+            // For variables, we need to check if they exist and get their type
+            auto it = variable_map.find(value);
+            if (it != variable_map.end()) {
+                return it->second.type;
+            }
+            // If variable doesn't exist yet, assume int
+            return TYPE_INT;
+        } else {
+            // For expressions, we'll assume int for now
+            // In a more advanced implementation, we'd analyze the expression
+            return TYPE_INT;
+        }
+    }
+    
+    // Create value from string
+    XenoValue createValueFromString(const String& str, XenoDataType type) {
+        XenoValue value;
+        value.type = type;
+        
+        switch (type) {
+            case TYPE_INT:
+                value.int_val = str.toInt();
+                break;
+            case TYPE_FLOAT:
+                value.float_val = str.toFloat();
+                break;
+            case TYPE_STRING:
+                {
+                    String clean_str = str.substring(1, str.length() - 1);
+                    value.string_index = addString(clean_str);
+                }
+                break;
+        }
+        
+        return value;
+    }
+    
     // Create instruction
-    void emitInstruction(uint8_t opcode, uint16_t arg1 = 0, uint16_t arg2 = 0) {
+    void emitInstruction(uint8_t opcode, uint32_t arg1 = 0, uint16_t arg2 = 0) {
         bytecode.push_back(XenoInstruction(opcode, arg1, arg2));
     }
     
@@ -392,6 +496,15 @@ private:
             if (isValidVariable(args)) {
                 int var_index = getVariableIndex(args);
                 emitInstruction(OP_LOAD, var_index);
+            } else if (isFloat(args)) {
+                float fval = args.toFloat();
+                uint32_t fbits;
+                memcpy(&fbits, &fval, sizeof(float));
+                emitInstruction(OP_PUSH_FLOAT, fbits);
+            } else if (isQuotedString(args)) {
+                String str = args.substring(1, args.length() - 1);
+                int str_id = addString(str);
+                emitInstruction(OP_PUSH_STRING, str_id);
             } else {
                 int num = args.toInt();
                 emitInstruction(OP_PUSH, num);
@@ -430,6 +543,14 @@ private:
                 if (!isValidVariable(var_name)) {
                     Serial.println("ERROR: Invalid variable name '" + var_name + "' at line " + String(line_number));
                     return;
+                }
+                
+                // Determine the type of the value being assigned
+                XenoDataType value_type = determineValueType(expression);
+                
+                // If it's a simple value (not an expression), store it in variable_map
+                if (isInteger(expression) || isFloat(expression) || isQuotedString(expression)) {
+                    variable_map[var_name] = createValueFromString(expression, value_type);
                 }
                 
                 compileExpression(expression);
@@ -530,9 +651,22 @@ private:
                 LoopInfo loop_info = loop_stack.back();
                 loop_stack.pop_back();
                 
-                // Increment loop variable
+                // Increment loop variable - use float increment for float variables
                 emitInstruction(OP_LOAD, getVariableIndex(loop_info.var_name));
-                emitInstruction(OP_PUSH, 1);
+                
+                // Check if the variable is float type
+                auto var_it = variable_map.find(loop_info.var_name);
+                if (var_it != variable_map.end() && var_it->second.type == TYPE_FLOAT) {
+                    // Use float increment
+                    float increment = 1.0f;
+                    uint32_t increment_bits;
+                    memcpy(&increment_bits, &increment, sizeof(float));
+                    emitInstruction(OP_PUSH_FLOAT, increment_bits);
+                } else {
+                    // Use integer increment
+                    emitInstruction(OP_PUSH, 1);
+                }
+                
                 emitInstruction(OP_ADD);
                 emitInstruction(OP_STORE, getVariableIndex(loop_info.var_name));
                 
@@ -615,6 +749,19 @@ public:
                 case OP_LED_OFF: Serial.println("LED_OFF " + String(bytecode[i].arg1)); break;
                 case OP_DELAY: Serial.println("DELAY " + String(bytecode[i].arg1)); break;
                 case OP_PUSH: Serial.println("PUSH " + String(bytecode[i].arg1)); break;
+                case OP_PUSH_FLOAT: {
+                    float fval;
+                    memcpy(&fval, &bytecode[i].arg1, sizeof(float));
+                    Serial.println("PUSH_FLOAT " + String(fval, 4));
+                    break;
+                }
+                case OP_PUSH_STRING: 
+                    if (bytecode[i].arg1 < string_table.size()) {
+                        Serial.println("PUSH_STRING \"" + string_table[bytecode[i].arg1] + "\"");
+                    } else {
+                        Serial.println("PUSH_STRING <invalid>");
+                    }
+                    break;
                 case OP_POP: Serial.println("POP"); break;
                 case OP_ADD: Serial.println("ADD"); break;
                 case OP_SUB: Serial.println("SUB"); break;

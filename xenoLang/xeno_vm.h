@@ -14,7 +14,7 @@ enum XenoOpcodes {
     OP_LED_ON = 2,   // Turn LED on
     OP_LED_OFF = 3,  // Turn LED off  
     OP_DELAY = 4,    // Delay in milliseconds
-    OP_PUSH = 5,     // Push to stack
+    OP_PUSH = 5,     // Push integer to stack
     OP_POP = 6,      // Pop from stack
     OP_ADD = 7,      // Addition
     OP_SUB = 8,      // Subtraction
@@ -34,16 +34,61 @@ enum XenoOpcodes {
     OP_GT = 22,      // Greater than
     OP_LTE = 23,     // Less than or equal
     OP_GTE = 24,     // Greater than or equal
-    OP_HALT = 255    // Stop execution
+    OP_HALT = 255,   // Stop execution
+    OP_PUSH_FLOAT = 25, // Push float to stack
+    OP_PUSH_STRING = 26 // Push string to stack
+};
+
+// Data types
+enum XenoDataType {
+    TYPE_INT = 0,
+    TYPE_FLOAT = 1,
+    TYPE_STRING = 2
+};
+
+// Value structure that can hold different data types
+struct XenoValue {
+    XenoDataType type;
+    union {
+        int32_t int_val;
+        float float_val;
+        uint16_t string_index; // index in string_table
+    };
+    
+    XenoValue() : type(TYPE_INT), int_val(0) {}
+    
+    // Helper method to create from int without ambiguity
+    static XenoValue makeInt(int32_t val) {
+        XenoValue v;
+        v.type = TYPE_INT;
+        v.int_val = val;
+        return v;
+    }
+    
+    // Helper method to create from float without ambiguity  
+    static XenoValue makeFloat(float val) {
+        XenoValue v;
+        v.type = TYPE_FLOAT;
+        v.float_val = val;
+        return v;
+    }
+    
+    // Helper method to create from string without ambiguity
+    static XenoValue makeString(uint16_t str_idx) {
+        XenoValue v;
+        v.type = TYPE_STRING;
+        v.string_index = str_idx;
+        return v;
+    }
 };
 
 // Bytecode instruction structure
 struct XenoInstruction {
     uint8_t opcode;
-    uint16_t arg1;
+    uint32_t arg1;  // Changed to 32-bit to store float bits
     uint16_t arg2;
     
-    XenoInstruction(uint8_t op = OP_NOP, uint16_t a1 = 0, uint16_t a2 = 0) 
+    XenoInstruction(uint8_t op = OP_NOP, uint32_t a1 = 0, uint16_t a2 = 0) 
         : opcode(op), arg1(a1), arg2(a2) {}
 };
 
@@ -53,10 +98,9 @@ private:
     std::vector<XenoInstruction> program;
     std::vector<String> string_table;
     uint32_t program_counter;
-    uint32_t stack[64];
+    XenoValue stack[64];
     uint32_t stack_pointer;
-    uint32_t registers[8];
-    std::map<String, uint32_t> variables;
+    std::map<String, XenoValue> variables;
     bool running;
     uint32_t instruction_count;
     
@@ -65,9 +109,206 @@ private:
         stack_pointer = 0;
         running = false;
         instruction_count = 0;
-        memset(stack, 0, sizeof(stack));
-        memset(registers, 0, sizeof(registers));
+        for (int i = 0; i < 64; i++) {
+            stack[i] = XenoValue::makeInt(0);
+        }
         variables.clear();
+    }
+    
+    // Helper functions for type conversion and operations
+    XenoValue convertToFloat(const XenoValue& val) {
+        if (val.type == TYPE_FLOAT) return val;
+        if (val.type == TYPE_INT) {
+            return XenoValue::makeFloat(static_cast<float>(val.int_val));
+        }
+        return XenoValue::makeFloat(0.0f);
+    }
+    
+    bool bothNumeric(const XenoValue& a, const XenoValue& b) {
+        return (a.type == TYPE_INT || a.type == TYPE_FLOAT) && 
+               (b.type == TYPE_INT || b.type == TYPE_FLOAT);
+    }
+    
+    XenoValue performAddition(const XenoValue& a, const XenoValue& b) {
+        // String concatenation
+        if (a.type == TYPE_STRING && b.type == TYPE_STRING) {
+            String str_a = string_table[a.string_index];
+            String str_b = string_table[b.string_index];
+            String combined = str_a + str_b;
+            
+            // Add to string table and return
+            for (size_t i = 0; i < string_table.size(); i++) {
+                if (string_table[i] == combined) {
+                    return XenoValue::makeString(i);
+                }
+            }
+            string_table.push_back(combined);
+            return XenoValue::makeString(string_table.size() - 1);
+        }
+        
+        // Numeric addition
+        if (bothNumeric(a, b)) {
+            if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                return XenoValue::makeFloat(a_val + b_val);
+            } else {
+                return XenoValue::makeInt(a.int_val + b.int_val);
+            }
+        }
+        
+        // Default to integer 0 on type mismatch
+        return XenoValue::makeInt(0);
+    }
+    
+    XenoValue performSubtraction(const XenoValue& a, const XenoValue& b) {
+        if (bothNumeric(a, b)) {
+            if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                return XenoValue::makeFloat(a_val - b_val);
+            } else {
+                return XenoValue::makeInt(a.int_val - b.int_val);
+            }
+        }
+        return XenoValue::makeInt(0);
+    }
+    
+    XenoValue performMultiplication(const XenoValue& a, const XenoValue& b) {
+        if (bothNumeric(a, b)) {
+            if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                return XenoValue::makeFloat(a_val * b_val);
+            } else {
+                return XenoValue::makeInt(a.int_val * b.int_val);
+            }
+        }
+        return XenoValue::makeInt(0);
+    }
+    
+    XenoValue performDivision(const XenoValue& a, const XenoValue& b) {
+        if (bothNumeric(a, b)) {
+            if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                
+                if (b_val != 0.0f) {
+                    return XenoValue::makeFloat(a_val / b_val);
+                } else {
+                    Serial.println("ERROR: Division by zero");
+                    return XenoValue::makeFloat(0.0f);
+                }
+            } else {
+                if (b.int_val != 0) {
+                    return XenoValue::makeInt(a.int_val / b.int_val);
+                } else {
+                    Serial.println("ERROR: Division by zero");
+                    return XenoValue::makeInt(0);
+                }
+            }
+        }
+        return XenoValue::makeInt(0);
+    }
+    
+    XenoValue performModulo(const XenoValue& a, const XenoValue& b) {
+        if (a.type == TYPE_INT && b.type == TYPE_INT) {
+            if (b.int_val != 0) {
+                return XenoValue::makeInt(a.int_val % b.int_val);
+            } else {
+                Serial.println("ERROR: Modulo by zero");
+                return XenoValue::makeInt(0);
+            }
+        } else {
+            Serial.println("ERROR: Modulo requires integer operands");
+            return XenoValue::makeInt(0);
+        }
+    }
+    
+    XenoValue performPower(const XenoValue& a, const XenoValue& b) {
+        if (bothNumeric(a, b)) {
+            if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                return XenoValue::makeFloat(pow(a_val, b_val));
+            } else {
+                int32_t result = 1;
+                for (int32_t i = 0; i < b.int_val; i++) {
+                    result *= a.int_val;
+                }
+                return XenoValue::makeInt(result);
+            }
+        }
+        return XenoValue::makeInt(0);
+    }
+    
+    XenoValue performAbs(const XenoValue& a) {
+        if (a.type == TYPE_INT) {
+            return XenoValue::makeInt(abs(a.int_val));
+        } else if (a.type == TYPE_FLOAT) {
+            return XenoValue::makeFloat(fabs(a.float_val));
+        }
+        return XenoValue::makeInt(0);
+    }
+    
+    bool performComparison(const XenoValue& a, const XenoValue& b, uint8_t op) {
+        if (a.type != b.type) {
+            // Try to convert to common type
+            if (bothNumeric(a, b)) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                
+                switch (op) {
+                    case OP_EQ: return a_val == b_val;
+                    case OP_NEQ: return a_val != b_val;
+                    case OP_LT: return a_val < b_val;
+                    case OP_GT: return a_val > b_val;
+                    case OP_LTE: return a_val <= b_val;
+                    case OP_GTE: return a_val >= b_val;
+                }
+            }
+            return false;
+        }
+        
+        switch (a.type) {
+            case TYPE_INT:
+                switch (op) {
+                    case OP_EQ: return a.int_val == b.int_val;
+                    case OP_NEQ: return a.int_val != b.int_val;
+                    case OP_LT: return a.int_val < b.int_val;
+                    case OP_GT: return a.int_val > b.int_val;
+                    case OP_LTE: return a.int_val <= b.int_val;
+                    case OP_GTE: return a.int_val >= b.int_val;
+                }
+                break;
+                
+            case TYPE_FLOAT:
+                switch (op) {
+                    case OP_EQ: return a.float_val == b.float_val;
+                    case OP_NEQ: return a.float_val != b.float_val;
+                    case OP_LT: return a.float_val < b.float_val;
+                    case OP_GT: return a.float_val > b.float_val;
+                    case OP_LTE: return a.float_val <= b.float_val;
+                    case OP_GTE: return a.float_val >= b.float_val;
+                }
+                break;
+                
+            case TYPE_STRING:
+                {
+                    String str_a = string_table[a.string_index];
+                    String str_b = string_table[b.string_index];
+                    switch (op) {
+                        case OP_EQ: return str_a == str_b;
+                        case OP_NEQ: return str_a != str_b;
+                        case OP_LT: return str_a < str_b;
+                        case OP_GT: return str_a > str_b;
+                        case OP_LTE: return str_a <= str_b;
+                        case OP_GTE: return str_a >= str_b;
+                    }
+                }
+                break;
+        }
+        return false;
     }
     
     void executeInstruction(const XenoInstruction& instr) {
@@ -101,7 +342,25 @@ private:
                 
             case OP_PUSH:
                 if (stack_pointer < 64) {
-                    stack[stack_pointer++] = instr.arg1;
+                    stack[stack_pointer++] = XenoValue::makeInt(instr.arg1);
+                } else {
+                    Serial.println("ERROR: Stack overflow");
+                }
+                break;
+                
+            case OP_PUSH_FLOAT:
+                if (stack_pointer < 64) {
+                    float fval;
+                    memcpy(&fval, &instr.arg1, sizeof(float));
+                    stack[stack_pointer++] = XenoValue::makeFloat(fval);
+                } else {
+                    Serial.println("ERROR: Stack overflow");
+                }
+                break;
+                
+            case OP_PUSH_STRING:
+                if (stack_pointer < 64) {
+                    stack[stack_pointer++] = XenoValue::makeString(instr.arg1);
                 } else {
                     Serial.println("ERROR: Stack overflow");
                 }
@@ -117,9 +376,10 @@ private:
                 
             case OP_ADD:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = a + b;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    XenoValue result = performAddition(a, b);
+                    stack[stack_pointer++] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for ADD");
                 }
@@ -127,9 +387,10 @@ private:
                 
             case OP_SUB:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = a - b;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    XenoValue result = performSubtraction(a, b);
+                    stack[stack_pointer++] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for SUB");
                 }
@@ -137,9 +398,10 @@ private:
                 
             case OP_MUL:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = a * b;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    XenoValue result = performMultiplication(a, b);
+                    stack[stack_pointer++] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for MUL");
                 }
@@ -147,14 +409,10 @@ private:
                 
             case OP_DIV:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    if (b != 0) {
-                        stack[stack_pointer++] = a / b;
-                    } else {
-                        Serial.println("ERROR: Division by zero");
-                        stack[stack_pointer++] = 0;
-                    }
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    XenoValue result = performDivision(a, b);
+                    stack[stack_pointer++] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for DIV");
                 }
@@ -162,14 +420,10 @@ private:
                 
             case OP_MOD:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    if (b != 0) {
-                        stack[stack_pointer++] = a % b;
-                    } else {
-                        Serial.println("ERROR: Modulo by zero");
-                        stack[stack_pointer++] = 0;
-                    }
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    XenoValue result = performModulo(a, b);
+                    stack[stack_pointer++] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for MOD");
                 }
@@ -177,8 +431,8 @@ private:
                 
             case OP_ABS:
                 if (stack_pointer >= 1) {
-                    int32_t value = (int32_t)stack[stack_pointer - 1];
-                    stack[stack_pointer - 1] = abs(value);
+                    XenoValue result = performAbs(stack[stack_pointer - 1]);
+                    stack[stack_pointer - 1] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for ABS");
                 }
@@ -186,12 +440,9 @@ private:
                 
             case OP_POW:
                 if (stack_pointer >= 2) {
-                    uint32_t exponent = stack[--stack_pointer];
-                    uint32_t base = stack[--stack_pointer];
-                    uint32_t result = 1;
-                    for (uint32_t i = 0; i < exponent; i++) {
-                        result *= base;
-                    }
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    XenoValue result = performPower(a, b);
                     stack[stack_pointer++] = result;
                 } else {
                     Serial.println("ERROR: Not enough values for POW");
@@ -201,9 +452,10 @@ private:
             // Comparison operations
             case OP_EQ:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = (a == b) ? 0 : 1;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    bool result = performComparison(a, b, OP_EQ);
+                    stack[stack_pointer++] = XenoValue::makeInt(result ? 0 : 1);
                 } else {
                     Serial.println("ERROR: Not enough values for EQ");
                 }
@@ -211,9 +463,10 @@ private:
                 
             case OP_NEQ:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = (a != b) ? 0 : 1;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    bool result = performComparison(a, b, OP_NEQ);
+                    stack[stack_pointer++] = XenoValue::makeInt(result ? 0 : 1);
                 } else {
                     Serial.println("ERROR: Not enough values for NEQ");
                 }
@@ -221,9 +474,10 @@ private:
                 
             case OP_LT:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = (a < b) ? 0 : 1;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    bool result = performComparison(a, b, OP_LT);
+                    stack[stack_pointer++] = XenoValue::makeInt(result ? 0 : 1);
                 } else {
                     Serial.println("ERROR: Not enough values for LT");
                 }
@@ -231,9 +485,10 @@ private:
                 
             case OP_GT:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = (a > b) ? 0 : 1;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    bool result = performComparison(a, b, OP_GT);
+                    stack[stack_pointer++] = XenoValue::makeInt(result ? 0 : 1);
                 } else {
                     Serial.println("ERROR: Not enough values for GT");
                 }
@@ -241,9 +496,10 @@ private:
                 
             case OP_LTE:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = (a <= b) ? 0 : 1;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    bool result = performComparison(a, b, OP_LTE);
+                    stack[stack_pointer++] = XenoValue::makeInt(result ? 0 : 1);
                 } else {
                     Serial.println("ERROR: Not enough values for LTE");
                 }
@@ -251,9 +507,10 @@ private:
                 
             case OP_GTE:
                 if (stack_pointer >= 2) {
-                    uint32_t b = stack[--stack_pointer];
-                    uint32_t a = stack[--stack_pointer];
-                    stack[stack_pointer++] = (a >= b) ? 0 : 1;
+                    XenoValue b = stack[--stack_pointer];
+                    XenoValue a = stack[--stack_pointer];
+                    bool result = performComparison(a, b, OP_GTE);
+                    stack[stack_pointer++] = XenoValue::makeInt(result ? 0 : 1);
                 } else {
                     Serial.println("ERROR: Not enough values for GTE");
                 }
@@ -261,7 +518,18 @@ private:
                 
             case OP_PRINT_NUM:
                 if (stack_pointer > 0) {
-                    Serial.println(String(stack[stack_pointer - 1]));
+                    XenoValue val = stack[stack_pointer - 1];
+                    switch (val.type) {
+                        case TYPE_INT:
+                            Serial.println(String(val.int_val));
+                            break;
+                        case TYPE_FLOAT:
+                            Serial.println(String(val.float_val, 2)); // Show 2 decimal places
+                            break;
+                        case TYPE_STRING:
+                            Serial.println(string_table[val.string_index]);
+                            break;
+                    }
                 } else {
                     Serial.println("ERROR: Stack empty for PRINT_NUM");
                 }
@@ -288,7 +556,7 @@ private:
                 } else {
                     Serial.println("ERROR: Variable not found: " + var_name);
                     if (stack_pointer < 64) {
-                        stack[stack_pointer++] = 0;
+                        stack[stack_pointer++] = XenoValue::makeInt(0);
                     }
                 }
                 break;
@@ -304,7 +572,22 @@ private:
                 
             case OP_JUMP_IF:
                 if (stack_pointer > 0) {
-                    uint32_t condition = stack[--stack_pointer];
+                    XenoValue condition_val = stack[--stack_pointer];
+                    int condition = 0;
+                    
+                    // Convert to boolean
+                    switch (condition_val.type) {
+                        case TYPE_INT:
+                            condition = (condition_val.int_val != 0) ? 1 : 0;
+                            break;
+                        case TYPE_FLOAT:
+                            condition = (condition_val.float_val != 0.0f) ? 1 : 0;
+                            break;
+                        case TYPE_STRING:
+                            condition = (string_table[condition_val.string_index].length() > 0) ? 1 : 0;
+                            break;
+                    }
+                    
                     if (condition != 0 && instr.arg1 < program.size()) {
                         program_counter = instr.arg1 - 1;
                     }
@@ -390,14 +673,46 @@ public:
         Serial.println("Stack Pointer: " + String(stack_pointer));
         Serial.println("Stack: [");
         for (int i = 0; i < stack_pointer && i < 10; i++) {
-            Serial.println("  " + String(i) + ": " + String(stack[i]));
+            String type_str;
+            String value_str;
+            switch (stack[i].type) {
+                case TYPE_INT:
+                    type_str = "INT";
+                    value_str = String(stack[i].int_val);
+                    break;
+                case TYPE_FLOAT:
+                    type_str = "FLOAT";
+                    value_str = String(stack[i].float_val, 4);
+                    break;
+                case TYPE_STRING:
+                    type_str = "STRING";
+                    value_str = "\"" + string_table[stack[i].string_index] + "\"";
+                    break;
+            }
+            Serial.println("  " + String(i) + ": " + type_str + " " + value_str);
         }
         if (stack_pointer > 10) Serial.println("  ...");
         Serial.println("]");
         
         Serial.println("Variables: {");
         for (auto& var : variables) {
-            Serial.println("  " + var.first + ": " + String(var.second));
+            String type_str;
+            String value_str;
+            switch (var.second.type) {
+                case TYPE_INT:
+                    type_str = "INT";
+                    value_str = String(var.second.int_val);
+                    break;
+                case TYPE_FLOAT:
+                    type_str = "FLOAT";
+                    value_str = String(var.second.float_val, 4);
+                    break;
+                case TYPE_STRING:
+                    type_str = "STRING";
+                    value_str = "\"" + string_table[var.second.string_index] + "\"";
+                    break;
+            }
+            Serial.println("  " + var.first + ": " + type_str + " " + value_str);
         }
         Serial.println("}");
     }
@@ -421,6 +736,19 @@ public:
                 case OP_LED_OFF: Serial.println("LED_OFF pin=" + String(instr.arg1)); break;
                 case OP_DELAY: Serial.println("DELAY " + String(instr.arg1) + "ms"); break;
                 case OP_PUSH: Serial.println("PUSH " + String(instr.arg1)); break;
+                case OP_PUSH_FLOAT: {
+                    float fval;
+                    memcpy(&fval, &instr.arg1, sizeof(float));
+                    Serial.println("PUSH_FLOAT " + String(fval, 4));
+                    break;
+                }
+                case OP_PUSH_STRING:
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.println("PUSH_STRING \"" + string_table[instr.arg1] + "\"");
+                    } else {
+                        Serial.println("PUSH_STRING <invalid>");
+                    }
+                    break;
                 case OP_POP: Serial.println("POP"); break;
                 case OP_ADD: Serial.println("ADD"); break;
                 case OP_SUB: Serial.println("SUB"); break;
