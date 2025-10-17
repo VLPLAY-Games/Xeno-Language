@@ -21,24 +21,22 @@ private:
     std::vector<String> string_table;
     std::map<String, XenoValue> variable_map;
     std::vector<int> if_stack;
-    std::vector<LoopInfo> loop_stack; // Стек для циклов
+    std::vector<LoopInfo> loop_stack;
     
     // Remove comments and trim whitespace
     String cleanLine(const String& line) {
         String cleaned = line;
-        
         int commentIndex = cleaned.indexOf("//");
         if (commentIndex >= 0) {
             cleaned = cleaned.substring(0, commentIndex);
         }
-        
         cleaned.trim();
         return cleaned;
     }
     
     // Add string to string table
     int addString(const String& str) {
-        for (size_t i = 0; i < string_table.size(); i++) {
+        for (size_t i = 0; i < string_table.size(); ++i) {
             if (string_table[i] == str) return i;
         }
         string_table.push_back(str);
@@ -52,28 +50,37 @@ private:
     
     // Check if string is an integer
     bool isInteger(const String& str) {
-        if (str.length() == 0) return false;
+        if (str.isEmpty()) return false;
         
-        for (size_t i = 0; i < str.length(); i++) {
-            if (!isdigit(str[i]) && !(i == 0 && str[i] == '-')) return false;
+        const char* cstr = str.c_str();
+        size_t start = 0;
+        if (cstr[0] == '-') start = 1;
+        
+        for (size_t i = start; i < str.length(); ++i) {
+            if (!isdigit(cstr[i])) return false;
         }
         return true;
     }
     
     // Check if string is a float
     bool isFloat(const String& str) {
-        if (str.length() == 0) return false;
+        if (str.isEmpty()) return false;
         
+        const char* cstr = str.c_str();
         bool has_decimal = false;
-        for (size_t i = 0; i < str.length(); i++) {
-            if (str[i] == '.') {
-                if (has_decimal) return false; // Multiple decimals
+        size_t start = 0;
+        
+        if (cstr[0] == '-') start = 1;
+        
+        for (size_t i = start; i < str.length(); ++i) {
+            if (cstr[i] == '.') {
+                if (has_decimal) return false;
                 has_decimal = true;
-            } else if (!isdigit(str[i]) && !(i == 0 && str[i] == '-')) {
+            } else if (!isdigit(cstr[i])) {
                 return false;
             }
         }
-        return has_decimal && str.length() > 1; // Must have decimal and at least one digit
+        return has_decimal && str.length() > 1;
     }
     
     // Check if string is a quoted string
@@ -81,26 +88,18 @@ private:
         return str.length() >= 2 && str[0] == '"' && str[str.length() - 1] == '"';
     }
     
-    // Check if string is a valid variable name (letters, numbers, and underscores)
+    // Check if string is a valid variable name
     bool isValidVariable(const String& str) {
-        if (str.length() == 0) return false;
+        if (str.isEmpty()) return false;
         
-        // First character must be a letter
-        if (!isalpha(str[0])) return false;
+        const char first = str[0];
+        if (!isalpha(first)) return false;
         
-        // Remaining characters can be letters, numbers, or underscores
-        for (size_t i = 1; i < str.length(); i++) {
-            char c = str[i];
-            if (!isalnum(c) && c != '_') {
-                return false;
-            }
+        for (size_t i = 1; i < str.length(); ++i) {
+            const char c = str[i];
+            if (!isalnum(c) && c != '_') return false;
         }
         return true;
-    }
-    
-    // Check if string is a math function
-    bool isMathFunction(const String& str) {
-        return str == "abs";
     }
     
     // Check if string is a comparison operator
@@ -125,9 +124,8 @@ private:
     // Process function calls in expression
     String processFunctions(const String& expr) {
         String result = expr;
-        
-        // Process abs function
         int absPos = result.indexOf("abs(");
+        
         while (absPos >= 0) {
             int endPos = findMatchingParenthesis(result, absPos + 3);
             if (endPos > absPos) {
@@ -139,16 +137,15 @@ private:
             }
             absPos = result.indexOf("abs(");
         }
-        
         return result;
     }
     
     // Find matching parenthesis
     int findMatchingParenthesis(const String& expr, int start) {
         int count = 1;
-        for (int i = start + 1; i < expr.length(); i++) {
-            if (expr[i] == '(') count++;
-            else if (expr[i] == ')') count--;
+        for (int i = start + 1; i < expr.length(); ++i) {
+            if (expr[i] == '(') ++count;
+            else if (expr[i] == ')') --count;
             
             if (count == 0) return i;
         }
@@ -159,6 +156,7 @@ private:
     std::vector<String> infixToPostfix(const std::vector<String>& tokens) {
         std::vector<String> output;
         std::stack<String> operators;
+        output.reserve(tokens.size());
         
         for (const String& token : tokens) {
             if (isInteger(token) || isFloat(token) || isQuotedString(token) || isValidVariable(token) || 
@@ -175,7 +173,8 @@ private:
                 }
                 if (!operators.empty()) operators.pop();
             }
-            else if (isComparisonOperator(token) || token == "+" || token == "-" || token == "*" || token == "/" || token == "%" || token == "^") {
+            else if (isComparisonOperator(token) || token == "+" || token == "-" || token == "*" || 
+                    token == "/" || token == "%" || token == "^") {
                 while (!operators.empty() && 
                        operators.top() != "(" &&
                        (getPrecedence(operators.top()) > getPrecedence(token) ||
@@ -201,8 +200,9 @@ private:
         String currentToken;
         bool inQuotes = false;
         bool inBrackets = false;
+        tokens.reserve(expr.length() / 2);
         
-        for (size_t i = 0; i < expr.length(); i++) {
+        for (size_t i = 0; i < expr.length(); ++i) {
             char c = expr[i];
             
             if (c == '"' && !inBrackets) {
@@ -212,7 +212,7 @@ private:
                     currentToken = "";
                     inQuotes = false;
                 } else {
-                    if (currentToken.length() > 0) {
+                    if (!currentToken.isEmpty()) {
                         tokens.push_back(currentToken);
                         currentToken = "";
                     }
@@ -228,7 +228,7 @@ private:
             }
             
             if (c == '[') {
-                if (currentToken.length() > 0) {
+                if (!currentToken.isEmpty()) {
                     tokens.push_back(currentToken);
                     currentToken = "";
                 }
@@ -250,30 +250,31 @@ private:
             }
             
             if (isspace(c)) {
-                if (currentToken.length() > 0) {
+                if (!currentToken.isEmpty()) {
                     tokens.push_back(currentToken);
                     currentToken = "";
                 }
                 continue;
             }
             
-            // Handle comparison operators (2 characters)
+            // Handle 2-character operators
             if (i + 1 < expr.length()) {
                 String twoChar = expr.substring(i, i + 2);
                 if (twoChar == "==" || twoChar == "!=" || twoChar == "<=" || twoChar == ">=") {
-                    if (currentToken.length() > 0) {
+                    if (!currentToken.isEmpty()) {
                         tokens.push_back(currentToken);
                         currentToken = "";
                     }
                     tokens.push_back(twoChar);
-                    i++; // Skip next character
+                    ++i;
                     continue;
                 }
             }
             
             // Handle single character operators
-            if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^' || c == '<' || c == '>' || c == '(' || c == ')') {
-                if (currentToken.length() > 0) {
+            if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^' || 
+                c == '<' || c == '>' || c == '(' || c == ')') {
+                if (!currentToken.isEmpty()) {
                     tokens.push_back(currentToken);
                     currentToken = "";
                 }
@@ -284,19 +285,17 @@ private:
             }
         }
         
-        if (currentToken.length() > 0) {
+        if (!currentToken.isEmpty()) {
             tokens.push_back(currentToken);
         }
         
         return tokens;
     }
     
-    // Compile postfix expression
     void compilePostfix(const std::vector<String>& postfix) {
         for (const String& token : postfix) {
             if (isInteger(token)) {
-                int num = token.toInt();
-                emitInstruction(OP_PUSH, num);
+                emitInstruction(OP_PUSH, token.toInt());
             }
             else if (isFloat(token)) {
                 float fval = token.toFloat();
@@ -318,42 +317,18 @@ private:
                 compileExpression(innerExpr);
                 emitInstruction(OP_ABS);
             }
-            else if (token == "+") {
-                emitInstruction(OP_ADD);
-            }
-            else if (token == "-") {
-                emitInstruction(OP_SUB);
-            }
-            else if (token == "*") {
-                emitInstruction(OP_MUL);
-            }
-            else if (token == "/") {
-                emitInstruction(OP_DIV);
-            }
-            else if (token == "%") {
-                emitInstruction(OP_MOD);
-            }
-            else if (token == "^") {
-                emitInstruction(OP_POW);
-            }
-            else if (token == "==") {
-                emitInstruction(OP_EQ);
-            }
-            else if (token == "!=") {
-                emitInstruction(OP_NEQ);
-            }
-            else if (token == "<") {
-                emitInstruction(OP_LT);
-            }
-            else if (token == ">") {
-                emitInstruction(OP_GT);
-            }
-            else if (token == "<=") {
-                emitInstruction(OP_LTE);
-            }
-            else if (token == ">=") {
-                emitInstruction(OP_GTE);
-            }
+            else if (token == "+") emitInstruction(OP_ADD);
+            else if (token == "-") emitInstruction(OP_SUB);
+            else if (token == "*") emitInstruction(OP_MUL);
+            else if (token == "/") emitInstruction(OP_DIV);
+            else if (token == "%") emitInstruction(OP_MOD);
+            else if (token == "^") emitInstruction(OP_POW);
+            else if (token == "==") emitInstruction(OP_EQ);
+            else if (token == "!=") emitInstruction(OP_NEQ);
+            else if (token == "<") emitInstruction(OP_LT);
+            else if (token == ">") emitInstruction(OP_GT);
+            else if (token == "<=") emitInstruction(OP_LTE);
+            else if (token == ">=") emitInstruction(OP_GTE);
         }
     }
     
@@ -365,35 +340,21 @@ private:
         compilePostfix(postfix);
     }
     
-    // Extract variable name from print command (after $)
+    // Extract variable name from print command
     String extractVariableName(const String& text) {
-        if (text.startsWith("$")) {
-            return text.substring(1);
-        }
-        return "";
+        return text.startsWith("$") ? text.substring(1) : "";
     }
     
     // Determine value type from string
     XenoDataType determineValueType(const String& value) {
-        if (isQuotedString(value)) {
-            return TYPE_STRING;
-        } else if (isFloat(value)) {
-            return TYPE_FLOAT;
-        } else if (isInteger(value)) {
-            return TYPE_INT;
-        } else if (isValidVariable(value)) {
-            // For variables, we need to check if they exist and get their type
+        if (isQuotedString(value)) return TYPE_STRING;
+        if (isFloat(value)) return TYPE_FLOAT;
+        if (isInteger(value)) return TYPE_INT;
+        if (isValidVariable(value)) {
             auto it = variable_map.find(value);
-            if (it != variable_map.end()) {
-                return it->second.type;
-            }
-            // If variable doesn't exist yet, assume int
-            return TYPE_INT;
-        } else {
-            // For expressions, we'll assume int for now
-            // In a more advanced implementation, we'd analyze the expression
-            return TYPE_INT;
+            return it != variable_map.end() ? it->second.type : TYPE_INT;
         }
+        return TYPE_INT;
     }
     
     // Create value from string
@@ -409,19 +370,15 @@ private:
                 value.float_val = str.toFloat();
                 break;
             case TYPE_STRING:
-                {
-                    String clean_str = str.substring(1, str.length() - 1);
-                    value.string_index = addString(clean_str);
-                }
+                value.string_index = addString(str.substring(1, str.length() - 1));
                 break;
         }
-        
         return value;
     }
     
     // Create instruction
     void emitInstruction(uint8_t opcode, uint32_t arg1 = 0, uint16_t arg2 = 0) {
-        bytecode.push_back(XenoInstruction(opcode, arg1, arg2));
+        bytecode.emplace_back(opcode, arg1, arg2);
     }
     
     // Get current instruction address
@@ -432,24 +389,19 @@ private:
     // Compile one line
     void compileLine(const String& line, int line_number) {
         String cleanedLine = cleanLine(line);
-        if (cleanedLine.length() == 0) {
-            return;
-        }
+        if (cleanedLine.isEmpty()) return;
         
-        String originalLine = cleanedLine;
-        
-        int firstSpace = originalLine.indexOf(' ');
-        String command = (firstSpace > 0) ? originalLine.substring(0, firstSpace) : originalLine;
-        String args = (firstSpace > 0) ? originalLine.substring(firstSpace + 1) : "";
+        int firstSpace = cleanedLine.indexOf(' ');
+        String command = (firstSpace > 0) ? cleanedLine.substring(0, firstSpace) : cleanedLine;
+        String args = (firstSpace > 0) ? cleanedLine.substring(firstSpace + 1) : "";
         args.trim();
         
-        String lowerCommand = command;
-        lowerCommand.toLowerCase();
+        command.toLowerCase();
         
-        if (lowerCommand == "print") {
+        if (command == "print") {
             String text = args;
             String var_name = extractVariableName(text);
-            if (var_name.length() > 0) {
+            if (!var_name.isEmpty()) {
                 if (isValidVariable(var_name)) {
                     int var_index = getVariableIndex(var_name);
                     emitInstruction(OP_LOAD, var_index);
@@ -465,10 +417,10 @@ private:
                 emitInstruction(OP_PRINT, str_id);
             }
         }
-        else if (lowerCommand == "printnum") {
+        else if (command == "printnum") {
             emitInstruction(OP_PRINT_NUM);
         }
-        else if (lowerCommand == "led") {
+        else if (command == "led") {
             int spaceIndex = args.indexOf(' ');
             if (spaceIndex > 0) {
                 String pin_str = args.substring(0, spaceIndex);
@@ -488,11 +440,10 @@ private:
                 Serial.println("WARNING: Invalid LED command at line " + String(line_number));
             }
         }
-        else if (lowerCommand == "delay") {
-            int time = args.toInt();
-            emitInstruction(OP_DELAY, time);
+        else if (command == "delay") {
+            emitInstruction(OP_DELAY, args.toInt());
         }
-        else if (lowerCommand == "push") {
+        else if (command == "push") {
             if (isValidVariable(args)) {
                 int var_index = getVariableIndex(args);
                 emitInstruction(OP_LOAD, var_index);
@@ -506,35 +457,18 @@ private:
                 int str_id = addString(str);
                 emitInstruction(OP_PUSH_STRING, str_id);
             } else {
-                int num = args.toInt();
-                emitInstruction(OP_PUSH, num);
+                emitInstruction(OP_PUSH, args.toInt());
             }
         }
-        else if (lowerCommand == "pop") {
-            emitInstruction(OP_POP);
-        }
-        else if (lowerCommand == "add") {
-            emitInstruction(OP_ADD);
-        }
-        else if (lowerCommand == "sub") {
-            emitInstruction(OP_SUB);
-        }
-        else if (lowerCommand == "mul") {
-            emitInstruction(OP_MUL);
-        }
-        else if (lowerCommand == "div") {
-            emitInstruction(OP_DIV);
-        }
-        else if (lowerCommand == "mod") {
-            emitInstruction(OP_MOD);
-        }
-        else if (lowerCommand == "abs") {
-            emitInstruction(OP_ABS);
-        }
-        else if (lowerCommand == "pow") {
-            emitInstruction(OP_POW);
-        }
-        else if (lowerCommand == "set") {
+        else if (command == "pop") emitInstruction(OP_POP);
+        else if (command == "add") emitInstruction(OP_ADD);
+        else if (command == "sub") emitInstruction(OP_SUB);
+        else if (command == "mul") emitInstruction(OP_MUL);
+        else if (command == "div") emitInstruction(OP_DIV);
+        else if (command == "mod") emitInstruction(OP_MOD);
+        else if (command == "abs") emitInstruction(OP_ABS);
+        else if (command == "pow") emitInstruction(OP_POW);
+        else if (command == "set") {
             int space1 = args.indexOf(' ');
             if (space1 > 0) {
                 String var_name = args.substring(0, space1);
@@ -545,23 +479,18 @@ private:
                     return;
                 }
                 
-                // Determine the type of the value being assigned
                 XenoDataType value_type = determineValueType(expression);
-                
-                // If it's a simple value (not an expression), store it in variable_map
                 if (isInteger(expression) || isFloat(expression) || isQuotedString(expression)) {
                     variable_map[var_name] = createValueFromString(expression, value_type);
                 }
                 
                 compileExpression(expression);
-                
-                int var_index = getVariableIndex(var_name);
-                emitInstruction(OP_STORE, var_index);
+                emitInstruction(OP_STORE, getVariableIndex(var_name));
             } else {
                 Serial.println("ERROR: Invalid SET command at line " + String(line_number));
             }
         }
-        else if (lowerCommand == "if") {
+        else if (command == "if") {
             int thenPos = args.indexOf(" then");
             if (thenPos > 0) {
                 String condition = args.substring(0, thenPos);
@@ -574,7 +503,7 @@ private:
                 Serial.println("ERROR: Invalid IF command at line " + String(line_number));
             }
         }
-        else if (lowerCommand == "else") {
+        else if (command == "else") {
             if (!if_stack.empty()) {
                 int else_jump_addr = getCurrentAddress();
                 emitInstruction(OP_JUMP, 0);
@@ -588,7 +517,7 @@ private:
                 Serial.println("ERROR: ELSE without IF at line " + String(line_number));
             }
         }
-        else if (lowerCommand == "endif") {
+        else if (command == "endif") {
             if (!if_stack.empty()) {
                 int jump_addr = if_stack.back();
                 bytecode[jump_addr].arg1 = getCurrentAddress();
@@ -597,8 +526,7 @@ private:
                 Serial.println("ERROR: ENDIF without IF at line " + String(line_number));
             }
         }
-        else if (lowerCommand == "for") {
-            // Format: for i = start to end
+        else if (command == "for") {
             int equalsPos = args.indexOf('=');
             int toPos = args.indexOf(" to ");
             
@@ -606,80 +534,63 @@ private:
                 String var_name = args.substring(0, equalsPos);
                 var_name.trim();
                 
-                String start_expr = args.substring(equalsPos + 1, toPos);
-                start_expr.trim();
-                
-                String end_expr = args.substring(toPos + 4);
-                end_expr.trim();
-                
                 if (!isValidVariable(var_name)) {
                     Serial.println("ERROR: Invalid variable name in FOR at line " + String(line_number));
                     return;
                 }
                 
-                // Initialize loop variable
+                String start_expr = args.substring(equalsPos + 1, toPos);
+                start_expr.trim();
+                String end_expr = args.substring(toPos + 4);
+                end_expr.trim();
+                
                 compileExpression(start_expr);
                 int var_index = getVariableIndex(var_name);
                 emitInstruction(OP_STORE, var_index);
                 
-                // Store loop start address
                 int loop_start = getCurrentAddress();
-                
-                // Check condition: i <= end
                 emitInstruction(OP_LOAD, var_index);
                 compileExpression(end_expr);
-                emitInstruction(OP_LTE); // i <= end
+                emitInstruction(OP_LTE);
                 
-                // Jump to end if condition is false (i > end)
                 int condition_jump = getCurrentAddress();
                 emitInstruction(OP_JUMP_IF, 0);
                 
-                // Store loop info
                 LoopInfo loop_info;
                 loop_info.var_name = var_name;
                 loop_info.start_address = loop_start;
                 loop_info.condition_address = condition_jump;
-                loop_info.end_jump_address = getCurrentAddress(); // Will be set at endfor
+                loop_info.end_jump_address = getCurrentAddress();
                 loop_stack.push_back(loop_info);
                 
             } else {
                 Serial.println("ERROR: Invalid FOR command at line " + String(line_number));
             }
         }
-        else if (lowerCommand == "endfor") {
+        else if (command == "endfor") {
             if (!loop_stack.empty()) {
                 LoopInfo loop_info = loop_stack.back();
                 loop_stack.pop_back();
                 
-                // Increment loop variable - use float increment for float variables
                 emitInstruction(OP_LOAD, getVariableIndex(loop_info.var_name));
-                
-                // Check if the variable is float type
                 auto var_it = variable_map.find(loop_info.var_name);
                 if (var_it != variable_map.end() && var_it->second.type == TYPE_FLOAT) {
-                    // Use float increment
                     float increment = 1.0f;
                     uint32_t increment_bits;
                     memcpy(&increment_bits, &increment, sizeof(float));
                     emitInstruction(OP_PUSH_FLOAT, increment_bits);
                 } else {
-                    // Use integer increment
                     emitInstruction(OP_PUSH, 1);
                 }
-                
                 emitInstruction(OP_ADD);
                 emitInstruction(OP_STORE, getVariableIndex(loop_info.var_name));
-                
-                // Jump back to condition check
                 emitInstruction(OP_JUMP, loop_info.start_address);
-                
-                // Update the condition jump to point to current position (after loop)
                 bytecode[loop_info.condition_address].arg1 = getCurrentAddress();
             } else {
                 Serial.println("ERROR: ENDFOR without FOR at line " + String(line_number));
             }
         }
-        else if (lowerCommand == "halt") {
+        else if (command == "halt") {
             emitInstruction(OP_HALT);
         }
         else {
@@ -689,14 +600,12 @@ private:
     
 public:
     XenoCompiler() {
-        bytecode.clear();
-        string_table.clear();
-        variable_map.clear();
-        if_stack.clear();
-        loop_stack.clear();
+        bytecode.reserve(128);
+        string_table.reserve(32);
+        if_stack.reserve(8);
+        loop_stack.reserve(4);
     }
     
-    // Compile Xeno source code to bytecode
     void compile(const String& source_code) {
         bytecode.clear();
         string_table.clear();
@@ -710,9 +619,9 @@ public:
         
         while (endPos >= 0) {
             String line = source_code.substring(startPos, endPos);
-            line_number++;
+            ++line_number;
             
-            if (line.length() > 0) {
+            if (!line.isEmpty()) {
                 compileLine(line, line_number);
             }
             
@@ -721,46 +630,45 @@ public:
         }
         
         String lastLine = source_code.substring(startPos);
-        if (lastLine.length() > 0) {
+        if (!lastLine.isEmpty()) {
             compileLine(lastLine, ++line_number);
         }
         
         if (bytecode.empty() || bytecode.back().opcode != OP_HALT) {
-            bytecode.push_back(XenoInstruction(OP_HALT));
+            bytecode.emplace_back(OP_HALT);
         }
     }
     
-    std::vector<XenoInstruction> getBytecode() const { return bytecode; }
-    std::vector<String> getStringTable() const { return string_table; }
+    const std::vector<XenoInstruction>& getBytecode() const { return bytecode; }
+    const std::vector<String>& getStringTable() const { return string_table; }
     
     void printCompiledCode() {
         Serial.println("=== Compiled Xeno Program ===");
         Serial.println("String table:");
-        for (size_t i = 0; i < string_table.size(); i++) {
+        for (size_t i = 0; i < string_table.size(); ++i) {
             Serial.println("  " + String(i) + ": \"" + string_table[i] + "\"");
         }
         Serial.println("Bytecode:");
-        for (size_t i = 0; i < bytecode.size(); i++) {
+        for (size_t i = 0; i < bytecode.size(); ++i) {
             Serial.print("  " + String(i) + ": ");
-            switch (bytecode[i].opcode) {
+            const XenoInstruction& instr = bytecode[i];
+            
+            switch (instr.opcode) {
                 case OP_NOP: Serial.println("NOP"); break;
-                case OP_PRINT: Serial.println("PRINT " + String(bytecode[i].arg1)); break;
-                case OP_LED_ON: Serial.println("LED_ON " + String(bytecode[i].arg1)); break;
-                case OP_LED_OFF: Serial.println("LED_OFF " + String(bytecode[i].arg1)); break;
-                case OP_DELAY: Serial.println("DELAY " + String(bytecode[i].arg1)); break;
-                case OP_PUSH: Serial.println("PUSH " + String(bytecode[i].arg1)); break;
+                case OP_PRINT: Serial.println("PRINT " + String(instr.arg1)); break;
+                case OP_LED_ON: Serial.println("LED_ON " + String(instr.arg1)); break;
+                case OP_LED_OFF: Serial.println("LED_OFF " + String(instr.arg1)); break;
+                case OP_DELAY: Serial.println("DELAY " + String(instr.arg1)); break;
+                case OP_PUSH: Serial.println("PUSH " + String(instr.arg1)); break;
                 case OP_PUSH_FLOAT: {
                     float fval;
-                    memcpy(&fval, &bytecode[i].arg1, sizeof(float));
+                    memcpy(&fval, &instr.arg1, sizeof(float));
                     Serial.println("PUSH_FLOAT " + String(fval, 4));
                     break;
                 }
                 case OP_PUSH_STRING: 
-                    if (bytecode[i].arg1 < string_table.size()) {
-                        Serial.println("PUSH_STRING \"" + string_table[bytecode[i].arg1] + "\"");
-                    } else {
-                        Serial.println("PUSH_STRING <invalid>");
-                    }
+                    Serial.println(instr.arg1 < string_table.size() ? 
+                        "PUSH_STRING \"" + string_table[instr.arg1] + "\"" : "PUSH_STRING <invalid>");
                     break;
                 case OP_POP: Serial.println("POP"); break;
                 case OP_ADD: Serial.println("ADD"); break;
@@ -778,23 +686,17 @@ public:
                 case OP_GTE: Serial.println("GTE"); break;
                 case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
                 case OP_STORE: 
-                    if (bytecode[i].arg1 < string_table.size()) {
-                        Serial.println("STORE " + string_table[bytecode[i].arg1]);
-                    } else {
-                        Serial.println("STORE <invalid>");
-                    }
+                    Serial.println(instr.arg1 < string_table.size() ? 
+                        "STORE " + string_table[instr.arg1] : "STORE <invalid>");
                     break;
                 case OP_LOAD: 
-                    if (bytecode[i].arg1 < string_table.size()) {
-                        Serial.println("LOAD " + string_table[bytecode[i].arg1]);
-                    } else {
-                        Serial.println("LOAD <invalid>");
-                    }
+                    Serial.println(instr.arg1 < string_table.size() ? 
+                        "LOAD " + string_table[instr.arg1] : "LOAD <invalid>");
                     break;
-                case OP_JUMP: Serial.println("JUMP " + String(bytecode[i].arg1)); break;
-                case OP_JUMP_IF: Serial.println("JUMP_IF " + String(bytecode[i].arg1)); break;
+                case OP_JUMP: Serial.println("JUMP " + String(instr.arg1)); break;
+                case OP_JUMP_IF: Serial.println("JUMP_IF " + String(instr.arg1)); break;
                 case OP_HALT: Serial.println("HALT"); break;
-                default: Serial.println("UNKNOWN " + String(bytecode[i].opcode)); break;
+                default: Serial.println("UNKNOWN " + String(instr.opcode)); break;
             }
         }
     }
