@@ -1,6 +1,6 @@
 // Example of using Xeno VM with proper variable names
-#include "../xenoLang/xeno_vm.h"
-#include "../xenoLang/xeno_compiler.h"
+#include "xenoLang/xeno_vm.h"
+#include "xenoLang/xeno_compiler.h"
 
 XenoCompiler compiler;
 XenoVM vm;

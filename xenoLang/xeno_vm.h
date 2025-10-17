@@ -58,6 +58,17 @@ private:
     uint32_t registers[8];
     std::map<String, uint32_t> variables;
     bool running;
+    uint32_t instruction_count;
+    
+    void resetState() {
+        program_counter = 0;
+        stack_pointer = 0;
+        running = false;
+        instruction_count = 0;
+        memset(stack, 0, sizeof(stack));
+        memset(registers, 0, sizeof(registers));
+        variables.clear();
+    }
     
     void executeInstruction(const XenoInstruction& instr) {
         switch (instr.opcode) {
@@ -310,22 +321,15 @@ private:
     
 public:
     XenoVM() {
-        program_counter = 0;
-        stack_pointer = 0;
-        running = false;
-        memset(stack, 0, sizeof(stack));
-        memset(registers, 0, sizeof(registers));
-        variables.clear();
+        resetState();
     }
     
     // Load program into VM
     void loadProgram(const std::vector<XenoInstruction>& bytecode, 
                     const std::vector<String>& strings) {
+        resetState();
         program = bytecode;
         string_table = strings;
-        program_counter = 0;
-        stack_pointer = 0;
-        variables.clear();
         running = true;
     }
     
@@ -345,9 +349,10 @@ public:
         executeInstruction(instr);
         program_counter++;
         
-        // Safety: limit maximum instructions
-        if (program_counter > 10000) {
-            Serial.println("ERROR: Instruction limit exceeded");
+        // Safety: limit maximum instructions to prevent infinite loops
+        instruction_count++;
+        if (instruction_count > 5000) {
+            Serial.println("ERROR: Instruction limit exceeded - possible infinite loop");
             running = false;
             return false;
         }
@@ -364,6 +369,13 @@ public:
         }
         
         Serial.println("Xeno VM finished");
+    }
+    
+    // Stop execution
+    void stop() {
+        running = false;
+        program_counter = 0;
+        stack_pointer = 0;
     }
     
     // Get VM state

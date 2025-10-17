@@ -1,6 +1,6 @@
 // Example of using Xeno VM with comparisons and if-else
-#include "../xenoLang/xeno_vm.h"
-#include "../xenoLang/xeno_compiler.h"
+#include "xenoLang/xeno_vm.h"
+#include "xenoLang/xeno_compiler.h"
 
 XenoCompiler compiler;
 XenoVM vm;

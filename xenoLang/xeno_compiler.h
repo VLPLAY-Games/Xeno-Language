@@ -6,13 +6,22 @@
 #include <map>
 #include <stack>
 
+// Структура для хранения информации о цикле
+struct LoopInfo {
+    String var_name;
+    int start_address;
+    int condition_address;
+    int end_jump_address;
+};
+
 // Xeno Compiler - converts source code to bytecode
 class XenoCompiler {
 private:
     std::vector<XenoInstruction> bytecode;
     std::vector<String> string_table;
     std::map<String, int> variable_map;
-    std::vector<int> if_stack; // Stack for tracking if-else jumps
+    std::vector<int> if_stack;
+    std::vector<LoopInfo> loop_stack; // Стек для циклов
     
     // Remove comments and trim whitespace
     String cleanLine(const String& line) {
@@ -432,15 +441,13 @@ private:
             }
         }
         else if (lowerCommand == "if") {
-            // Format: if condition then
             int thenPos = args.indexOf(" then");
             if (thenPos > 0) {
                 String condition = args.substring(0, thenPos);
                 compileExpression(condition);
                 
-                // Store jump address placeholder (will be filled at endif)
                 int jump_addr = getCurrentAddress();
-                emitInstruction(OP_JUMP_IF, 0); // Placeholder
+                emitInstruction(OP_JUMP_IF, 0);
                 if_stack.push_back(jump_addr);
             } else {
                 Serial.println("ERROR: Invalid IF command at line " + String(line_number));
@@ -448,15 +455,12 @@ private:
         }
         else if (lowerCommand == "else") {
             if (!if_stack.empty()) {
-                // Jump to end of else block
                 int else_jump_addr = getCurrentAddress();
-                emitInstruction(OP_JUMP, 0); // Placeholder
+                emitInstruction(OP_JUMP, 0);
                 
-                // Update the previous if jump to point to current position
                 int if_jump_addr = if_stack.back();
                 bytecode[if_jump_addr].arg1 = getCurrentAddress();
                 
-                // Replace with else jump address
                 if_stack.pop_back();
                 if_stack.push_back(else_jump_addr);
             } else {
@@ -465,12 +469,80 @@ private:
         }
         else if (lowerCommand == "endif") {
             if (!if_stack.empty()) {
-                // Update jump address to current position
                 int jump_addr = if_stack.back();
                 bytecode[jump_addr].arg1 = getCurrentAddress();
                 if_stack.pop_back();
             } else {
                 Serial.println("ERROR: ENDIF without IF at line " + String(line_number));
+            }
+        }
+        else if (lowerCommand == "for") {
+            // Format: for i = start to end
+            int equalsPos = args.indexOf('=');
+            int toPos = args.indexOf(" to ");
+            
+            if (equalsPos > 0 && toPos > equalsPos) {
+                String var_name = args.substring(0, equalsPos);
+                var_name.trim();
+                
+                String start_expr = args.substring(equalsPos + 1, toPos);
+                start_expr.trim();
+                
+                String end_expr = args.substring(toPos + 4);
+                end_expr.trim();
+                
+                if (!isValidVariable(var_name)) {
+                    Serial.println("ERROR: Invalid variable name in FOR at line " + String(line_number));
+                    return;
+                }
+                
+                // Initialize loop variable
+                compileExpression(start_expr);
+                int var_index = getVariableIndex(var_name);
+                emitInstruction(OP_STORE, var_index);
+                
+                // Store loop start address
+                int loop_start = getCurrentAddress();
+                
+                // Check condition: i <= end
+                emitInstruction(OP_LOAD, var_index);
+                compileExpression(end_expr);
+                emitInstruction(OP_LTE); // i <= end
+                
+                // Jump to end if condition is false (i > end)
+                int condition_jump = getCurrentAddress();
+                emitInstruction(OP_JUMP_IF, 0);
+                
+                // Store loop info
+                LoopInfo loop_info;
+                loop_info.var_name = var_name;
+                loop_info.start_address = loop_start;
+                loop_info.condition_address = condition_jump;
+                loop_info.end_jump_address = getCurrentAddress(); // Will be set at endfor
+                loop_stack.push_back(loop_info);
+                
+            } else {
+                Serial.println("ERROR: Invalid FOR command at line " + String(line_number));
+            }
+        }
+        else if (lowerCommand == "endfor") {
+            if (!loop_stack.empty()) {
+                LoopInfo loop_info = loop_stack.back();
+                loop_stack.pop_back();
+                
+                // Increment loop variable
+                emitInstruction(OP_LOAD, getVariableIndex(loop_info.var_name));
+                emitInstruction(OP_PUSH, 1);
+                emitInstruction(OP_ADD);
+                emitInstruction(OP_STORE, getVariableIndex(loop_info.var_name));
+                
+                // Jump back to condition check
+                emitInstruction(OP_JUMP, loop_info.start_address);
+                
+                // Update the condition jump to point to current position (after loop)
+                bytecode[loop_info.condition_address].arg1 = getCurrentAddress();
+            } else {
+                Serial.println("ERROR: ENDFOR without FOR at line " + String(line_number));
             }
         }
         else if (lowerCommand == "halt") {
@@ -487,6 +559,7 @@ public:
         string_table.clear();
         variable_map.clear();
         if_stack.clear();
+        loop_stack.clear();
     }
     
     // Compile Xeno source code to bytecode
@@ -495,6 +568,7 @@ public:
         string_table.clear();
         variable_map.clear();
         if_stack.clear();
+        loop_stack.clear();
         
         int line_number = 0;
         int startPos = 0;
