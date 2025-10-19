@@ -6,6 +6,7 @@
 #include <map>
 #include <stack>
 #include <cmath>
+#include <limits>
 
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
@@ -100,15 +101,124 @@ private:
     std::map<String, XenoValue> variables;
     bool running;
     uint32_t instruction_count;
+    uint32_t max_instructions;
     
     void resetState() {
         program_counter = 0;
         stack_pointer = 0;
         running = false;
         instruction_count = 0;
-        // Initialize stack with zeros - optimized loop
+        max_instructions = 10000;
         memset(stack, 0, sizeof(stack));
         variables.clear();
+    }
+    
+    // Safe stack operations with immediate termination on error
+    bool safePush(const XenoValue& value) {
+        if (stack_pointer >= 64) {
+            Serial.println("CRITICAL ERROR: Stack overflow - terminating execution");
+            running = false;
+            return false;
+        }
+        stack[stack_pointer++] = value;
+        return true;
+    }
+    
+    bool safePop(XenoValue& value) {
+        if (stack_pointer == 0) {
+            Serial.println("CRITICAL ERROR: Stack underflow - terminating execution");
+            running = false;
+            return false;
+        }
+        value = stack[--stack_pointer];
+        return true;
+    }
+    
+    bool safePopTwo(XenoValue& a, XenoValue& b) {
+        if (stack_pointer < 2) {
+            Serial.println("CRITICAL ERROR: Stack underflow in binary operation - terminating execution");
+            running = false;
+            return false;
+        }
+        b = stack[--stack_pointer];
+        a = stack[--stack_pointer];
+        return true;
+    }
+    
+    bool safePeek(XenoValue& value) {
+        if (stack_pointer == 0) {
+            Serial.println("CRITICAL ERROR: Stack underflow in peek - terminating execution");
+            running = false;
+            return false;
+        }
+        value = stack[stack_pointer - 1];
+        return true;
+    }
+    
+    // Safe integer operations with overflow checking
+    bool safeAdd(int32_t a, int32_t b, int32_t& result) {
+        if ((b > 0 && a > std::numeric_limits<int32_t>::max() - b) ||
+            (b < 0 && a < std::numeric_limits<int32_t>::min() - b)) {
+            Serial.println("ERROR: Integer overflow in addition");
+            return false;
+        }
+        result = a + b;
+        return true;
+    }
+    
+    bool safeSub(int32_t a, int32_t b, int32_t& result) {
+        if ((b > 0 && a < std::numeric_limits<int32_t>::min() + b) ||
+            (b < 0 && a > std::numeric_limits<int32_t>::max() + b)) {
+            Serial.println("ERROR: Integer overflow in subtraction");
+            return false;
+        }
+        result = a - b;
+        return true;
+    }
+    
+    bool safeMul(int32_t a, int32_t b, int32_t& result) {
+        if (a == 0 || b == 0) {
+            result = 0;
+            return true;
+        }
+        
+        if (a > 0) {
+            if (b > 0) {
+                if (a > std::numeric_limits<int32_t>::max() / b) return false;
+            } else {
+                if (b < std::numeric_limits<int32_t>::min() / a) return false;
+            }
+        } else {
+            if (b > 0) {
+                if (a < std::numeric_limits<int32_t>::min() / b) return false;
+            } else {
+                if (a < std::numeric_limits<int32_t>::max() / b) return false;
+            }
+        }
+        
+        result = a * b;
+        return true;
+    }
+    
+    bool safePow(int32_t base, int32_t exponent, int32_t& result) {
+        if (exponent < 0) return false;
+        if (exponent == 0) {
+            result = 1;
+            return true;
+        }
+        if (base == 0) {
+            result = 0;
+            return true;
+        }
+        
+        result = 1;
+        for (int32_t i = 0; i < exponent; ++i) {
+            if (!safeMul(result, base, result)) {
+                Serial.println("ERROR: Integer overflow in power operation");
+                return false;
+            }
+        }
+        return true;
     }
     
     // Helper functions for type conversion and operations
@@ -130,7 +240,6 @@ private:
         if (a.type == TYPE_STRING && b.type == TYPE_STRING) {
             String combined = string_table[a.string_index] + string_table[b.string_index];
             
-            // Add to string table and return - optimized search
             for (size_t i = 0; i < string_table.size(); ++i) {
                 if (string_table[i] == combined) {
                     return XenoValue::makeString(i);
@@ -146,8 +255,14 @@ private:
                 float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
                 float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
                 return XenoValue::makeFloat(a_val + b_val);
+            } else {
+                int32_t result;
+                if (safeAdd(a.int_val, b.int_val, result)) {
+                    return XenoValue::makeInt(result);
+                } else {
+                    return XenoValue::makeInt(0);
+                }
             }
-            return XenoValue::makeInt(a.int_val + b.int_val);
         }
         
         return XenoValue::makeInt(0);
@@ -159,8 +274,14 @@ private:
                 float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
                 float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
                 return XenoValue::makeFloat(a_val - b_val);
+            } else {
+                int32_t result;
+                if (safeSub(a.int_val, b.int_val, result)) {
+                    return XenoValue::makeInt(result);
+                } else {
+                    return XenoValue::makeInt(0);
+                }
             }
-            return XenoValue::makeInt(a.int_val - b.int_val);
         }
         return XenoValue::makeInt(0);
     }
@@ -171,8 +292,14 @@ private:
                 float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
                 float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
                 return XenoValue::makeFloat(a_val * b_val);
+            } else {
+                int32_t result;
+                if (safeMul(a.int_val, b.int_val, result)) {
+                    return XenoValue::makeInt(result);
+                } else {
+                    return XenoValue::makeInt(0);
+                }
             }
-            return XenoValue::makeInt(a.int_val * b.int_val);
         }
         return XenoValue::makeInt(0);
     }
@@ -188,12 +315,18 @@ private:
                 }
                 Serial.println("ERROR: Division by zero");
                 return XenoValue::makeFloat(0.0f);
+            } else {
+                if (b.int_val != 0) {
+                    if (a.int_val == std::numeric_limits<int32_t>::min() && b.int_val == -1) {
+                        Serial.println("ERROR: Integer overflow in division");
+                        return XenoValue::makeInt(0);
+                    }
+                    return XenoValue::makeInt(a.int_val / b.int_val);
+                } else {
+                    Serial.println("ERROR: Division by zero");
+                    return XenoValue::makeInt(0);
+                }
             }
-            if (b.int_val != 0) {
-                return XenoValue::makeInt(a.int_val / b.int_val);
-            }
-            Serial.println("ERROR: Division by zero");
-            return XenoValue::makeInt(0);
         }
         return XenoValue::makeInt(0);
     }
@@ -201,13 +334,18 @@ private:
     XenoValue performModulo(const XenoValue& a, const XenoValue& b) {
         if (a.type == TYPE_INT && b.type == TYPE_INT) {
             if (b.int_val != 0) {
+                if (a.int_val == std::numeric_limits<int32_t>::min() && b.int_val == -1) {
+                    return XenoValue::makeInt(0);
+                }
                 return XenoValue::makeInt(a.int_val % b.int_val);
+            } else {
+                Serial.println("ERROR: Modulo by zero");
+                return XenoValue::makeInt(0);
             }
-            Serial.println("ERROR: Modulo by zero");
         } else {
             Serial.println("ERROR: Modulo requires integer operands");
+            return XenoValue::makeInt(0);
         }
-        return XenoValue::makeInt(0);
     }
     
     XenoValue performPower(const XenoValue& a, const XenoValue& b) {
@@ -216,18 +354,24 @@ private:
                 float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
                 float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
                 return XenoValue::makeFloat(pow(a_val, b_val));
+            } else {
+                int32_t result;
+                if (safePow(a.int_val, b.int_val, result)) {
+                    return XenoValue::makeInt(result);
+                } else {
+                    return XenoValue::makeInt(0);
+                }
             }
-            int32_t result = 1;
-            for (int32_t i = 0; i < b.int_val; ++i) {
-                result *= a.int_val;
-            }
-            return XenoValue::makeInt(result);
         }
         return XenoValue::makeInt(0);
     }
     
     XenoValue performAbs(const XenoValue& a) {
         if (a.type == TYPE_INT) {
+            if (a.int_val == std::numeric_limits<int32_t>::min()) {
+                Serial.println("ERROR: Integer overflow in absolute value");
+                return XenoValue::makeInt(std::numeric_limits<int32_t>::max());
+            }
             return XenoValue::makeInt(abs(a.int_val));
         } else if (a.type == TYPE_FLOAT) {
             return XenoValue::makeFloat(fabs(a.float_val));
@@ -323,204 +467,154 @@ private:
                 break;
                 
             case OP_PUSH:
-                if (stack_pointer < 64) {
-                    stack[stack_pointer++] = XenoValue::makeInt(instr.arg1);
-                } else {
-                    Serial.println("ERROR: Stack overflow");
-                }
+                if (!safePush(XenoValue::makeInt(instr.arg1))) return;
                 break;
                 
-            case OP_PUSH_FLOAT:
-                if (stack_pointer < 64) {
-                    float fval;
-                    memcpy(&fval, &instr.arg1, sizeof(float));
-                    stack[stack_pointer++] = XenoValue::makeFloat(fval);
-                } else {
-                    Serial.println("ERROR: Stack overflow");
-                }
+            case OP_PUSH_FLOAT: {
+                float fval;
+                memcpy(&fval, &instr.arg1, sizeof(float));
+                if (!safePush(XenoValue::makeFloat(fval))) return;
                 break;
+            }
                 
             case OP_PUSH_STRING:
-                if (stack_pointer < 64) {
-                    stack[stack_pointer++] = XenoValue::makeString(instr.arg1);
-                } else {
-                    Serial.println("ERROR: Stack overflow");
-                }
+                if (!safePush(XenoValue::makeString(instr.arg1))) return;
                 break;
                 
-            case OP_POP:
-                if (stack_pointer > 0) {
-                    --stack_pointer;
-                } else {
-                    Serial.println("ERROR: Stack underflow");
-                }
+            case OP_POP: {
+                XenoValue temp;
+                if (!safePop(temp)) return;
                 break;
+            }
                 
-            case OP_ADD:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = performAddition(a, b);
-                } else {
-                    Serial.println("ERROR: Not enough values for ADD");
-                }
+            case OP_ADD: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(performAddition(a, b))) return;
                 break;
+            }
                 
-            case OP_SUB:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = performSubtraction(a, b);
-                } else {
-                    Serial.println("ERROR: Not enough values for SUB");
-                }
+            case OP_SUB: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(performSubtraction(a, b))) return;
                 break;
+            }
                 
-            case OP_MUL:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = performMultiplication(a, b);
-                } else {
-                    Serial.println("ERROR: Not enough values for MUL");
-                }
+            case OP_MUL: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(performMultiplication(a, b))) return;
                 break;
+            }
                 
-            case OP_DIV:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = performDivision(a, b);
-                } else {
-                    Serial.println("ERROR: Not enough values for DIV");
-                }
+            case OP_DIV: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(performDivision(a, b))) return;
                 break;
+            }
                 
-            case OP_MOD:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = performModulo(a, b);
-                } else {
-                    Serial.println("ERROR: Not enough values for MOD");
-                }
+            case OP_MOD: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(performModulo(a, b))) return;
                 break;
+            }
                 
-            case OP_ABS:
-                if (stack_pointer >= 1) {
-                    stack[stack_pointer - 1] = performAbs(stack[stack_pointer - 1]);
-                } else {
-                    Serial.println("ERROR: Not enough values for ABS");
-                }
+            case OP_ABS: {
+                XenoValue a;
+                if (!safePeek(a)) return;
+                stack[stack_pointer - 1] = performAbs(a);
                 break;
+            }
                 
-            case OP_POW:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = performPower(a, b);
-                } else {
-                    Serial.println("ERROR: Not enough values for POW");
-                }
+            case OP_POW: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(performPower(a, b))) return;
                 break;
+            }
                 
-            case OP_EQ:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1);
-                } else {
-                    Serial.println("ERROR: Not enough values for EQ");
-                }
+            case OP_EQ: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1))) return;
                 break;
+            }
                 
-            case OP_NEQ:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1);
-                } else {
-                    Serial.println("ERROR: Not enough values for NEQ");
-                }
+            case OP_NEQ: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1))) return;
                 break;
+            }
                 
-            case OP_LT:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1);
-                } else {
-                    Serial.println("ERROR: Not enough values for LT");
-                }
+            case OP_LT: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1))) return;
                 break;
+            }
                 
-            case OP_GT:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1);
-                } else {
-                    Serial.println("ERROR: Not enough values for GT");
-                }
+            case OP_GT: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1))) return;
                 break;
+            }
                 
-            case OP_LTE:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1);
-                } else {
-                    Serial.println("ERROR: Not enough values for LTE");
-                }
+            case OP_LTE: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1))) return;
                 break;
+            }
                 
-            case OP_GTE:
-                if (stack_pointer >= 2) {
-                    XenoValue b = stack[--stack_pointer];
-                    XenoValue a = stack[--stack_pointer];
-                    stack[stack_pointer++] = XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1);
-                } else {
-                    Serial.println("ERROR: Not enough values for GTE");
-                }
+            case OP_GTE: {
+                XenoValue a, b;
+                if (!safePopTwo(a, b)) return;
+                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1))) return;
                 break;
+            }
                 
-            case OP_PRINT_NUM:
-                if (stack_pointer > 0) {
-                    const XenoValue& val = stack[stack_pointer - 1];
-                    switch (val.type) {
-                        case TYPE_INT: Serial.println(String(val.int_val)); break;
-                        case TYPE_FLOAT: Serial.println(String(val.float_val, 2)); break;
-                        case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
-                    }
-                } else {
-                    Serial.println("ERROR: Stack empty for PRINT_NUM");
-                }
-                break;
-                
-            case OP_STORE: {
-                if (stack_pointer > 0) {
-                    String var_name = string_table[instr.arg1];
-                    variables[var_name] = stack[--stack_pointer];
-                } else {
-                    Serial.println("ERROR: Stack empty for STORE");
+            case OP_PRINT_NUM: {
+                XenoValue val;
+                if (!safePeek(val)) return;
+                switch (val.type) {
+                    case TYPE_INT: Serial.println(String(val.int_val)); break;
+                    case TYPE_FLOAT: Serial.println(String(val.float_val, 2)); break;
+                    case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
                 }
                 break;
             }
                 
+            case OP_STORE: {
+                if (instr.arg1 >= string_table.size()) {
+                    Serial.println("ERROR: Invalid variable name index in STORE");
+                    running = false;
+                    return;
+                }
+                XenoValue value;
+                if (!safePop(value)) return;
+                String var_name = string_table[instr.arg1];
+                variables[var_name] = value;
+                break;
+            }
+                
             case OP_LOAD: {
+                if (instr.arg1 >= string_table.size()) {
+                    Serial.println("ERROR: Invalid variable name index in LOAD");
+                    running = false;
+                    return;
+                }
                 String var_name = string_table[instr.arg1];
                 auto it = variables.find(var_name);
                 if (it != variables.end()) {
-                    if (stack_pointer < 64) {
-                        stack[stack_pointer++] = it->second;
-                    } else {
-                        Serial.println("ERROR: Stack overflow in LOAD");
-                    }
+                    if (!safePush(it->second)) return;
                 } else {
                     Serial.println("ERROR: Variable not found: " + var_name);
-                    if (stack_pointer < 64) {
-                        stack[stack_pointer++] = XenoValue::makeInt(0);
-                    }
+                    if (!safePush(XenoValue::makeInt(0))) return;
                 }
                 break;
             }
@@ -530,30 +624,31 @@ private:
                     program_counter = instr.arg1 - 1;
                 } else {
                     Serial.println("ERROR: Jump to invalid address");
+                    running = false;
+                    return;
                 }
                 break;
                 
-            case OP_JUMP_IF:
-                if (stack_pointer > 0) {
-                    XenoValue condition_val = stack[--stack_pointer];
-                    int condition = 0;
-                    
-                    switch (condition_val.type) {
-                        case TYPE_INT: condition = (condition_val.int_val != 0); break;
-                        case TYPE_FLOAT: condition = (condition_val.float_val != 0.0f); break;
-                        case TYPE_STRING: condition = !string_table[condition_val.string_index].isEmpty(); break;
-                    }
-                    
-                    if (condition && instr.arg1 < program.size()) {
-                        program_counter = instr.arg1 - 1;
-                    }
-                } else {
-                    Serial.println("ERROR: No condition for JUMP_IF");
+            case OP_JUMP_IF: {
+                XenoValue condition_val;
+                if (!safePop(condition_val)) return;
+                
+                int condition = 0;
+                switch (condition_val.type) {
+                    case TYPE_INT: condition = (condition_val.int_val != 0); break;
+                    case TYPE_FLOAT: condition = (condition_val.float_val != 0.0f); break;
+                    case TYPE_STRING: condition = !string_table[condition_val.string_index].isEmpty(); break;
+                }
+                
+                if (condition && instr.arg1 < program.size()) {
+                    program_counter = instr.arg1 - 1;
                 }
                 break;
+            }
                 
             default:
                 Serial.println("ERROR: Unknown instruction " + String(instr.opcode));
+                running = false;
                 break;
         }
     }
@@ -563,6 +658,10 @@ public:
         resetState();
         program.reserve(128);
         string_table.reserve(32);
+    }
+    
+    void setMaxInstructions(uint32_t max_instr) {
+        max_instructions = max_instr;
     }
     
     void loadProgram(const std::vector<XenoInstruction>& bytecode, 
@@ -589,7 +688,7 @@ public:
         ++program_counter;
         
         instruction_count++;
-        if (instruction_count > 5000) {
+        if (instruction_count > max_instructions) {
             Serial.println("ERROR: Instruction limit exceeded - possible infinite loop");
             running = false;
             return false;
@@ -617,6 +716,7 @@ public:
     bool isRunning() const { return running; }
     uint32_t getPC() const { return program_counter; }
     uint32_t getSP() const { return stack_pointer; }
+    uint32_t getInstructionCount() const { return instruction_count; }
     
     void dumpState() {
         Serial.println("=== VM State ===");
