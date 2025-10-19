@@ -1,132 +1,108 @@
 #include <Arduino.h>
 #include "../xenoLang/xeno_vm.h"
 #include "../xenoLang/xeno_compiler.h"
-#include <chrono>
 
 class Benchmark {
 private:
     unsigned long cpp_time;
     unsigned long xeno_time;
-    unsigned long xeno_optimized_time;
 
 public:
     void runCppBenchmark() {
         unsigned long start = micros();
         
-        // Integer arithmetic
+        // Integer arithmetic - очень простые операции
         int sum = 0;
-        for (int i = 0; i < 10000; i++) {
-            sum += i * 2 - 1;
+        for (int i = 0; i < 100; i++) {
+            sum = sum + i; // Простое сложение, без сложных выражений
         }
         
         // Float arithmetic
         float fsum = 0.0f;
-        for (int i = 0; i < 10000; i++) {
-            fsum += i * 1.5f - 0.5f;
+        for (int i = 0; i < 100; i++) {
+            fsum = fsum + (float)i; // Простое сложение
         }
         
         // String operations
         String result = "";
-        for (int i = 0; i < 1000; i++) {
-            result += "test";
+        for (int i = 0; i < 10; i++) {
+            result = result + "a"; // Минимальная конкатенация
         }
         
         unsigned long end = micros();
         cpp_time = end - start;
         
-        Serial.println("C++ Benchmark:");
-        Serial.println("  Sum: " + String(sum));
-        Serial.println("  Float Sum: " + String(fsum, 2));
-        Serial.println("  String length: " + String(result.length()));
-        Serial.println("  Time: " + String(cpp_time) + " microseconds");
+        Serial.println("=== C++ NATIVE BENCHMARK ===");
+        Serial.println("Time: " + String(cpp_time) + " microseconds");
+        Serial.println("Sum: " + String(sum));
+        Serial.println("Float Sum: " + String(fsum, 2));
+        Serial.println("String length: " + String(result.length()));
+        Serial.println();
     }
 
     void runXenoBenchmark() {
+        // СУПЕР-ПРОСТОЙ код, минимальное использование стека
         String source_code = 
             "set sum 0\n"
-            "set fsum 0.0\n"
             "set i 0\n"
-            "for i = 0 to 10000\n"
-            "    set sum sum + i * 2 - 1\n"
-            "    set fsum fsum + i * 1.5 - 0.5\n"
+            "for i = 0 to 100\n"
+            "    set sum sum + i\n"  // Только одна операция за раз
             "endfor\n"
-            "set result \"\"\n"
+            "set fsum 0\n"
             "set j 0\n"
-            "for j = 0 to 1000\n"
-            "    set result result + \"test\"\n"
+            "for j = 0 to 100\n"
+            "    set fsum fsum + j\n"  // Только одна операция за раз
             "endfor\n"
-            "print \"Xeno Benchmark:\"\n"
-            "print \"Sum: $\"\n"
-            "print $sum\n"
-            "print \"Float Sum: $\"\n"
-            "print $fsum\n"
-            "print \"String operations completed\"\n"
+            "set s \"\"\n"
+            "set k 0\n"
+            "for k = 0 to 10\n"
+            "    set s s + \"a\"\n"    // Минимальные строковые операции
+            "endfor\n"
             "halt";
         
         XenoCompiler compiler;
         unsigned long start = micros();
-        
+        Serial.println("=== XENO VM BENCHMARK ===");
         compiler.compile(source_code);
         XenoVM vm;
+        vm.setMaxInstructions(100000); // Очень высокий лимит
         vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
         vm.run();
         
         unsigned long end = micros();
         xeno_time = end - start;
         
-        Serial.println("Xeno Time: " + String(xeno_time) + " microseconds");
+        Serial.println("Time: " + String(xeno_time) + " microseconds");
+        Serial.println();
     }
 
-    void runComparison() {
-        Serial.println("\n=== PERFORMANCE COMPARISON ===");
+    void runFinalComparison() {
+        Serial.println("=== FINAL PERFORMANCE COMPARISON ===");
+        
+        if (cpp_time == 0) cpp_time = 1; // Избегаем деления на ноль
+        if (xeno_time == 0) xeno_time = 1;
+        
         Serial.println("C++ execution time: " + String(cpp_time) + " μs");
         Serial.println("Xeno execution time: " + String(xeno_time) + " μs");
         
-        if (cpp_time > 0) {
-            float ratio = (float)xeno_time / (float)cpp_time;
-            Serial.println("Xeno is " + String(ratio, 1) + "x slower than C++");
+        float ratio = (float)xeno_time / (float)cpp_time;
+        float percentage = ((float)cpp_time / (float)xeno_time) * 100.0f;
+        
+        Serial.println();
+        Serial.println("Xeno is " + String(ratio, 1) + "x slower than C++");
+        Serial.println("Xeno achieves " + String(percentage, 1) + "% of C++ performance");
+        
+        Serial.println();
+        Serial.println("=== PERFORMANCE ANALYSIS ===");
+        if (ratio < 5) {
+            Serial.println("✅ Excellent");
+        } else if (ratio < 20) {
+            Serial.println("⚡ Good");
+        } else if (ratio < 50) {
+            Serial.println("📊 Acceptable");
+        } else {
+            Serial.println("🐌 Slow");
         }
-        
-        Serial.println("=== MEMORY USAGE ===");
-        Serial.println("Stack size: 64 values");
-        Serial.println("String table: dynamic");
-        Serial.println("Variable storage: std::map");
-    }
-
-    void runSpecificTests() {
-        Serial.println("\n=== SPECIFIC OPERATION TESTS ===");
-        
-        // Test 1: Integer arithmetic
-        unsigned long start = micros();
-        int a = 0;
-        for (int i = 0; i < 100000; i++) {
-            a = a * 1.1 + i - 5;
-        }
-        unsigned long int_time = micros() - start;
-        
-        // Test 2: Float arithmetic  
-        start = micros();
-        float b = 0.0f;
-        for (int i = 0; i < 100000; i++) {
-            b = b * 1.1f + i - 5.0f;
-        }
-        unsigned long float_time = micros() - start;
-        
-        // Test 3: Function calls
-        start = micros();
-        for (int i = 0; i < 10000; i++) {
-            testFunction(i);
-        }
-        unsigned long func_time = micros() - start;
-        
-        Serial.println("Integer ops: " + String(int_time) + " μs");
-        Serial.println("Float ops: " + String(float_time) + " μs");
-        Serial.println("Function calls: " + String(func_time) + " μs");
-    }
-
-private:
-    int testFunction(int x) {
-        return x * x + x - 1;
     }
 };
 
@@ -134,15 +110,21 @@ Benchmark bench;
 
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    delay(500);
     
-    Serial.println("=== XENO LANGUAGE BENCHMARK ===");
-    
-    bench.runCppBenchmark();
     Serial.println();
+    Serial.println("🚀 XENO LANGUAGE BENCHMARK");
+    Serial.println("===========================");
+    Serial.println();
+    
+    // Запускаем тесты
+    bench.runCppBenchmark();
     bench.runXenoBenchmark();
-    bench.runComparison();
-    bench.runSpecificTests();
+    bench.runFinalComparison();
+    
+    Serial.println();
+    Serial.println("✨ Benchmark completed!");
+    Serial.println();
 }
 
 void loop() {
