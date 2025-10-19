@@ -151,6 +151,117 @@ private:
         return hash;
     }
     
+    // String sanitization for security
+    String sanitizeString(const String& input) {
+        String sanitized;
+        sanitized.reserve(input.length());
+        
+        for (size_t i = 0; i < input.length(); i++) {
+            char c = input[i];
+            
+            // Allow only safe printable ASCII characters
+            if (c >= 32 && c <= 126) {
+                // Escape potentially dangerous characters
+                if (c == '\\' || c == '"' || c == '\'' || c == '`') {
+                    sanitized += '\\';
+                }
+                sanitized += c;
+            }
+            // Allow basic whitespace
+            else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+                sanitized += c;
+            }
+            // Replace other characters with safe equivalent
+            else {
+                sanitized += '?';
+            }
+            
+            // Limit maximum string length for safety
+            if (sanitized.length() >= 256) {
+                sanitized += "...";
+                break;
+            }
+        }
+        
+        return sanitized;
+    }
+    
+    // Bytecode verification for security
+    bool verifyBytecode(const std::vector<XenoInstruction>& bytecode, 
+                       const std::vector<String>& strings) {
+        // Check program size limits
+        if (bytecode.size() > 10000) {
+            Serial.println("SECURITY: Program too large");
+            return false;
+        }
+        
+        // Check string table size limits
+        if (strings.size() > 1000) {
+            Serial.println("SECURITY: String table too large");
+            return false;
+        }
+        
+        // Verify each instruction
+        for (size_t i = 0; i < bytecode.size(); i++) {
+            const XenoInstruction& instr = bytecode[i];
+            
+            // Check for valid opcode range
+            if (instr.opcode > 26 && instr.opcode != 255) {
+                Serial.println("SECURITY: Invalid opcode at instruction " + String(i));
+                return false;
+            }
+            
+            // Verify jump targets are within program bounds
+            if (instr.opcode == OP_JUMP || instr.opcode == OP_JUMP_IF) {
+                if (instr.arg1 >= bytecode.size()) {
+                    Serial.println("SECURITY: Invalid jump target at instruction " + String(i));
+                    return false;
+                }
+            }
+            
+            // Verify string indices are within string table bounds
+            if (instr.opcode == OP_PRINT || instr.opcode == OP_STORE || 
+                instr.opcode == OP_LOAD || instr.opcode == OP_PUSH_STRING) {
+                if (instr.arg1 >= strings.size()) {
+                    Serial.println("SECURITY: Invalid string index at instruction " + String(i));
+                    return false;
+                }
+            }
+            
+            // Verify pin numbers are allowed
+            if (instr.opcode == OP_LED_ON || instr.opcode == OP_LED_OFF) {
+                if (!isPinAllowed(instr.arg1)) {
+                    Serial.println("SECURITY: Unauthorized pin access at instruction " + String(i));
+                    return false;
+                }
+            }
+            
+            // Verify delay values are reasonable
+            if (instr.opcode == OP_DELAY) {
+                if (instr.arg1 > 60000) { // Max 60 seconds
+                    Serial.println("SECURITY: Excessive delay at instruction " + String(i));
+                    return false;
+                }
+            }
+        }
+        
+        // Verify no infinite loops without conditions
+        bool has_halt = false;
+        for (const auto& instr : bytecode) {
+            if (instr.opcode == OP_HALT) {
+                has_halt = true;
+                break;
+            }
+        }
+        
+        if (!has_halt && bytecode.size() > 10) {
+            Serial.println("SECURITY: Program missing HALT instruction");
+            return false;
+        }
+        
+        return true;
+    }
+    
     void initializeDispatchTable() {
         // Initialize all to nullptr for safety
         for (int i = 0; i < 256; i++) {
@@ -268,25 +379,28 @@ private:
         // Smart pointer automatically deletes the object
     }
     
-    // Optimized string addition with caching
+    // Optimized string addition with caching and sanitization
     uint16_t addStringWithCache(const String& str) {
+        // Sanitize input string first
+        String safe_str = sanitizeString(str);
+        
         // Check cache first
-        int cached_index = findStringInCache(str);
+        int cached_index = findStringInCache(safe_str);
         if (cached_index != -1) {
             return cached_index;
         }
         
         // Not in cache, add to string table
         for (size_t i = 0; i < string_table.size(); ++i) {
-            if (string_table[i] == str) {
-                addStringToCache(str, i);
+            if (string_table[i] == safe_str) {
+                addStringToCache(safe_str, i);
                 return i;
             }
         }
         
-        string_table.push_back(str);
+        string_table.push_back(safe_str);
         uint16_t new_index = string_table.size() - 1;
-        addStringToCache(str, new_index);
+        addStringToCache(safe_str, new_index);
         return new_index;
     }
     
@@ -441,7 +555,7 @@ private:
     }
     
     XenoValue performAddition(const XenoValue& a, const XenoValue& b) {
-        // String concatenation with caching
+        // String concatenation with caching and sanitization
         if (a.type == TYPE_STRING && b.type == TYPE_STRING) {
             String combined = string_table[a.string_index] + string_table[b.string_index];
             uint16_t combined_index = addStringWithCache(combined);
@@ -855,8 +969,23 @@ public:
     void loadProgram(const std::vector<XenoInstruction>& bytecode, 
                     const std::vector<String>& strings) {
         resetState();
+        
+        // Sanitize all input strings first
+        std::vector<String> sanitized_strings;
+        sanitized_strings.reserve(strings.size());
+        for (const String& str : strings) {
+            sanitized_strings.push_back(sanitizeString(str));
+        }
+        
+        // Verify bytecode integrity before loading
+        if (!verifyBytecode(bytecode, sanitized_strings)) {
+            Serial.println("SECURITY: Bytecode verification failed - refusing to load");
+            running = false;
+            return;
+        }
+        
         program = bytecode;
-        string_table = strings;
+        string_table = sanitized_strings;
         
         // Pre-populate cache with initial strings
         for (size_t i = 0; i < string_table.size(); ++i) {
@@ -864,6 +993,7 @@ public:
         }
         
         running = true;
+        Serial.println("SECURITY: Program loaded and verified successfully");
     }
     
     bool step() {

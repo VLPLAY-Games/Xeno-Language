@@ -164,7 +164,7 @@ void setup() {
     delay(500);
     
     Serial.println();
-    Serial.println("🚀 XENO LANGUAGE BENCHMARK WITH STRING OPERATIONS");
+    Serial.println("XENO LANGUAGE BENCHMARK WITH STRING OPERATIONS");
     Serial.println("=================================================");
     Serial.println();
     
@@ -174,8 +174,7 @@ void setup() {
     bench.runFinalComparison();
     
     Serial.println();
-    Serial.println("✨ Benchmark completed!");
-    Serial.println();
+    Serial.println("Benchmark completed!");
 }
 
 void loop() {
