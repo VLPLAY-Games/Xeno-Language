@@ -7,6 +7,7 @@
 #include <stack>
 #include <cmath>
 #include <limits>
+#include <memory>
 
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
@@ -47,11 +48,11 @@ enum XenoDataType {
     TYPE_STRING = 2
 };
 
-// String cache entry
+// String cache entry with smart pointer
 struct StringCacheEntry {
     uint32_t hash;
     uint16_t string_index;
-    StringCacheEntry* next;
+    std::shared_ptr<StringCacheEntry> next;
     
     StringCacheEntry(uint32_t h = 0, uint16_t idx = 0) 
         : hash(h), string_index(idx), next(nullptr) {}
@@ -100,6 +101,19 @@ struct XenoInstruction {
         : opcode(op), arg1(a1), arg2(a2) {}
 };
 
+// Allowed pins for safety
+const uint8_t ALLOWED_PINS[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, LED_BUILTIN};
+const size_t NUM_ALLOWED_PINS = sizeof(ALLOWED_PINS) / sizeof(ALLOWED_PINS[0]);
+
+bool isPinAllowed(uint8_t pin) {
+    for (size_t i = 0; i < NUM_ALLOWED_PINS; i++) {
+        if (pin == ALLOWED_PINS[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Xeno Virtual Machine
 class XenoVM {
 private:
@@ -112,10 +126,12 @@ private:
     bool running;
     uint32_t instruction_count;
     uint32_t max_instructions;
+    uint32_t iteration_count;
+    static const uint32_t MAX_ITERATIONS = 100000;
     
-    // String caching system
+    // String caching system with smart pointers
     static const int STRING_CACHE_SIZE = 64;
-    StringCacheEntry* string_cache[STRING_CACHE_SIZE];
+    std::shared_ptr<StringCacheEntry> string_cache[STRING_CACHE_SIZE];
     uint32_t cache_hits;
     uint32_t cache_misses;
     
@@ -181,13 +197,8 @@ private:
     }
     
     void clearStringCache() {
+        // Smart pointers automatically clean up memory
         for (int i = 0; i < STRING_CACHE_SIZE; i++) {
-            StringCacheEntry* entry = string_cache[i];
-            while (entry != nullptr) {
-                StringCacheEntry* next = entry->next;
-                delete entry;
-                entry = next;
-            }
             string_cache[i] = nullptr;
         }
         cache_hits = 0;
@@ -199,7 +210,7 @@ private:
         uint32_t hash = hashString(str);
         int bucket = hash % STRING_CACHE_SIZE;
         
-        StringCacheEntry* entry = string_cache[bucket];
+        std::shared_ptr<StringCacheEntry> entry = string_cache[bucket];
         while (entry != nullptr) {
             if (entry->hash == hash && string_table[entry->string_index] == str) {
                 cache_hits++;
@@ -216,7 +227,7 @@ private:
         uint32_t hash = hashString(str);
         int bucket = hash % STRING_CACHE_SIZE;
         
-        StringCacheEntry* new_entry = new StringCacheEntry(hash, index);
+        auto new_entry = std::make_shared<StringCacheEntry>(hash, index);
         new_entry->next = string_cache[bucket];
         string_cache[bucket] = new_entry;
         
@@ -228,7 +239,7 @@ private:
     
     int countBucketEntries(int bucket) {
         int count = 0;
-        StringCacheEntry* entry = string_cache[bucket];
+        std::shared_ptr<StringCacheEntry> entry = string_cache[bucket];
         while (entry != nullptr) {
             count++;
             entry = entry->next;
@@ -240,8 +251,8 @@ private:
         if (string_cache[bucket] == nullptr) return;
         
         // Simple eviction: remove the last entry (oldest in our simple scheme)
-        StringCacheEntry* prev = nullptr;
-        StringCacheEntry* current = string_cache[bucket];
+        std::shared_ptr<StringCacheEntry> prev = nullptr;
+        std::shared_ptr<StringCacheEntry> current = string_cache[bucket];
         
         while (current->next != nullptr) {
             prev = current;
@@ -254,7 +265,7 @@ private:
             string_cache[bucket] = nullptr;
         }
         
-        delete current;
+        // Smart pointer automatically deletes the object
     }
     
     // Optimized string addition with caching
@@ -284,6 +295,7 @@ private:
         stack_pointer = 0;
         running = false;
         instruction_count = 0;
+        iteration_count = 0;
         max_instructions = 10000;
         memset(stack, 0, sizeof(stack));
         variables.clear();
@@ -397,6 +409,22 @@ private:
         }
         return true;
     }
+
+    bool safeMod(int32_t a, int32_t b, int32_t& result) {
+        if (b == 0) {
+            Serial.println("ERROR: Modulo by zero");
+            return false;
+        }
+        
+        // Handle special case that can cause overflow
+        if (a == std::numeric_limits<int32_t>::min() && b == -1) {
+            result = 0;
+            return true;
+        }
+        
+        result = a % b;
+        return true;
+    }
     
     // Helper functions for type conversion and operations
     XenoValue convertToFloat(const XenoValue& val) {
@@ -504,13 +532,10 @@ private:
     
     XenoValue performModulo(const XenoValue& a, const XenoValue& b) {
         if (a.type == TYPE_INT && b.type == TYPE_INT) {
-            if (b.int_val != 0) {
-                if (a.int_val == std::numeric_limits<int32_t>::min() && b.int_val == -1) {
-                    return XenoValue::makeInt(0);
-                }
-                return XenoValue::makeInt(a.int_val % b.int_val);
+            int32_t result;
+            if (safeMod(a.int_val, b.int_val, result)) {
+                return XenoValue::makeInt(result);
             } else {
-                Serial.println("ERROR: Modulo by zero");
                 return XenoValue::makeInt(0);
             }
         } else {
@@ -621,12 +646,20 @@ private:
     }
     
     void handleLED_ON(const XenoInstruction& instr) {
+        if (!isPinAllowed(instr.arg1)) {
+            Serial.println("ERROR: Pin not allowed: " + String(instr.arg1));
+            return;
+        }
         pinMode(instr.arg1, OUTPUT);
         digitalWrite(instr.arg1, HIGH);
         Serial.println("LED ON pin " + String(instr.arg1));
     }
     
     void handleLED_OFF(const XenoInstruction& instr) {
+        if (!isPinAllowed(instr.arg1)) {
+            Serial.println("ERROR: Pin not allowed: " + String(instr.arg1));
+            return;
+        }
         pinMode(instr.arg1, OUTPUT);
         digitalWrite(instr.arg1, LOW);
         Serial.println("LED OFF pin " + String(instr.arg1));
@@ -811,6 +844,7 @@ public:
     }
     
     ~XenoVM() {
+        // Smart pointers automatically clean up memory
         clearStringCache();
     }
     
@@ -834,6 +868,13 @@ public:
     
     bool step() {
         if (!running || program_counter >= program.size()) {
+            return false;
+        }
+        
+        // Check iteration limit to prevent infinite loops
+        if (++iteration_count > MAX_ITERATIONS) {
+            Serial.println("ERROR: Iteration limit exceeded - possible infinite loop");
+            running = false;
             return false;
         }
         
@@ -886,6 +927,7 @@ public:
     uint32_t getPC() const { return program_counter; }
     uint32_t getSP() const { return stack_pointer; }
     uint32_t getInstructionCount() const { return instruction_count; }
+    uint32_t getIterationCount() const { return iteration_count; }
     
     void dumpState() {
         Serial.println("=== VM State ===");
