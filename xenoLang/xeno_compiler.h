@@ -32,11 +32,7 @@ private:
     
     // Security validation
     bool validateString(const String& str) {
-        if (str.length() > MAX_STRING_LENGTH) {
-            Serial.println("ERROR: String too long");
-            return false;
-        }
-        return true;
+        return !(str.length() > MAX_STRING_LENGTH) || (Serial.println("ERROR: String too long"), false);
     }
     
     bool validateVariableName(const String& name) {
@@ -44,11 +40,7 @@ private:
             Serial.println("ERROR: Variable name too long");
             return false;
         }
-        if (!isValidVariable(name)) {
-            Serial.println("ERROR: Invalid variable name");
-            return false;
-        }
-        return true;
+        return isValidVariable(name) || (Serial.println("ERROR: Invalid variable name"), false);
     }
     
     // Remove comments and trim whitespace
@@ -68,7 +60,8 @@ private:
             return 0;
         }
         
-        for (size_t i = 0; i < string_table.size(); ++i) {
+        // Optimized search using reverse iteration (newer strings more likely to match)
+        for (int i = string_table.size() - 1; i >= 0; --i) {
             if (string_table[i] == str) return i;
         }
         
@@ -83,10 +76,7 @@ private:
     
     // Get or create variable index with security checks
     int getVariableIndex(const String& var_name) {
-        if (!validateVariableName(var_name)) {
-            return 0;
-        }
-        return addString(var_name);
+        return validateVariableName(var_name) ? addString(var_name) : 0;
     }
     
     // Check if string is an integer with bounds checking
@@ -103,11 +93,7 @@ private:
         
         // Check for integer overflow
         long long_val = str.toInt();
-        if (long_val > 2147483647L || long_val < -2147483648L) {
-            return false;
-        }
-        
-        return true;
+        return !(long_val > 2147483647L || long_val < -2147483648L);
     }
     
     // Check if string is a float with bounds checking
@@ -238,12 +224,12 @@ private:
                 }
                 if (!operators.empty()) operators.pop();
             }
-            else if (isComparisonOperator(token) || token == "+" || token == "-" || token == "*" || 
-                    token == "/" || token == "%" || token == "^") {
+            else {
+                int token_precedence = getPrecedence(token);
                 while (!operators.empty() && 
                        operators.top() != "(" &&
-                       (getPrecedence(operators.top()) > getPrecedence(token) ||
-                       (getPrecedence(operators.top()) == getPrecedence(token) && !isRightAssociative(token)))) {
+                       (getPrecedence(operators.top()) > token_precedence ||
+                       (getPrecedence(operators.top()) == token_precedence && !isRightAssociative(token)))) {
                     output.push_back(operators.top());
                     operators.pop();
                 }
@@ -330,7 +316,7 @@ private:
                 continue;
             }
             
-            // Handle 2-character operators
+            // Handle multi-character operators
             if (i + 1 < expr.length()) {
                 String twoChar = expr.substring(i, i + 2);
                 if (twoChar == "==" || twoChar == "!=" || twoChar == "<=" || twoChar == ">=") {

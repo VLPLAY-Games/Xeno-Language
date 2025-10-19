@@ -48,16 +48,6 @@ enum XenoDataType {
     TYPE_STRING = 2
 };
 
-// String cache entry with smart pointer
-struct StringCacheEntry {
-    uint32_t hash;
-    uint16_t string_index;
-    std::shared_ptr<StringCacheEntry> next;
-    
-    StringCacheEntry(uint32_t h = 0, uint16_t idx = 0) 
-        : hash(h), string_index(idx), next(nullptr) {}
-};
-
 // Value structure that can hold different data types
 struct XenoValue {
     XenoDataType type;
@@ -119,6 +109,7 @@ class XenoVM {
 private:
     std::vector<XenoInstruction> program;
     std::vector<String> string_table;
+    std::map<String, uint16_t> string_lookup;
     uint32_t program_counter;
     XenoValue stack[64];
     uint32_t stack_pointer;
@@ -129,27 +120,11 @@ private:
     uint32_t iteration_count;
     static const uint32_t MAX_ITERATIONS = 100000;
     
-    // String caching system with smart pointers
-    static const int STRING_CACHE_SIZE = 64;
-    std::shared_ptr<StringCacheEntry> string_cache[STRING_CACHE_SIZE];
-    uint32_t cache_hits;
-    uint32_t cache_misses;
-    
     // Typedef for instruction handler functions
     typedef void (XenoVM::*InstructionHandler)(const XenoInstruction&);
     
     // Dispatch table for fast instruction execution
     InstructionHandler dispatch_table[256];
-    
-    // Simple hash function for strings
-    uint32_t hashString(const String& str) {
-        uint32_t hash = 2166136261u;
-        for (size_t i = 0; i < str.length(); i++) {
-            hash ^= str[i];
-            hash *= 16777619u;
-        }
-        return hash;
-    }
     
     // String sanitization for security
     String sanitizeString(const String& input) {
@@ -299,111 +274,6 @@ private:
         dispatch_table[OP_HALT] = &XenoVM::handleHALT;
     }
     
-    void initializeStringCache() {
-        for (int i = 0; i < STRING_CACHE_SIZE; i++) {
-            string_cache[i] = nullptr;
-        }
-        cache_hits = 0;
-        cache_misses = 0;
-    }
-    
-    void clearStringCache() {
-        // Smart pointers automatically clean up memory
-        for (int i = 0; i < STRING_CACHE_SIZE; i++) {
-            string_cache[i] = nullptr;
-        }
-        cache_hits = 0;
-        cache_misses = 0;
-    }
-    
-    // Fast string lookup with caching
-    int findStringInCache(const String& str) {
-        uint32_t hash = hashString(str);
-        int bucket = hash % STRING_CACHE_SIZE;
-        
-        std::shared_ptr<StringCacheEntry> entry = string_cache[bucket];
-        while (entry != nullptr) {
-            if (entry->hash == hash && string_table[entry->string_index] == str) {
-                cache_hits++;
-                return entry->string_index;
-            }
-            entry = entry->next;
-        }
-        
-        cache_misses++;
-        return -1;
-    }
-    
-    void addStringToCache(const String& str, uint16_t index) {
-        uint32_t hash = hashString(str);
-        int bucket = hash % STRING_CACHE_SIZE;
-        
-        auto new_entry = std::make_shared<StringCacheEntry>(hash, index);
-        new_entry->next = string_cache[bucket];
-        string_cache[bucket] = new_entry;
-        
-        // Simple cache eviction if bucket gets too large
-        if (countBucketEntries(bucket) > 4) {
-            evictOldestFromBucket(bucket);
-        }
-    }
-    
-    int countBucketEntries(int bucket) {
-        int count = 0;
-        std::shared_ptr<StringCacheEntry> entry = string_cache[bucket];
-        while (entry != nullptr) {
-            count++;
-            entry = entry->next;
-        }
-        return count;
-    }
-    
-    void evictOldestFromBucket(int bucket) {
-        if (string_cache[bucket] == nullptr) return;
-        
-        // Simple eviction: remove the last entry (oldest in our simple scheme)
-        std::shared_ptr<StringCacheEntry> prev = nullptr;
-        std::shared_ptr<StringCacheEntry> current = string_cache[bucket];
-        
-        while (current->next != nullptr) {
-            prev = current;
-            current = current->next;
-        }
-        
-        if (prev != nullptr) {
-            prev->next = nullptr;
-        } else {
-            string_cache[bucket] = nullptr;
-        }
-        
-        // Smart pointer automatically deletes the object
-    }
-    
-    // Optimized string addition with caching and sanitization
-    uint16_t addStringWithCache(const String& str) {
-        // Sanitize input string first
-        String safe_str = sanitizeString(str);
-        
-        // Check cache first
-        int cached_index = findStringInCache(safe_str);
-        if (cached_index != -1) {
-            return cached_index;
-        }
-        
-        // Not in cache, add to string table
-        for (size_t i = 0; i < string_table.size(); ++i) {
-            if (string_table[i] == safe_str) {
-                addStringToCache(safe_str, i);
-                return i;
-            }
-        }
-        
-        string_table.push_back(safe_str);
-        uint16_t new_index = string_table.size() - 1;
-        addStringToCache(safe_str, new_index);
-        return new_index;
-    }
-    
     void resetState() {
         program_counter = 0;
         stack_pointer = 0;
@@ -413,7 +283,7 @@ private:
         max_instructions = 10000;
         memset(stack, 0, sizeof(stack));
         variables.clear();
-        clearStringCache();
+        string_lookup.clear();
     }
     
     // Safe stack operations with immediate termination on error
@@ -555,10 +425,10 @@ private:
     }
     
     XenoValue performAddition(const XenoValue& a, const XenoValue& b) {
-        // String concatenation with caching and sanitization
+        // String concatenation
         if (a.type == TYPE_STRING && b.type == TYPE_STRING) {
             String combined = string_table[a.string_index] + string_table[b.string_index];
-            uint16_t combined_index = addStringWithCache(combined);
+            uint16_t combined_index = addString(combined);
             return XenoValue::makeString(combined_index);
         }
         
@@ -746,6 +616,36 @@ private:
                 break;
         }
         return false;
+    }
+    
+    // Optimized string addition with lookup table
+    uint16_t addString(const String& str) {
+        // Sanitize input string first
+        String safe_str = sanitizeString(str);
+        
+        // Check lookup first
+        auto it = string_lookup.find(safe_str);
+        if (it != string_lookup.end()) {
+            return it->second;
+        }
+        
+        // Not in lookup, add to string table
+        for (size_t i = 0; i < string_table.size(); ++i) {
+            if (string_table[i] == safe_str) {
+                string_lookup[safe_str] = i;
+                return i;
+            }
+        }
+        
+        if (string_table.size() >= 65535) {
+            Serial.println("ERROR: String table overflow");
+            return 0;
+        }
+        
+        string_table.push_back(safe_str);
+        uint16_t new_index = string_table.size() - 1;
+        string_lookup[safe_str] = new_index;
+        return new_index;
     }
     
     // Fast instruction handlers
@@ -951,15 +851,9 @@ private:
 public:
     XenoVM() {
         initializeDispatchTable();
-        initializeStringCache();
         resetState();
         program.reserve(128);
         string_table.reserve(32);
-    }
-    
-    ~XenoVM() {
-        // Smart pointers automatically clean up memory
-        clearStringCache();
     }
     
     void setMaxInstructions(uint32_t max_instr) {
@@ -987,9 +881,9 @@ public:
         program = bytecode;
         string_table = sanitized_strings;
         
-        // Pre-populate cache with initial strings
+        // Pre-populate lookup with initial strings
         for (size_t i = 0; i < string_table.size(); ++i) {
-            addStringToCache(string_table[i], i);
+            string_lookup[string_table[i]] = i;
         }
         
         running = true;
@@ -1038,13 +932,6 @@ public:
         }
         
         Serial.println("Xeno VM finished");
-        
-        // Print cache statistics for debugging
-        #ifdef XENO_DEBUG
-        Serial.println("String cache stats - Hits: " + String(cache_hits) + 
-                      ", Misses: " + String(cache_misses) +
-                      ", Hit rate: " + String((float)cache_hits / (cache_hits + cache_misses) * 100.0f, 1) + "%");
-        #endif
     }
     
     void stop() {
@@ -1107,14 +994,6 @@ public:
             Serial.println("  " + var.first + ": " + type_str + " " + value_str);
         }
         Serial.println("}");
-        
-        #ifdef XENO_DEBUG
-        Serial.println("String Cache: {");
-        Serial.println("  Hits: " + String(cache_hits));
-        Serial.println("  Misses: " + String(cache_misses));
-        Serial.println("  Hit rate: " + String((float)cache_hits / (cache_hits + cache_misses) * 100.0f, 1) + "%");
-        Serial.println("}");
-        #endif
     }
     
     void disassemble() {
