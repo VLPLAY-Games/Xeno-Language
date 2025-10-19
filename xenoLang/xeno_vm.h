@@ -47,6 +47,16 @@ enum XenoDataType {
     TYPE_STRING = 2
 };
 
+// String cache entry
+struct StringCacheEntry {
+    uint32_t hash;
+    uint16_t string_index;
+    StringCacheEntry* next;
+    
+    StringCacheEntry(uint32_t h = 0, uint16_t idx = 0) 
+        : hash(h), string_index(idx), next(nullptr) {}
+};
+
 // Value structure that can hold different data types
 struct XenoValue {
     XenoDataType type;
@@ -103,6 +113,172 @@ private:
     uint32_t instruction_count;
     uint32_t max_instructions;
     
+    // String caching system
+    static const int STRING_CACHE_SIZE = 64;
+    StringCacheEntry* string_cache[STRING_CACHE_SIZE];
+    uint32_t cache_hits;
+    uint32_t cache_misses;
+    
+    // Typedef for instruction handler functions
+    typedef void (XenoVM::*InstructionHandler)(const XenoInstruction&);
+    
+    // Dispatch table for fast instruction execution
+    InstructionHandler dispatch_table[256];
+    
+    // Simple hash function for strings
+    uint32_t hashString(const String& str) {
+        uint32_t hash = 2166136261u;
+        for (size_t i = 0; i < str.length(); i++) {
+            hash ^= str[i];
+            hash *= 16777619u;
+        }
+        return hash;
+    }
+    
+    void initializeDispatchTable() {
+        // Initialize all to nullptr for safety
+        for (int i = 0; i < 256; i++) {
+            dispatch_table[i] = nullptr;
+        }
+        
+        // Map opcodes to handler functions
+        dispatch_table[OP_NOP] = &XenoVM::handleNOP;
+        dispatch_table[OP_PRINT] = &XenoVM::handlePRINT;
+        dispatch_table[OP_LED_ON] = &XenoVM::handleLED_ON;
+        dispatch_table[OP_LED_OFF] = &XenoVM::handleLED_OFF;
+        dispatch_table[OP_DELAY] = &XenoVM::handleDELAY;
+        dispatch_table[OP_PUSH] = &XenoVM::handlePUSH;
+        dispatch_table[OP_POP] = &XenoVM::handlePOP;
+        dispatch_table[OP_ADD] = &XenoVM::handleADD;
+        dispatch_table[OP_SUB] = &XenoVM::handleSUB;
+        dispatch_table[OP_MUL] = &XenoVM::handleMUL;
+        dispatch_table[OP_DIV] = &XenoVM::handleDIV;
+        dispatch_table[OP_JUMP] = &XenoVM::handleJUMP;
+        dispatch_table[OP_JUMP_IF] = &XenoVM::handleJUMP_IF;
+        dispatch_table[OP_PRINT_NUM] = &XenoVM::handlePRINT_NUM;
+        dispatch_table[OP_STORE] = &XenoVM::handleSTORE;
+        dispatch_table[OP_LOAD] = &XenoVM::handleLOAD;
+        dispatch_table[OP_MOD] = &XenoVM::handleMOD;
+        dispatch_table[OP_ABS] = &XenoVM::handleABS;
+        dispatch_table[OP_POW] = &XenoVM::handlePOW;
+        dispatch_table[OP_EQ] = &XenoVM::handleEQ;
+        dispatch_table[OP_NEQ] = &XenoVM::handleNEQ;
+        dispatch_table[OP_LT] = &XenoVM::handleLT;
+        dispatch_table[OP_GT] = &XenoVM::handleGT;
+        dispatch_table[OP_LTE] = &XenoVM::handleLTE;
+        dispatch_table[OP_GTE] = &XenoVM::handleGTE;
+        dispatch_table[OP_PUSH_FLOAT] = &XenoVM::handlePUSH_FLOAT;
+        dispatch_table[OP_PUSH_STRING] = &XenoVM::handlePUSH_STRING;
+        dispatch_table[OP_HALT] = &XenoVM::handleHALT;
+    }
+    
+    void initializeStringCache() {
+        for (int i = 0; i < STRING_CACHE_SIZE; i++) {
+            string_cache[i] = nullptr;
+        }
+        cache_hits = 0;
+        cache_misses = 0;
+    }
+    
+    void clearStringCache() {
+        for (int i = 0; i < STRING_CACHE_SIZE; i++) {
+            StringCacheEntry* entry = string_cache[i];
+            while (entry != nullptr) {
+                StringCacheEntry* next = entry->next;
+                delete entry;
+                entry = next;
+            }
+            string_cache[i] = nullptr;
+        }
+        cache_hits = 0;
+        cache_misses = 0;
+    }
+    
+    // Fast string lookup with caching
+    int findStringInCache(const String& str) {
+        uint32_t hash = hashString(str);
+        int bucket = hash % STRING_CACHE_SIZE;
+        
+        StringCacheEntry* entry = string_cache[bucket];
+        while (entry != nullptr) {
+            if (entry->hash == hash && string_table[entry->string_index] == str) {
+                cache_hits++;
+                return entry->string_index;
+            }
+            entry = entry->next;
+        }
+        
+        cache_misses++;
+        return -1;
+    }
+    
+    void addStringToCache(const String& str, uint16_t index) {
+        uint32_t hash = hashString(str);
+        int bucket = hash % STRING_CACHE_SIZE;
+        
+        StringCacheEntry* new_entry = new StringCacheEntry(hash, index);
+        new_entry->next = string_cache[bucket];
+        string_cache[bucket] = new_entry;
+        
+        // Simple cache eviction if bucket gets too large
+        if (countBucketEntries(bucket) > 4) {
+            evictOldestFromBucket(bucket);
+        }
+    }
+    
+    int countBucketEntries(int bucket) {
+        int count = 0;
+        StringCacheEntry* entry = string_cache[bucket];
+        while (entry != nullptr) {
+            count++;
+            entry = entry->next;
+        }
+        return count;
+    }
+    
+    void evictOldestFromBucket(int bucket) {
+        if (string_cache[bucket] == nullptr) return;
+        
+        // Simple eviction: remove the last entry (oldest in our simple scheme)
+        StringCacheEntry* prev = nullptr;
+        StringCacheEntry* current = string_cache[bucket];
+        
+        while (current->next != nullptr) {
+            prev = current;
+            current = current->next;
+        }
+        
+        if (prev != nullptr) {
+            prev->next = nullptr;
+        } else {
+            string_cache[bucket] = nullptr;
+        }
+        
+        delete current;
+    }
+    
+    // Optimized string addition with caching
+    uint16_t addStringWithCache(const String& str) {
+        // Check cache first
+        int cached_index = findStringInCache(str);
+        if (cached_index != -1) {
+            return cached_index;
+        }
+        
+        // Not in cache, add to string table
+        for (size_t i = 0; i < string_table.size(); ++i) {
+            if (string_table[i] == str) {
+                addStringToCache(str, i);
+                return i;
+            }
+        }
+        
+        string_table.push_back(str);
+        uint16_t new_index = string_table.size() - 1;
+        addStringToCache(str, new_index);
+        return new_index;
+    }
+    
     void resetState() {
         program_counter = 0;
         stack_pointer = 0;
@@ -111,6 +287,7 @@ private:
         max_instructions = 10000;
         memset(stack, 0, sizeof(stack));
         variables.clear();
+        clearStringCache();
     }
     
     // Safe stack operations with immediate termination on error
@@ -236,17 +413,11 @@ private:
     }
     
     XenoValue performAddition(const XenoValue& a, const XenoValue& b) {
-        // String concatenation
+        // String concatenation with caching
         if (a.type == TYPE_STRING && b.type == TYPE_STRING) {
             String combined = string_table[a.string_index] + string_table[b.string_index];
-            
-            for (size_t i = 0; i < string_table.size(); ++i) {
-                if (string_table[i] == combined) {
-                    return XenoValue::makeString(i);
-                }
-            }
-            string_table.push_back(combined);
-            return XenoValue::makeString(string_table.size() - 1);
+            uint16_t combined_index = addStringWithCache(combined);
+            return XenoValue::makeString(combined_index);
         }
         
         // Numeric addition
@@ -438,226 +609,209 @@ private:
         return false;
     }
     
-    void executeInstruction(const XenoInstruction& instr) {
-        switch (instr.opcode) {
-            case OP_NOP: break;
-                
-            case OP_PRINT:
-                if (instr.arg1 < string_table.size()) {
-                    Serial.println(string_table[instr.arg1]);
-                } else {
-                    Serial.println("ERROR: Invalid string index");
-                }
-                break;
-                
-            case OP_LED_ON:
-                pinMode(instr.arg1, OUTPUT);
-                digitalWrite(instr.arg1, HIGH);
-                Serial.println("LED ON pin " + String(instr.arg1));
-                break;
-                
-            case OP_LED_OFF:
-                pinMode(instr.arg1, OUTPUT);
-                digitalWrite(instr.arg1, LOW);
-                Serial.println("LED OFF pin " + String(instr.arg1));
-                break;
-                
-            case OP_DELAY:
-                delay(instr.arg1);
-                break;
-                
-            case OP_PUSH:
-                if (!safePush(XenoValue::makeInt(instr.arg1))) return;
-                break;
-                
-            case OP_PUSH_FLOAT: {
-                float fval;
-                memcpy(&fval, &instr.arg1, sizeof(float));
-                if (!safePush(XenoValue::makeFloat(fval))) return;
-                break;
-            }
-                
-            case OP_PUSH_STRING:
-                if (!safePush(XenoValue::makeString(instr.arg1))) return;
-                break;
-                
-            case OP_POP: {
-                XenoValue temp;
-                if (!safePop(temp)) return;
-                break;
-            }
-                
-            case OP_ADD: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(performAddition(a, b))) return;
-                break;
-            }
-                
-            case OP_SUB: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(performSubtraction(a, b))) return;
-                break;
-            }
-                
-            case OP_MUL: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(performMultiplication(a, b))) return;
-                break;
-            }
-                
-            case OP_DIV: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(performDivision(a, b))) return;
-                break;
-            }
-                
-            case OP_MOD: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(performModulo(a, b))) return;
-                break;
-            }
-                
-            case OP_ABS: {
-                XenoValue a;
-                if (!safePeek(a)) return;
-                stack[stack_pointer - 1] = performAbs(a);
-                break;
-            }
-                
-            case OP_POW: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(performPower(a, b))) return;
-                break;
-            }
-                
-            case OP_EQ: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1))) return;
-                break;
-            }
-                
-            case OP_NEQ: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1))) return;
-                break;
-            }
-                
-            case OP_LT: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1))) return;
-                break;
-            }
-                
-            case OP_GT: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1))) return;
-                break;
-            }
-                
-            case OP_LTE: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1))) return;
-                break;
-            }
-                
-            case OP_GTE: {
-                XenoValue a, b;
-                if (!safePopTwo(a, b)) return;
-                if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1))) return;
-                break;
-            }
-                
-            case OP_PRINT_NUM: {
-                XenoValue val;
-                if (!safePeek(val)) return;
-                switch (val.type) {
-                    case TYPE_INT: Serial.println(String(val.int_val)); break;
-                    case TYPE_FLOAT: Serial.println(String(val.float_val, 2)); break;
-                    case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
-                }
-                break;
-            }
-                
-            case OP_STORE: {
-                if (instr.arg1 >= string_table.size()) {
-                    Serial.println("ERROR: Invalid variable name index in STORE");
-                    running = false;
-                    return;
-                }
-                XenoValue value;
-                if (!safePop(value)) return;
-                String var_name = string_table[instr.arg1];
-                variables[var_name] = value;
-                break;
-            }
-                
-            case OP_LOAD: {
-                if (instr.arg1 >= string_table.size()) {
-                    Serial.println("ERROR: Invalid variable name index in LOAD");
-                    running = false;
-                    return;
-                }
-                String var_name = string_table[instr.arg1];
-                auto it = variables.find(var_name);
-                if (it != variables.end()) {
-                    if (!safePush(it->second)) return;
-                } else {
-                    Serial.println("ERROR: Variable not found: " + var_name);
-                    if (!safePush(XenoValue::makeInt(0))) return;
-                }
-                break;
-            }
-                
-            case OP_JUMP:
-                if (instr.arg1 < program.size()) {
-                    program_counter = instr.arg1 - 1;
-                } else {
-                    Serial.println("ERROR: Jump to invalid address");
-                    running = false;
-                    return;
-                }
-                break;
-                
-            case OP_JUMP_IF: {
-                XenoValue condition_val;
-                if (!safePop(condition_val)) return;
-                
-                int condition = 0;
-                switch (condition_val.type) {
-                    case TYPE_INT: condition = (condition_val.int_val != 0); break;
-                    case TYPE_FLOAT: condition = (condition_val.float_val != 0.0f); break;
-                    case TYPE_STRING: condition = !string_table[condition_val.string_index].isEmpty(); break;
-                }
-                
-                if (condition && instr.arg1 < program.size()) {
-                    program_counter = instr.arg1 - 1;
-                }
-                break;
-            }
-                
-            default:
-                Serial.println("ERROR: Unknown instruction " + String(instr.opcode));
-                running = false;
-                break;
+    // Fast instruction handlers
+    void handleNOP(const XenoInstruction& instr) { /* Do nothing */ }
+    
+    void handlePRINT(const XenoInstruction& instr) {
+        if (instr.arg1 < string_table.size()) {
+            Serial.println(string_table[instr.arg1]);
+        } else {
+            Serial.println("ERROR: Invalid string index");
         }
+    }
+    
+    void handleLED_ON(const XenoInstruction& instr) {
+        pinMode(instr.arg1, OUTPUT);
+        digitalWrite(instr.arg1, HIGH);
+        Serial.println("LED ON pin " + String(instr.arg1));
+    }
+    
+    void handleLED_OFF(const XenoInstruction& instr) {
+        pinMode(instr.arg1, OUTPUT);
+        digitalWrite(instr.arg1, LOW);
+        Serial.println("LED OFF pin " + String(instr.arg1));
+    }
+    
+    void handleDELAY(const XenoInstruction& instr) {
+        delay(instr.arg1);
+    }
+    
+    void handlePUSH(const XenoInstruction& instr) {
+        if (!safePush(XenoValue::makeInt(instr.arg1))) return;
+    }
+    
+    void handlePUSH_FLOAT(const XenoInstruction& instr) {
+        float fval;
+        memcpy(&fval, &instr.arg1, sizeof(float));
+        if (!safePush(XenoValue::makeFloat(fval))) return;
+    }
+    
+    void handlePUSH_STRING(const XenoInstruction& instr) {
+        if (!safePush(XenoValue::makeString(instr.arg1))) return;
+    }
+    
+    void handlePOP(const XenoInstruction& instr) {
+        XenoValue temp;
+        if (!safePop(temp)) return;
+    }
+    
+    void handleADD(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(performAddition(a, b))) return;
+    }
+    
+    void handleSUB(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(performSubtraction(a, b))) return;
+    }
+    
+    void handleMUL(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(performMultiplication(a, b))) return;
+    }
+    
+    void handleDIV(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(performDivision(a, b))) return;
+    }
+    
+    void handleMOD(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(performModulo(a, b))) return;
+    }
+    
+    void handleABS(const XenoInstruction& instr) {
+        XenoValue a;
+        if (!safePeek(a)) return;
+        stack[stack_pointer - 1] = performAbs(a);
+    }
+    
+    void handlePOW(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(performPower(a, b))) return;
+    }
+    
+    void handleEQ(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1))) return;
+    }
+    
+    void handleNEQ(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1))) return;
+    }
+    
+    void handleLT(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1))) return;
+    }
+    
+    void handleGT(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1))) return;
+    }
+    
+    void handleLTE(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1))) return;
+    }
+    
+    void handleGTE(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1))) return;
+    }
+    
+    void handlePRINT_NUM(const XenoInstruction& instr) {
+        XenoValue val;
+        if (!safePeek(val)) return;
+        switch (val.type) {
+            case TYPE_INT: Serial.println(String(val.int_val)); break;
+            case TYPE_FLOAT: Serial.println(String(val.float_val, 2)); break;
+            case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
+        }
+    }
+    
+    void handleSTORE(const XenoInstruction& instr) {
+        if (instr.arg1 >= string_table.size()) {
+            Serial.println("ERROR: Invalid variable name index in STORE");
+            running = false;
+            return;
+        }
+        XenoValue value;
+        if (!safePop(value)) return;
+        String var_name = string_table[instr.arg1];
+        variables[var_name] = value;
+    }
+    
+    void handleLOAD(const XenoInstruction& instr) {
+        if (instr.arg1 >= string_table.size()) {
+            Serial.println("ERROR: Invalid variable name index in LOAD");
+            running = false;
+            return;
+        }
+        String var_name = string_table[instr.arg1];
+        auto it = variables.find(var_name);
+        if (it != variables.end()) {
+            if (!safePush(it->second)) return;
+        } else {
+            Serial.println("ERROR: Variable not found: " + var_name);
+            if (!safePush(XenoValue::makeInt(0))) return;
+        }
+    }
+    
+    void handleJUMP(const XenoInstruction& instr) {
+        if (instr.arg1 < program.size()) {
+            program_counter = instr.arg1;
+        } else {
+            Serial.println("ERROR: Jump to invalid address");
+            running = false;
+            return;
+        }
+    }
+    
+    void handleJUMP_IF(const XenoInstruction& instr) {
+        XenoValue condition_val;
+        if (!safePop(condition_val)) return;
+        
+        int condition = 0;
+        switch (condition_val.type) {
+            case TYPE_INT: condition = (condition_val.int_val != 0); break;
+            case TYPE_FLOAT: condition = (condition_val.float_val != 0.0f); break;
+            case TYPE_STRING: condition = !string_table[condition_val.string_index].isEmpty(); break;
+        }
+        
+        if (condition && instr.arg1 < program.size()) {
+            program_counter = instr.arg1;
+        }
+    }
+    
+    void handleHALT(const XenoInstruction& instr) {
+        running = false;
     }
     
 public:
     XenoVM() {
+        initializeDispatchTable();
+        initializeStringCache();
         resetState();
         program.reserve(128);
         string_table.reserve(32);
+    }
+    
+    ~XenoVM() {
+        clearStringCache();
     }
     
     void setMaxInstructions(uint32_t max_instr) {
@@ -669,6 +823,12 @@ public:
         resetState();
         program = bytecode;
         string_table = strings;
+        
+        // Pre-populate cache with initial strings
+        for (size_t i = 0; i < string_table.size(); ++i) {
+            addStringToCache(string_table[i], i);
+        }
+        
         running = true;
     }
     
@@ -677,15 +837,17 @@ public:
             return false;
         }
         
-        XenoInstruction instr = program[program_counter];
+        const XenoInstruction& instr = program[program_counter++];
         
-        if (instr.opcode == OP_HALT) {
+        // Fast dispatch using function pointer table
+        InstructionHandler handler = dispatch_table[instr.opcode];
+        if (handler != nullptr) {
+            (this->*handler)(instr);
+        } else {
+            Serial.println("ERROR: Unknown instruction " + String(instr.opcode));
             running = false;
             return false;
         }
-        
-        executeInstruction(instr);
-        ++program_counter;
         
         instruction_count++;
         if (instruction_count > max_instructions) {
@@ -694,7 +856,7 @@ public:
             return false;
         }
         
-        return true;
+        return running;
     }
     
     void run() {
@@ -705,6 +867,13 @@ public:
         }
         
         Serial.println("Xeno VM finished");
+        
+        // Print cache statistics for debugging
+        #ifdef XENO_DEBUG
+        Serial.println("String cache stats - Hits: " + String(cache_hits) + 
+                      ", Misses: " + String(cache_misses) +
+                      ", Hit rate: " + String((float)cache_hits / (cache_hits + cache_misses) * 100.0f, 1) + "%");
+        #endif
     }
     
     void stop() {
@@ -766,6 +935,14 @@ public:
             Serial.println("  " + var.first + ": " + type_str + " " + value_str);
         }
         Serial.println("}");
+        
+        #ifdef XENO_DEBUG
+        Serial.println("String Cache: {");
+        Serial.println("  Hits: " + String(cache_hits));
+        Serial.println("  Misses: " + String(cache_misses));
+        Serial.println("  Hit rate: " + String((float)cache_hits / (cache_hits + cache_misses) * 100.0f, 1) + "%");
+        Serial.println("}");
+        #endif
     }
     
     void disassemble() {

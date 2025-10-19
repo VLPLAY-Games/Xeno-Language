@@ -6,6 +6,13 @@
 #include <map>
 #include <stack>
 
+// Security limits
+#define MAX_STRING_LENGTH 256
+#define MAX_VARIABLE_NAME_LENGTH 32
+#define MAX_EXPRESSION_DEPTH 32
+#define MAX_LOOP_DEPTH 16
+#define MAX_IF_DEPTH 16
+
 // Структура для хранения информации о цикле
 struct LoopInfo {
     String var_name;
@@ -23,6 +30,27 @@ private:
     std::vector<int> if_stack;
     std::vector<LoopInfo> loop_stack;
     
+    // Security validation
+    bool validateString(const String& str) {
+        if (str.length() > MAX_STRING_LENGTH) {
+            Serial.println("ERROR: String too long");
+            return false;
+        }
+        return true;
+    }
+    
+    bool validateVariableName(const String& name) {
+        if (name.length() > MAX_VARIABLE_NAME_LENGTH) {
+            Serial.println("ERROR: Variable name too long");
+            return false;
+        }
+        if (!isValidVariable(name)) {
+            Serial.println("ERROR: Invalid variable name");
+            return false;
+        }
+        return true;
+    }
+    
     // Remove comments and trim whitespace
     String cleanLine(const String& line) {
         String cleaned = line;
@@ -34,23 +62,36 @@ private:
         return cleaned;
     }
     
-    // Add string to string table
+    // Add string to string table with security checks
     int addString(const String& str) {
+        if (!validateString(str)) {
+            return 0;
+        }
+        
         for (size_t i = 0; i < string_table.size(); ++i) {
             if (string_table[i] == str) return i;
         }
+        
+        if (string_table.size() >= 65535) {
+            Serial.println("ERROR: String table overflow");
+            return 0;
+        }
+        
         string_table.push_back(str);
         return string_table.size() - 1;
     }
     
-    // Get or create variable index
+    // Get or create variable index with security checks
     int getVariableIndex(const String& var_name) {
+        if (!validateVariableName(var_name)) {
+            return 0;
+        }
         return addString(var_name);
     }
     
-    // Check if string is an integer
+    // Check if string is an integer with bounds checking
     bool isInteger(const String& str) {
-        if (str.isEmpty()) return false;
+        if (str.isEmpty() || str.length() > 16) return false;
         
         const char* cstr = str.c_str();
         size_t start = 0;
@@ -59,12 +100,19 @@ private:
         for (size_t i = start; i < str.length(); ++i) {
             if (!isdigit(cstr[i])) return false;
         }
+        
+        // Check for integer overflow
+        long long_val = str.toInt();
+        if (long_val > 2147483647L || long_val < -2147483648L) {
+            return false;
+        }
+        
         return true;
     }
     
-    // Check if string is a float
+    // Check if string is a float with bounds checking
     bool isFloat(const String& str) {
-        if (str.isEmpty()) return false;
+        if (str.isEmpty() || str.length() > 32) return false;
         
         const char* cstr = str.c_str();
         bool has_decimal = false;
@@ -90,10 +138,10 @@ private:
     
     // Check if string is a valid variable name
     bool isValidVariable(const String& str) {
-        if (str.isEmpty()) return false;
+        if (str.isEmpty() || str.length() > MAX_VARIABLE_NAME_LENGTH) return false;
         
         const char first = str[0];
-        if (!isalpha(first)) return false;
+        if (!isalpha(first) && first != '_') return false;
         
         for (size_t i = 1; i < str.length(); ++i) {
             const char c = str[i];
@@ -121,12 +169,18 @@ private:
         return op == "^";
     }
     
-    // Process function calls in expression
+    // Process function calls in expression with depth limit
     String processFunctions(const String& expr) {
+        if (expr.length() > 1024) {
+            Serial.println("ERROR: Expression too long");
+            return expr;
+        }
+        
         String result = expr;
         int absPos = result.indexOf("abs(");
+        int depth = 0;
         
-        while (absPos >= 0) {
+        while (absPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
             int endPos = findMatchingParenthesis(result, absPos + 3);
             if (endPos > absPos) {
                 String inner = result.substring(absPos + 4, endPos);
@@ -136,7 +190,13 @@ private:
                 break;
             }
             absPos = result.indexOf("abs(");
+            depth++;
         }
+        
+        if (depth >= MAX_EXPRESSION_DEPTH) {
+            Serial.println("ERROR: Expression too complex");
+        }
+        
         return result;
     }
     
@@ -152,11 +212,16 @@ private:
         return -1;
     }
     
-    // Convert infix expression to postfix (RPN)
+    // Convert infix expression to postfix (RPN) with safety limits
     std::vector<String> infixToPostfix(const std::vector<String>& tokens) {
         std::vector<String> output;
         std::stack<String> operators;
         output.reserve(tokens.size());
+        
+        if (tokens.size() > 100) {
+            Serial.println("ERROR: Too many tokens in expression");
+            return output;
+        }
         
         for (const String& token : tokens) {
             if (isInteger(token) || isFloat(token) || isQuotedString(token) || isValidVariable(token) || 
@@ -194,7 +259,7 @@ private:
         return output;
     }
     
-    // Tokenize expression
+    // Tokenize expression with safety limits
     std::vector<String> tokenizeExpression(const String& expr) {
         std::vector<String> tokens;
         String currentToken;
@@ -202,12 +267,20 @@ private:
         bool inBrackets = false;
         tokens.reserve(expr.length() / 2);
         
+        if (expr.length() > 1024) {
+            Serial.println("ERROR: Expression too long");
+            return tokens;
+        }
+        
         for (size_t i = 0; i < expr.length(); ++i) {
             char c = expr[i];
             
             if (c == '"' && !inBrackets) {
                 if (inQuotes) {
                     currentToken += c;
+                    if (!validateString(currentToken)) {
+                        currentToken = "\"\"";
+                    }
                     tokens.push_back(currentToken);
                     currentToken = "";
                     inQuotes = false;
@@ -293,9 +366,15 @@ private:
     }
     
     void compilePostfix(const std::vector<String>& postfix) {
+        if (postfix.size() > 100) {
+            Serial.println("ERROR: Postfix expression too complex");
+            return;
+        }
+        
         for (const String& token : postfix) {
             if (isInteger(token)) {
-                emitInstruction(OP_PUSH, token.toInt());
+                int32_t value = token.toInt();
+                emitInstruction(OP_PUSH, static_cast<uint32_t>(value));
             }
             else if (isFloat(token)) {
                 float fval = token.toFloat();
@@ -305,6 +384,9 @@ private:
             }
             else if (isQuotedString(token)) {
                 String str = token.substring(1, token.length() - 1);
+                if (!validateString(str)) {
+                    str = "";
+                }
                 int str_id = addString(str);
                 emitInstruction(OP_PUSH_STRING, str_id);
             }
@@ -332,8 +414,13 @@ private:
         }
     }
     
-    // Compile expression with proper operator precedence
+    // Compile expression with proper operator precedence and safety checks
     void compileExpression(const String& expr) {
+        if (expr.isEmpty() || expr.length() > 1024) {
+            Serial.println("ERROR: Invalid expression");
+            return;
+        }
+        
         String processedExpr = processFunctions(expr);
         std::vector<String> tokens = tokenizeExpression(processedExpr);
         std::vector<String> postfix = infixToPostfix(tokens);
@@ -376,8 +463,12 @@ private:
         return value;
     }
     
-    // Create instruction
+    // Create instruction with bounds checking
     void emitInstruction(uint8_t opcode, uint32_t arg1 = 0, uint16_t arg2 = 0) {
+        if (bytecode.size() >= 65535) {
+            Serial.println("ERROR: Program too large");
+            return;
+        }
         bytecode.emplace_back(opcode, arg1, arg2);
     }
     
@@ -386,10 +477,15 @@ private:
         return bytecode.size();
     }
     
-    // Compile one line
+    // Compile one line with security validation
     void compileLine(const String& line, int line_number) {
         String cleanedLine = cleanLine(line);
         if (cleanedLine.isEmpty()) return;
+        
+        if (cleanedLine.length() > 512) {
+            Serial.println("ERROR: Line too long at line " + String(line_number));
+            return;
+        }
         
         int firstSpace = cleanedLine.indexOf(' ');
         String command = (firstSpace > 0) ? cleanedLine.substring(0, firstSpace) : cleanedLine;
@@ -413,6 +509,9 @@ private:
                 if (text.startsWith("\"") && text.endsWith("\"")) {
                     text = text.substring(1, text.length() - 1);
                 }
+                if (!validateString(text)) {
+                    text = "";
+                }
                 int str_id = addString(text);
                 emitInstruction(OP_PRINT, str_id);
             }
@@ -429,6 +528,12 @@ private:
                 state_str.toLowerCase();
                 
                 int pin = pin_str.toInt();
+                // Validate pin number for safety
+                if (pin < 0 || pin > 255) {
+                    Serial.println("ERROR: Invalid pin number at line " + String(line_number));
+                    return;
+                }
+                
                 if (state_str == "on" || state_str == "1") {
                     emitInstruction(OP_LED_ON, pin);
                 } else if (state_str == "off" || state_str == "0") {
@@ -441,7 +546,12 @@ private:
             }
         }
         else if (command == "delay") {
-            emitInstruction(OP_DELAY, args.toInt());
+            int delay_time = args.toInt();
+            if (delay_time < 0 || delay_time > 60000) { // Max 60 seconds
+                Serial.println("WARNING: Delay time out of range at line " + String(line_number));
+                delay_time = min(max(delay_time, 0), 60000);
+            }
+            emitInstruction(OP_DELAY, delay_time);
         }
         else if (command == "push") {
             if (isValidVariable(args)) {
@@ -454,10 +564,14 @@ private:
                 emitInstruction(OP_PUSH_FLOAT, fbits);
             } else if (isQuotedString(args)) {
                 String str = args.substring(1, args.length() - 1);
+                if (!validateString(str)) {
+                    str = "";
+                }
                 int str_id = addString(str);
                 emitInstruction(OP_PUSH_STRING, str_id);
             } else {
-                emitInstruction(OP_PUSH, args.toInt());
+                int32_t value = args.toInt();
+                emitInstruction(OP_PUSH, static_cast<uint32_t>(value));
             }
         }
         else if (command == "pop") emitInstruction(OP_POP);
@@ -474,7 +588,7 @@ private:
                 String var_name = args.substring(0, space1);
                 String expression = args.substring(space1 + 1);
                 
-                if (!isValidVariable(var_name)) {
+                if (!validateVariableName(var_name)) {
                     Serial.println("ERROR: Invalid variable name '" + var_name + "' at line " + String(line_number));
                     return;
                 }
@@ -491,6 +605,11 @@ private:
             }
         }
         else if (command == "if") {
+            if (if_stack.size() >= MAX_IF_DEPTH) {
+                Serial.println("ERROR: IF nesting too deep at line " + String(line_number));
+                return;
+            }
+            
             int thenPos = args.indexOf(" then");
             if (thenPos > 0) {
                 String condition = args.substring(0, thenPos);
@@ -509,7 +628,9 @@ private:
                 emitInstruction(OP_JUMP, 0);
                 
                 int if_jump_addr = if_stack.back();
-                bytecode[if_jump_addr].arg1 = getCurrentAddress();
+                if (if_jump_addr < bytecode.size()) {
+                    bytecode[if_jump_addr].arg1 = getCurrentAddress();
+                }
                 
                 if_stack.pop_back();
                 if_stack.push_back(else_jump_addr);
@@ -520,13 +641,20 @@ private:
         else if (command == "endif") {
             if (!if_stack.empty()) {
                 int jump_addr = if_stack.back();
-                bytecode[jump_addr].arg1 = getCurrentAddress();
+                if (jump_addr < bytecode.size()) {
+                    bytecode[jump_addr].arg1 = getCurrentAddress();
+                }
                 if_stack.pop_back();
             } else {
                 Serial.println("ERROR: ENDIF without IF at line " + String(line_number));
             }
         }
         else if (command == "for") {
+            if (loop_stack.size() >= MAX_LOOP_DEPTH) {
+                Serial.println("ERROR: Loop nesting too deep at line " + String(line_number));
+                return;
+            }
+            
             int equalsPos = args.indexOf('=');
             int toPos = args.indexOf(" to ");
             
@@ -534,7 +662,7 @@ private:
                 String var_name = args.substring(0, equalsPos);
                 var_name.trim();
                 
-                if (!isValidVariable(var_name)) {
+                if (!validateVariableName(var_name)) {
                     Serial.println("ERROR: Invalid variable name in FOR at line " + String(line_number));
                     return;
                 }
@@ -585,7 +713,10 @@ private:
                 emitInstruction(OP_ADD);
                 emitInstruction(OP_STORE, getVariableIndex(loop_info.var_name));
                 emitInstruction(OP_JUMP, loop_info.start_address);
-                bytecode[loop_info.condition_address].arg1 = getCurrentAddress();
+                
+                if (loop_info.condition_address < bytecode.size()) {
+                    bytecode[loop_info.condition_address].arg1 = getCurrentAddress();
+                }
             } else {
                 Serial.println("ERROR: ENDFOR without FOR at line " + String(line_number));
             }
