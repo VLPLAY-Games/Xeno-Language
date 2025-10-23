@@ -1,25 +1,12 @@
 #ifndef XENO_COMPILER_H
 #define XENO_COMPILER_H
 
+#include "xeno_common.h"
 #include "xeno_vm.h"
 #include <vector>
 #include <map>
 #include <stack>
 
-// Security limits
-#define MAX_STRING_LENGTH 256
-#define MAX_VARIABLE_NAME_LENGTH 32
-#define MAX_EXPRESSION_DEPTH 32
-#define MAX_LOOP_DEPTH 16
-#define MAX_IF_DEPTH 16
-
-// Структура для хранения информации о цикле
-struct LoopInfo {
-    String var_name;
-    int start_address;
-    int condition_address;
-    int end_jump_address;
-};
 
 // Xeno Compiler - converts source code to bytecode
 class XenoCompiler {

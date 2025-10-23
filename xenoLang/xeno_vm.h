@@ -8,101 +8,10 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include "xeno_common.h"
+#include "xeno_security.h"
 
-// Operation codes for Xeno bytecode
-enum XenoOpcodes {
-    OP_NOP = 0,
-    OP_PRINT = 1,
-    OP_LED_ON = 2,
-    OP_LED_OFF = 3,  
-    OP_DELAY = 4,
-    OP_PUSH = 5,
-    OP_POP = 6,
-    OP_ADD = 7,
-    OP_SUB = 8,
-    OP_MUL = 9,
-    OP_DIV = 10,
-    OP_JUMP = 11,
-    OP_JUMP_IF = 12,
-    OP_PRINT_NUM = 13,
-    OP_STORE = 14,
-    OP_LOAD = 15,
-    OP_MOD = 16,
-    OP_ABS = 17,
-    OP_POW = 18,
-    OP_EQ = 19,
-    OP_NEQ = 20,
-    OP_LT = 21,
-    OP_GT = 22,
-    OP_LTE = 23,
-    OP_GTE = 24,
-    OP_HALT = 255,
-    OP_PUSH_FLOAT = 25,
-    OP_PUSH_STRING = 26
-};
 
-// Data types
-enum XenoDataType {
-    TYPE_INT = 0,
-    TYPE_FLOAT = 1,
-    TYPE_STRING = 2
-};
-
-// Value structure that can hold different data types
-struct XenoValue {
-    XenoDataType type;
-    union {
-        int32_t int_val;
-        float float_val;
-        uint16_t string_index;
-    };
-    
-    XenoValue() : type(TYPE_INT), int_val(0) {}
-    
-    static XenoValue makeInt(int32_t val) {
-        XenoValue v;
-        v.type = TYPE_INT;
-        v.int_val = val;
-        return v;
-    }
-    
-    static XenoValue makeFloat(float val) {
-        XenoValue v;
-        v.type = TYPE_FLOAT;
-        v.float_val = val;
-        return v;
-    }
-    
-    static XenoValue makeString(uint16_t str_idx) {
-        XenoValue v;
-        v.type = TYPE_STRING;
-        v.string_index = str_idx;
-        return v;
-    }
-};
-
-// Bytecode instruction structure
-struct XenoInstruction {
-    uint8_t opcode;
-    uint32_t arg1;
-    uint16_t arg2;
-    
-    XenoInstruction(uint8_t op = OP_NOP, uint32_t a1 = 0, uint16_t a2 = 0) 
-        : opcode(op), arg1(a1), arg2(a2) {}
-};
-
-// Allowed pins for safety
-const uint8_t ALLOWED_PINS[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, LED_BUILTIN};
-const size_t NUM_ALLOWED_PINS = sizeof(ALLOWED_PINS) / sizeof(ALLOWED_PINS[0]);
-
-bool isPinAllowed(uint8_t pin) {
-    for (size_t i = 0; i < NUM_ALLOWED_PINS; i++) {
-        if (pin == ALLOWED_PINS[i]) {
-            return true;
-        }
-    }
-    return false;
-}
 
 // Xeno Virtual Machine
 class XenoVM {
@@ -119,123 +28,13 @@ private:
     uint32_t max_instructions;
     uint32_t iteration_count;
     static const uint32_t MAX_ITERATIONS = 100000;
+    XenoSecurity security;
     
     // Typedef for instruction handler functions
     typedef void (XenoVM::*InstructionHandler)(const XenoInstruction&);
     
     // Dispatch table for fast instruction execution
     InstructionHandler dispatch_table[256];
-    
-    // String sanitization for security
-    String sanitizeString(const String& input) {
-        String sanitized;
-        sanitized.reserve(input.length());
-        
-        for (size_t i = 0; i < input.length(); i++) {
-            char c = input[i];
-            
-            // Allow only safe printable ASCII characters
-            if (c >= 32 && c <= 126) {
-                // Escape potentially dangerous characters
-                if (c == '\\' || c == '"' || c == '\'' || c == '`') {
-                    sanitized += '\\';
-                }
-                sanitized += c;
-            }
-            // Allow basic whitespace
-            else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-                sanitized += c;
-            }
-            // Replace other characters with safe equivalent
-            else {
-                sanitized += '?';
-            }
-            
-            // Limit maximum string length for safety
-            if (sanitized.length() >= 256) {
-                sanitized += "...";
-                break;
-            }
-        }
-        
-        return sanitized;
-    }
-    
-    // Bytecode verification for security
-    bool verifyBytecode(const std::vector<XenoInstruction>& bytecode, 
-                       const std::vector<String>& strings) {
-        // Check program size limits
-        if (bytecode.size() > 10000) {
-            Serial.println("SECURITY: Program too large");
-            return false;
-        }
-        
-        // Check string table size limits
-        if (strings.size() > 1000) {
-            Serial.println("SECURITY: String table too large");
-            return false;
-        }
-        
-        // Verify each instruction
-        for (size_t i = 0; i < bytecode.size(); i++) {
-            const XenoInstruction& instr = bytecode[i];
-            
-            // Check for valid opcode range
-            if (instr.opcode > 26 && instr.opcode != 255) {
-                Serial.println("SECURITY: Invalid opcode at instruction " + String(i));
-                return false;
-            }
-            
-            // Verify jump targets are within program bounds
-            if (instr.opcode == OP_JUMP || instr.opcode == OP_JUMP_IF) {
-                if (instr.arg1 >= bytecode.size()) {
-                    Serial.println("SECURITY: Invalid jump target at instruction " + String(i));
-                    return false;
-                }
-            }
-            
-            // Verify string indices are within string table bounds
-            if (instr.opcode == OP_PRINT || instr.opcode == OP_STORE || 
-                instr.opcode == OP_LOAD || instr.opcode == OP_PUSH_STRING) {
-                if (instr.arg1 >= strings.size()) {
-                    Serial.println("SECURITY: Invalid string index at instruction " + String(i));
-                    return false;
-                }
-            }
-            
-            // Verify pin numbers are allowed
-            if (instr.opcode == OP_LED_ON || instr.opcode == OP_LED_OFF) {
-                if (!isPinAllowed(instr.arg1)) {
-                    Serial.println("SECURITY: Unauthorized pin access at instruction " + String(i));
-                    return false;
-                }
-            }
-            
-            // Verify delay values are reasonable
-            if (instr.opcode == OP_DELAY) {
-                if (instr.arg1 > 60000) { // Max 60 seconds
-                    Serial.println("SECURITY: Excessive delay at instruction " + String(i));
-                    return false;
-                }
-            }
-        }
-        
-        // Verify no infinite loops without conditions
-        bool has_halt = false;
-        for (const auto& instr : bytecode) {
-            if (instr.opcode == OP_HALT) {
-                has_halt = true;
-                break;
-            }
-        }
-        
-        if (!has_halt && bytecode.size() > 10) {
-            Serial.println("SECURITY: Program missing HALT instruction");
-            return false;
-        }
-        
-        return true;
-    }
     
     void initializeDispatchTable() {
         // Initialize all to nullptr for safety
@@ -621,7 +420,7 @@ private:
     // Optimized string addition with lookup table
     uint16_t addString(const String& str) {
         // Sanitize input string first
-        String safe_str = sanitizeString(str);
+        String safe_str = security.sanitizeString(str);
         
         // Check lookup first
         auto it = string_lookup.find(safe_str);
@@ -660,7 +459,7 @@ private:
     }
     
     void handleLED_ON(const XenoInstruction& instr) {
-        if (!isPinAllowed(instr.arg1)) {
+        if (!security.isPinAllowed(instr.arg1)) {
             Serial.println("ERROR: Pin not allowed: " + String(instr.arg1));
             return;
         }
@@ -670,7 +469,7 @@ private:
     }
     
     void handleLED_OFF(const XenoInstruction& instr) {
-        if (!isPinAllowed(instr.arg1)) {
+        if (!security.isPinAllowed(instr.arg1)) {
             Serial.println("ERROR: Pin not allowed: " + String(instr.arg1));
             return;
         }
@@ -868,11 +667,11 @@ public:
         std::vector<String> sanitized_strings;
         sanitized_strings.reserve(strings.size());
         for (const String& str : strings) {
-            sanitized_strings.push_back(sanitizeString(str));
+            sanitized_strings.push_back(security.sanitizeString(str));
         }
         
         // Verify bytecode integrity before loading
-        if (!verifyBytecode(bytecode, sanitized_strings)) {
+        if (!security.verifyBytecode(bytecode, sanitized_strings)) {
             Serial.println("SECURITY: Bytecode verification failed - refusing to load");
             running = false;
             return;
@@ -887,7 +686,7 @@ public:
         }
         
         running = true;
-        Serial.println("SECURITY: Program loaded and verified successfully");
+        Serial.println("Program loaded and verified successfully");
     }
     
     bool step() {
