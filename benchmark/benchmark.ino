@@ -110,11 +110,12 @@ public:
             "halt";
         
         XenoCompiler compiler;
-        unsigned long start = micros();
+        
         Serial.println("=== XENO VM BENCHMARK ===");
         compiler.compile(source_code);
         XenoVM vm;
         vm.setMaxInstructions(200000); // Увеличили лимит для строковых операций
+        unsigned long start = micros();
         vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
         vm.run();
         
