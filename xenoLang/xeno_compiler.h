@@ -1,7 +1,7 @@
 #ifndef XENO_COMPILER_H
 #define XENO_COMPILER_H
 
-#include "modules/xeno_common.h"
+#include "xeno_common.h"
 #include "xeno_vm.h"
 #include <vector>
 #include <map>

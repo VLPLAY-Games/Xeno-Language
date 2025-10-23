@@ -2,7 +2,6 @@
 #define XENO_COMMON_H
 
 #include <Arduino.h>
-#include "xeno_string.h"
 
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
