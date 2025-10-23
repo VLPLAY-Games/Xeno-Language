@@ -2,6 +2,13 @@
 #define XENO_SECURITY_H
 
 
+// Security limits
+#define MAX_STRING_LENGTH 256
+#define MAX_VARIABLE_NAME_LENGTH 32
+#define MAX_EXPRESSION_DEPTH 32
+#define MAX_LOOP_DEPTH 16
+#define MAX_IF_DEPTH 16
+
 class XenoSecurity {
 private:
 
