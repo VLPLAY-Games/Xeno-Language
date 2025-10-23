@@ -150,9 +150,10 @@ private:
         }
         
         String result = expr;
-        int absPos = result.indexOf("abs(");
         int depth = 0;
         
+        // Process abs()
+        int absPos = result.indexOf("abs(");
         while (absPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
             int endPos = findMatchingParenthesis(result, absPos + 3);
             if (endPos > absPos) {
@@ -163,6 +164,51 @@ private:
                 break;
             }
             absPos = result.indexOf("abs(");
+            depth++;
+        }
+        
+        // Process max()
+        int maxPos = result.indexOf("max(");
+        while (maxPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
+            int endPos = findMatchingParenthesis(result, maxPos + 3);
+            if (endPos > maxPos) {
+                String inner = result.substring(maxPos + 4, endPos);
+                inner = processFunctions(inner);
+                result = result.substring(0, maxPos) + "{" + inner + "}" + result.substring(endPos + 1);
+            } else {
+                break;
+            }
+            maxPos = result.indexOf("max(");
+            depth++;
+        }
+        
+        // Process min()
+        int minPos = result.indexOf("min(");
+        while (minPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
+            int endPos = findMatchingParenthesis(result, minPos + 3);
+            if (endPos > minPos) {
+                String inner = result.substring(minPos + 4, endPos);
+                inner = processFunctions(inner);
+                result = result.substring(0, minPos) + "|" + inner + "|" + result.substring(endPos + 1);
+            } else {
+                break;
+            }
+            minPos = result.indexOf("min(");
+            depth++;
+        }
+        
+        // Process sqrt()
+        int sqrtPos = result.indexOf("sqrt(");
+        while (sqrtPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
+            int endPos = findMatchingParenthesis(result, sqrtPos + 4);
+            if (endPos > sqrtPos) {
+                String inner = result.substring(sqrtPos + 5, endPos);
+                inner = processFunctions(inner);
+                result = result.substring(0, sqrtPos) + "~" + inner + "~" + result.substring(endPos + 1);
+            } else {
+                break;
+            }
+            sqrtPos = result.indexOf("sqrt(");
             depth++;
         }
         
@@ -198,7 +244,10 @@ private:
         
         for (const String& token : tokens) {
             if (isInteger(token) || isFloat(token) || isQuotedString(token) || isValidVariable(token) || 
-                (token.startsWith("[") && token.endsWith("]"))) {
+                (token.startsWith("[") && token.endsWith("]")) ||
+                (token.startsWith("{") && token.endsWith("}")) ||
+                (token.startsWith("|") && token.endsWith("|")) ||
+                (token.startsWith("~") && token.endsWith("~"))) {
                 output.push_back(token);
             }
             else if (token == "(") {
@@ -237,7 +286,8 @@ private:
         std::vector<String> tokens;
         String currentToken;
         bool inQuotes = false;
-        bool inBrackets = false;
+        bool inSpecial = false;
+        char specialChar = 0;
         tokens.reserve(expr.length() / 2);
         
         if (expr.length() > 1024) {
@@ -248,7 +298,7 @@ private:
         for (size_t i = 0; i < expr.length(); ++i) {
             char c = expr[i];
             
-            if (c == '"' && !inBrackets) {
+            if (c == '"' && !inSpecial) {
                 if (inQuotes) {
                     currentToken += c;
                     if (!validateString(currentToken)) {
@@ -273,24 +323,27 @@ private:
                 continue;
             }
             
-            if (c == '[') {
+            // Handle special function markers
+            if ((c == '[' || c == '{' || c == '|' || c == '~') && !inSpecial) {
                 if (!currentToken.isEmpty()) {
                     tokens.push_back(currentToken);
                     currentToken = "";
                 }
-                inBrackets = true;
+                inSpecial = true;
+                specialChar = c;
                 currentToken += c;
                 continue;
             }
-            else if (c == ']') {
+            else if (inSpecial && c == specialChar) {
                 currentToken += c;
                 tokens.push_back(currentToken);
                 currentToken = "";
-                inBrackets = false;
+                inSpecial = false;
+                specialChar = 0;
                 continue;
             }
             
-            if (inBrackets) {
+            if (inSpecial) {
                 currentToken += c;
                 continue;
             }
@@ -371,6 +424,39 @@ private:
                 String innerExpr = token.substring(1, token.length() - 1);
                 compileExpression(innerExpr);
                 emitInstruction(OP_ABS);
+            }
+            else if (token.startsWith("{") && token.endsWith("}")) {
+                String innerExpr = token.substring(1, token.length() - 1);
+                // max function takes two arguments separated by comma
+                int commaPos = innerExpr.indexOf(',');
+                if (commaPos > 0) {
+                    String arg1 = innerExpr.substring(0, commaPos);
+                    String arg2 = innerExpr.substring(commaPos + 1);
+                    compileExpression(arg1);
+                    compileExpression(arg2);
+                    emitInstruction(OP_MAX);
+                } else {
+                    Serial.println("ERROR: max function requires two arguments");
+                }
+            }
+            else if (token.startsWith("|") && token.endsWith("|")) {
+                String innerExpr = token.substring(1, token.length() - 1);
+                // min function takes two arguments separated by comma
+                int commaPos = innerExpr.indexOf(',');
+                if (commaPos > 0) {
+                    String arg1 = innerExpr.substring(0, commaPos);
+                    String arg2 = innerExpr.substring(commaPos + 1);
+                    compileExpression(arg1);
+                    compileExpression(arg2);
+                    emitInstruction(OP_MIN);
+                } else {
+                    Serial.println("ERROR: min function requires two arguments");
+                }
+            }
+            else if (token.startsWith("~") && token.endsWith("~")) {
+                String innerExpr = token.substring(1, token.length() - 1);
+                compileExpression(innerExpr);
+                emitInstruction(OP_SQRT);
             }
             else if (token == "+") emitInstruction(OP_ADD);
             else if (token == "-") emitInstruction(OP_SUB);
@@ -555,6 +641,18 @@ private:
         else if (command == "mod") emitInstruction(OP_MOD);
         else if (command == "abs") emitInstruction(OP_ABS);
         else if (command == "pow") emitInstruction(OP_POW);
+        else if (command == "max") emitInstruction(OP_MAX);
+        else if (command == "min") emitInstruction(OP_MIN);
+        else if (command == "sqrt") emitInstruction(OP_SQRT);
+        else if (command == "input") {
+            String var_name = args;
+            if (!validateVariableName(var_name)) {
+                Serial.println("ERROR: Invalid variable name for input at line " + String(line_number));
+                return;
+            }
+            int var_index = getVariableIndex(var_name);
+            emitInstruction(OP_INPUT, var_index);
+        }
         else if (command == "set") {
             int space1 = args.indexOf(' ');
             if (space1 > 0) {
@@ -782,6 +880,13 @@ public:
                 case OP_MOD: Serial.println("MOD"); break;
                 case OP_ABS: Serial.println("ABS"); break;
                 case OP_POW: Serial.println("POW"); break;
+                case OP_MAX: Serial.println("MAX"); break;
+                case OP_MIN: Serial.println("MIN"); break;
+                case OP_SQRT: Serial.println("SQRT"); break;
+                case OP_INPUT: 
+                    Serial.println(instr.arg1 < string_table.size() ? 
+                        "INPUT " + string_table[instr.arg1] : "INPUT <invalid>");
+                    break;
                 case OP_EQ: Serial.println("EQ"); break;
                 case OP_NEQ: Serial.println("NEQ"); break;
                 case OP_LT: Serial.println("LT"); break;

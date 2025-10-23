@@ -81,7 +81,7 @@ protected:
             const XenoInstruction& instr = bytecode[i];
             
             // Check for valid opcode range
-            if (instr.opcode > 26 && instr.opcode != 255) {
+            if (instr.opcode > 30 && instr.opcode != 255) {
                 Serial.println("SECURITY: Invalid opcode at instruction " + String(i));
                 return false;
             }
@@ -96,7 +96,8 @@ protected:
             
             // Verify string indices are within string table bounds
             if (instr.opcode == OP_PRINT || instr.opcode == OP_STORE || 
-                instr.opcode == OP_LOAD || instr.opcode == OP_PUSH_STRING) {
+                instr.opcode == OP_LOAD || instr.opcode == OP_PUSH_STRING ||
+                instr.opcode == OP_INPUT) {
                 if (instr.arg1 >= strings.size()) {
                     Serial.println("SECURITY: Invalid string index at instruction " + String(i));
                     return false;

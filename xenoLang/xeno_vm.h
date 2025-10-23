@@ -62,6 +62,10 @@ private:
         dispatch_table[OP_MOD] = &XenoVM::handleMOD;
         dispatch_table[OP_ABS] = &XenoVM::handleABS;
         dispatch_table[OP_POW] = &XenoVM::handlePOW;
+        dispatch_table[OP_MAX] = &XenoVM::handleMAX;
+        dispatch_table[OP_MIN] = &XenoVM::handleMIN;
+        dispatch_table[OP_SQRT] = &XenoVM::handleSQRT;
+        dispatch_table[OP_INPUT] = &XenoVM::handleINPUT;
         dispatch_table[OP_EQ] = &XenoVM::handleEQ;
         dispatch_table[OP_NEQ] = &XenoVM::handleNEQ;
         dispatch_table[OP_LT] = &XenoVM::handleLT;
@@ -207,6 +211,52 @@ private:
         
         result = a % b;
         return true;
+    }
+
+    // Safe square root with validation
+    XenoValue safeSqrt(const XenoValue& a) {
+        if (a.type == TYPE_INT) {
+            if (a.int_val < 0) {
+                Serial.println("ERROR: Square root of negative number");
+                return XenoValue::makeInt(0);
+            }
+            return XenoValue::makeFloat(sqrt(static_cast<float>(a.int_val)));
+        } else if (a.type == TYPE_FLOAT) {
+            if (a.float_val < 0) {
+                Serial.println("ERROR: Square root of negative number");
+                return XenoValue::makeFloat(0.0f);
+            }
+            return XenoValue::makeFloat(sqrt(a.float_val));
+        }
+        return XenoValue::makeInt(0);
+    }
+
+    // Safe max operation
+    XenoValue safeMax(const XenoValue& a, const XenoValue& b) {
+        if (bothNumeric(a, b)) {
+            if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                return XenoValue::makeFloat(max(a_val, b_val));
+            } else {
+                return XenoValue::makeInt(max(a.int_val, b.int_val));
+            }
+        }
+        return XenoValue::makeInt(0);
+    }
+
+    // Safe min operation
+    XenoValue safeMin(const XenoValue& a, const XenoValue& b) {
+        if (bothNumeric(a, b)) {
+            if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
+                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
+                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                return XenoValue::makeFloat(min(a_val, b_val));
+            } else {
+                return XenoValue::makeInt(min(a.int_val, b.int_val));
+            }
+        }
+        return XenoValue::makeInt(0);
     }
     
     // Helper functions for type conversion and operations
@@ -542,6 +592,97 @@ private:
         if (!safePopTwo(a, b)) return;
         if (!safePush(performPower(a, b))) return;
     }
+
+    void handleMAX(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(safeMax(a, b))) return;
+    }
+
+    void handleMIN(const XenoInstruction& instr) {
+        XenoValue a, b;
+        if (!safePopTwo(a, b)) return;
+        if (!safePush(safeMin(a, b))) return;
+    }
+
+    void handleSQRT(const XenoInstruction& instr) {
+        XenoValue a;
+        if (!safePeek(a)) return;
+        stack[stack_pointer - 1] = safeSqrt(a);
+    }
+
+    void handleINPUT(const XenoInstruction& instr) {
+        if (instr.arg1 >= string_table.size()) {
+            Serial.println("ERROR: Invalid variable name index in INPUT");
+            running = false;
+            return;
+        }
+        
+        String var_name = string_table[instr.arg1];
+        Serial.print("INPUT " + var_name + ": ");
+        
+        // Wait for input with timeout
+        unsigned long startTime = millis();
+        String input_str = "";
+        
+        while (millis() - startTime < 30000) { // 30 second timeout
+            if (Serial.available() > 0) {
+                input_str = Serial.readString();
+                input_str.trim();
+                break;
+            }
+            delay(100);
+        }
+        
+        if (input_str.isEmpty()) {
+            Serial.println("TIMEOUT - using default value 0");
+            variables[var_name] = XenoValue::makeInt(0);
+            return;
+        }
+        
+        // Determine input type and convert
+        XenoValue input_value;
+        if (isInteger(input_str)) {
+            input_value = XenoValue::makeInt(input_str.toInt());
+        } else if (isFloat(input_str)) {
+            input_value = XenoValue::makeFloat(input_str.toFloat());
+        } else {
+            // Treat as string
+            input_value = XenoValue::makeString(addString(input_str));
+        }
+        
+        variables[var_name] = input_value;
+        Serial.println("-> " + input_str);
+    }
+    
+    // Helper functions for input parsing
+    bool isInteger(const String& str) {
+        if (str.isEmpty()) return false;
+        const char* cstr = str.c_str();
+        size_t start = 0;
+        if (cstr[0] == '-') start = 1;
+        for (size_t i = start; i < str.length(); ++i) {
+            if (!isdigit(cstr[i])) return false;
+        }
+        return true;
+    }
+    
+    bool isFloat(const String& str) {
+        if (str.isEmpty()) return false;
+        const char* cstr = str.c_str();
+        bool has_decimal = false;
+        size_t start = 0;
+        if (cstr[0] == '-') start = 1;
+        for (size_t i = start; i < str.length(); ++i) {
+            if (cstr[i] == '.') {
+                if (has_decimal) return false;
+                has_decimal = true;
+            } else if (!isdigit(cstr[i])) {
+                return false;
+            }
+        }
+        return has_decimal;
+    }
     
     void handleEQ(const XenoInstruction& instr) {
         XenoValue a, b;
@@ -829,6 +970,13 @@ public:
                 case OP_MOD: Serial.println("MOD"); break;
                 case OP_ABS: Serial.println("ABS"); break;
                 case OP_POW: Serial.println("POW"); break;
+                case OP_MAX: Serial.println("MAX"); break;
+                case OP_MIN: Serial.println("MIN"); break;
+                case OP_SQRT: Serial.println("SQRT"); break;
+                case OP_INPUT:
+                    Serial.println(instr.arg1 < string_table.size() ? 
+                        "INPUT " + string_table[instr.arg1] : "INPUT <invalid var>");
+                    break;
                 case OP_EQ: Serial.println("EQ"); break;
                 case OP_NEQ: Serial.println("NEQ"); break;
                 case OP_LT: Serial.println("LT"); break;

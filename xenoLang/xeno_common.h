@@ -30,9 +30,13 @@ enum XenoOpcodes {
     OP_GT = 22,
     OP_LTE = 23,
     OP_GTE = 24,
-    OP_HALT = 255,
     OP_PUSH_FLOAT = 25,
-    OP_PUSH_STRING = 26
+    OP_PUSH_STRING = 26,
+    OP_MAX = 27,
+    OP_MIN = 28,
+    OP_SQRT = 29,
+    OP_INPUT = 30,
+    OP_HALT = 255
 };
 
 // Data types
