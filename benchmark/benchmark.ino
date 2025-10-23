@@ -52,10 +52,6 @@ public:
         
         Serial.println("=== C++ NATIVE BENCHMARK ===");
         Serial.println("Time: " + String(cpp_time) + " microseconds");
-        Serial.println("Sum: " + String(sum));
-        Serial.println("Float Sum: " + String(fsum, 2));
-        Serial.println("String length: " + String(longString.length()));
-        Serial.println("Compare count: " + String(compareCount));
         Serial.println();
     }
 
@@ -165,7 +161,7 @@ void setup() {
     delay(500);
     
     Serial.println();
-    Serial.println("XENO LANGUAGE BENCHMARK WITH STRING OPERATIONS");
+    Serial.println("XENO LANGUAGE BENCHMARK WITH STRING OPERATIONS AND ARITHMETIC");
     Serial.println("=================================================");
     Serial.println();
     
