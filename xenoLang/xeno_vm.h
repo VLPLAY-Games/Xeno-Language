@@ -88,6 +88,19 @@ private:
         variables.clear();
         string_lookup.clear();
     }
+
+    String convertToString(const XenoValue& val) {
+        switch (val.type) {
+            case TYPE_INT:
+                return String(val.int_val);
+            case TYPE_FLOAT:
+                return String(val.float_val, 3); // 2 знака после запятой
+            case TYPE_STRING:
+                return string_table[val.string_index];
+            default:
+                return String();
+        }
+    }
     
     // Safe stack operations with immediate termination on error
     bool safePush(const XenoValue& value) {
@@ -274,14 +287,15 @@ private:
     }
     
     XenoValue performAddition(const XenoValue& a, const XenoValue& b) {
-        // String concatenation
-        if (a.type == TYPE_STRING && b.type == TYPE_STRING) {
-            String combined = string_table[a.string_index] + string_table[b.string_index];
+        if (a.type == TYPE_STRING || b.type == TYPE_STRING) {
+            String str_a = convertToString(a);
+            String str_b = convertToString(b);
+            String combined = str_a + str_b;
             uint16_t combined_index = addString(combined);
             return XenoValue::makeString(combined_index);
         }
         
-        // Numeric addition
+        // Иначе числовое сложение
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
                 float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;

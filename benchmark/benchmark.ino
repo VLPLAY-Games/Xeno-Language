@@ -9,54 +9,59 @@ private:
 
 public:
     void runCppBenchmark() {
+        Serial.println("=== C++ NATIVE BENCHMARK ===");
         unsigned long start = micros();
         
         // Integer arithmetic
         int sum = 0;
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i <= 100; i++) {
             sum = sum + i;
         }
+        Serial.println(sum);
         
         // Float arithmetic
-        float fsum = 0.0f;
-        for (int i = 0; i < 100; i++) {
-            fsum = fsum + (float)i;
+        float fsum = 2.2f;
+        for (int i = 0; i <= 100; i++) {
+            fsum = fsum + (float)i * 1.1;
         }
+        Serial.println(fsum);
         
         // String operations - расширенные
         String result = "";
         String temp1 = "Hello";
         String temp2 = "World";
         String temp3 = "Test";
-        
+        result = temp1 + " " + temp2 + " " + temp3;
+        Serial.println(result);
         // Конкатенация строк
-        for (int i = 0; i < 50; i++) {
-            result = temp1 + " " + temp2 + " " + String(i);
+        for (int i = 0; i <= 100; i++) {
+            result = temp1 + " " + temp2 + " " + temp3 + " " + String(i);
         }
+        Serial.println(result);
         
         // Множественная конкатенация
         String longString = "";
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i <= 50; i++) {
             longString = longString + "a" + "b" + "c";
         }
+        Serial.println(longString);
         
         // Сравнение строк
         int compareCount = 0;
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i <= 100; i++) {
             if (temp1 == "Hello") compareCount++;
             if (temp2 != temp3) compareCount++;
         }
+        Serial.println(compareCount);
         
         unsigned long end = micros();
         cpp_time = end - start;
         
-        Serial.println("=== C++ NATIVE BENCHMARK ===");
         Serial.println("Time: " + String(cpp_time) + " microseconds");
         Serial.println();
     }
 
     void runXenoBenchmark() {
-        // Расширенный код с работой со строками
         String source_code = 
             "// Integer arithmetic\n"
             "set sum 0\n"
@@ -64,37 +69,42 @@ public:
             "for i = 0 to 100\n"
             "    set sum sum + i\n"
             "endfor\n"
+            "print $sum\n"
             "\n"
             "// Float arithmetic\n"
-            "set fsum 0\n"
+            "set fsum 2.2\n"
             "set j 0\n"
             "for j = 0 to 100\n"
-            "    set fsum fsum + j\n"
+            "    set fsum fsum + j * 1.1\n"
             "endfor\n"
+            "print $fsum\n"
             "\n"
             "// String operations\n"
             "set temp1 \"Hello\"\n"
             "set temp2 \"World\"\n"
             "set temp3 \"Test\"\n"
-            "set result \"\"\n"
+            "set result temp1 + \" \" + temp2 + \" \" + temp3\n"
+            "print $result\n"
             "\n"
             "// Конкатенация строк\n"
             "set k 0\n"
-            "for k = 0 to 50\n"
+            "for k = 0 to 100\n"
             "    set result temp1 + \" \" + temp2 + \" \" + k\n"
             "endfor\n"
+            "print $result\n"
             "\n"
             "// Множественная конкатенация\n"
             "set longString \"\"\n"
             "set m 0\n"
-            "for m = 0 to 30\n"
+            "for m = 0 to 50\n"
             "    set longString longString + \"a\" + \"b\" + \"c\"\n"
             "endfor\n"
+            "print $longString\n"
             "\n"
             "// Сравнение строк\n"
             "set compareCount 0\n"
             "set n 0\n"
-            "for n = 0 to 50\n"
+            "for n = 0 to 100\n"
             "    if temp1 == \"Hello\" then\n"
             "        set compareCount compareCount + 1\n"
             "    endif\n"
@@ -102,8 +112,10 @@ public:
             "        set compareCount compareCount + 1\n"
             "    endif\n"
             "endfor\n"
+            "print $compareCount\n"
             "\n"
             "halt";
+            
         
         XenoCompiler compiler;
         
@@ -111,8 +123,8 @@ public:
         compiler.compile(source_code);
         XenoVM vm;
         vm.setMaxInstructions(200000); // Увеличили лимит для строковых операций
-        unsigned long start = micros();
         vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
+        unsigned long start = micros();
         vm.run();
         
         unsigned long end = micros();
