@@ -2,7 +2,6 @@
 #define XENO_COMPILER_H
 
 #include "xeno_common.h"
-#include "xeno_vm.h"
 #include <vector>
 #include <map>
 #include <stack>

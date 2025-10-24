@@ -1,8 +1,6 @@
 #ifndef XENO_COMMON_H
 #define XENO_COMMON_H
 
-#include <Arduino.h>
-
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
     OP_NOP = 0,
