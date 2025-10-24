@@ -510,22 +510,26 @@ private:
     
     void handleLED_ON(const XenoInstruction& instr) {
         if (!security.isPinAllowed(instr.arg1)) {
-            Serial.println("ERROR: Pin not allowed: " + String(instr.arg1));
+            Serial.print("ERROR: Pin not allowed: ");
+            Serial.println(instr.arg1);
             return;
         }
         pinMode(instr.arg1, OUTPUT);
         digitalWrite(instr.arg1, HIGH);
-        Serial.println("LED ON pin " + String(instr.arg1));
+        Serial.print("LED ON pin ");
+        Serial.println(instr.arg1);
     }
     
     void handleLED_OFF(const XenoInstruction& instr) {
         if (!security.isPinAllowed(instr.arg1)) {
-            Serial.println("ERROR: Pin not allowed: " + String(instr.arg1));
+            Serial.print("ERROR: Pin not allowed: ");
+            Serial.println(instr.arg1);
             return;
         }
         pinMode(instr.arg1, OUTPUT);
         digitalWrite(instr.arg1, LOW);
-        Serial.println("LED OFF pin " + String(instr.arg1));
+        Serial.print("LED OFF pin ");
+        Serial.println(instr.arg1);
     }
     
     void handleDELAY(const XenoInstruction& instr) {
@@ -619,7 +623,9 @@ private:
         }
         
         String var_name = string_table[instr.arg1];
-        Serial.print("INPUT " + var_name + ": ");
+        Serial.print("INPUT ");
+        Serial.print(var_name);
+        Serial.print(": ");
         
         // Wait for input with timeout
         unsigned long startTime = millis();
@@ -652,7 +658,8 @@ private:
         }
         
         variables[var_name] = input_value;
-        Serial.println("-> " + input_str);
+        Serial.print("-> ");
+        Serial.println(input_str);
     }
     
     // Helper functions for input parsing
@@ -724,8 +731,8 @@ private:
         XenoValue val;
         if (!safePeek(val)) return;
         switch (val.type) {
-            case TYPE_INT: Serial.println(String(val.int_val)); break;
-            case TYPE_FLOAT: Serial.println(String(val.float_val, 2)); break;
+            case TYPE_INT: Serial.println(val.int_val); break;
+            case TYPE_FLOAT: Serial.println(val.float_val, 2); break;
             case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
         }
     }
@@ -753,7 +760,8 @@ private:
         if (it != variables.end()) {
             if (!safePush(it->second)) return;
         } else {
-            Serial.println("ERROR: Variable not found: " + var_name);
+            Serial.print("ERROR: Variable not found: ");
+            Serial.println(var_name);
             if (!safePush(XenoValue::makeInt(0))) return;
         }
     }
@@ -849,7 +857,8 @@ public:
         if (handler != nullptr) {
             (this->*handler)(instr);
         } else {
-            Serial.println("ERROR: Unknown instruction " + String(instr.opcode));
+            Serial.print("ERROR: Unknown instruction ");
+            Serial.println(instr.opcode);
             running = false;
             return false;
         }
@@ -888,9 +897,15 @@ public:
     
     void dumpState() {
         Serial.println("=== VM State ===");
-        Serial.println("Program Counter: " + String(program_counter));
-        Serial.println("Stack Pointer: " + String(stack_pointer));
+
+        Serial.print("Program Counter: ");
+        Serial.println(program_counter);
+
+        Serial.print("Stack Pointer: ");
+        Serial.println(stack_pointer);
+
         Serial.println("Stack: [");
+
         for (int i = 0; i < stack_pointer && i < 10; ++i) {
             String type_str;
             String value_str;
@@ -908,7 +923,12 @@ public:
                     value_str = "\"" + string_table[stack[i].string_index] + "\"";
                     break;
             }
-            Serial.println("  " + String(i) + ": " + type_str + " " + value_str);
+            Serial.print("  ");
+            Serial.print(i);
+            Serial.print(": ");
+            Serial.print(type_str);
+            Serial.print(" ");
+            Serial.println(value_str);
         }
         if (stack_pointer > 10) Serial.println("  ...");
         Serial.println("]");
@@ -931,7 +951,12 @@ public:
                     value_str = "\"" + string_table[var.second.string_index] + "\"";
                     break;
             }
-            Serial.println("  " + var.first + ": " + type_str + " " + value_str);
+            Serial.print("  ");
+            Serial.print(var.first);
+            Serial.print(": ");
+            Serial.print(type_str);
+            Serial.print(" ");
+            Serial.println(value_str);
         }
         Serial.println("}");
     }
@@ -940,27 +965,56 @@ public:
         Serial.println("=== Disassembly ===");
         for (size_t i = 0; i < program.size(); ++i) {
             const XenoInstruction& instr = program[i];
-            Serial.print(String(i) + ": ");
+            Serial.print(i);
+            Serial.print(": ");
             
             switch (instr.opcode) {
                 case OP_NOP: Serial.println("NOP"); break;
-                case OP_PRINT: 
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "PRINT \"" + string_table[instr.arg1] + "\"" : "PRINT <invalid string>");
+                case OP_PRINT:
+                    Serial.print("PRINT ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.print("\"");
+                        Serial.print(string_table[instr.arg1]);
+                        Serial.print("\"");
+                    } else {
+                        Serial.print("<invalid string>");
+                    }
+                    Serial.println();
                     break;
-                case OP_LED_ON: Serial.println("LED_ON pin=" + String(instr.arg1)); break;
-                case OP_LED_OFF: Serial.println("LED_OFF pin=" + String(instr.arg1)); break;
-                case OP_DELAY: Serial.println("DELAY " + String(instr.arg1) + "ms"); break;
-                case OP_PUSH: Serial.println("PUSH " + String(instr.arg1)); break;
+                case OP_LED_ON: 
+                    Serial.print("LED_ON pin="); 
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_LED_OFF: 
+                    Serial.print("LED_OFF pin="); 
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_DELAY: 
+                    Serial.print("DELAY ");
+                    Serial.print(instr.arg1);
+                    Serial.println("ms");
+                    break;
+                case OP_PUSH: 
+                    Serial.print("PUSH ");
+                    Serial.println(instr.arg1);
+                    break;
                 case OP_PUSH_FLOAT: {
                     float fval;
                     memcpy(&fval, &instr.arg1, sizeof(float));
-                    Serial.println("PUSH_FLOAT " + String(fval, 4));
+                    Serial.print("PUSH_FLOAT ");
+                    Serial.println(fval, 4);
                     break;
                 }
                 case OP_PUSH_STRING:
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "PUSH_STRING \"" + string_table[instr.arg1] + "\"" : "PUSH_STRING <invalid>");
+                    Serial.print("PUSH_STRING ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.print("\"");
+                        Serial.print(string_table[instr.arg1]);
+                        Serial.print("\"");
+                    } else {
+                        Serial.print("<invalid>");
+                    }
+                    Serial.println();
                     break;
                 case OP_POP: Serial.println("POP"); break;
                 case OP_ADD: Serial.println("ADD"); break;
@@ -974,8 +1028,13 @@ public:
                 case OP_MIN: Serial.println("MIN"); break;
                 case OP_SQRT: Serial.println("SQRT"); break;
                 case OP_INPUT:
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "INPUT " + string_table[instr.arg1] : "INPUT <invalid var>");
+                    Serial.print("INPUT ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.print(string_table[instr.arg1]);
+                    } else {
+                        Serial.print("<invalid var>");
+                    }
+                    Serial.println();
                     break;
                 case OP_EQ: Serial.println("EQ"); break;
                 case OP_NEQ: Serial.println("NEQ"); break;
@@ -984,18 +1043,37 @@ public:
                 case OP_LTE: Serial.println("LTE"); break;
                 case OP_GTE: Serial.println("GTE"); break;
                 case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
-                case OP_STORE: 
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "STORE " + string_table[instr.arg1] : "STORE <invalid var>");
+                case OP_STORE:
+                    Serial.print("STORE ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.print(string_table[instr.arg1]);
+                    } else {
+                        Serial.print("<invalid var>");
+                    }
+                    Serial.println();
                     break;
-                case OP_LOAD: 
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "LOAD " + string_table[instr.arg1] : "LOAD <invalid var>");
+                case OP_LOAD:
+                    Serial.print("LOAD ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.print(string_table[instr.arg1]);
+                    } else {
+                        Serial.print("<invalid var>");
+                    }
+                    Serial.println();
                     break;
-                case OP_JUMP: Serial.println("JUMP " + String(instr.arg1)); break;
-                case OP_JUMP_IF: Serial.println("JUMP_IF " + String(instr.arg1)); break;
+                case OP_JUMP: 
+                    Serial.print("JUMP ");
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_JUMP_IF: 
+                    Serial.print("JUMP_IF ");
+                    Serial.println(instr.arg1);
+                    break;
                 case OP_HALT: Serial.println("HALT"); break;
-                default: Serial.println("UNKNOWN " + String(instr.opcode)); break;
+                default: 
+                    Serial.print("UNKNOWN ");
+                    Serial.println(instr.opcode);
+                    break;
             }
         }
     }

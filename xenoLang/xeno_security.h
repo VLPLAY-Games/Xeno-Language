@@ -82,14 +82,16 @@ protected:
             
             // Check for valid opcode range
             if (instr.opcode > 30 && instr.opcode != 255) {
-                Serial.println("SECURITY: Invalid opcode at instruction " + String(i));
+                Serial.print("SECURITY: Invalid opcode at instruction ");
+                Serial.println(i);
                 return false;
             }
             
             // Verify jump targets are within program bounds
             if (instr.opcode == OP_JUMP || instr.opcode == OP_JUMP_IF) {
                 if (instr.arg1 >= bytecode.size()) {
-                    Serial.println("SECURITY: Invalid jump target at instruction " + String(i));
+                    Serial.print("SECURITY: Invalid jump target at instruction ");
+                    Serial.println(i);
                     return false;
                 }
             }
@@ -99,7 +101,8 @@ protected:
                 instr.opcode == OP_LOAD || instr.opcode == OP_PUSH_STRING ||
                 instr.opcode == OP_INPUT) {
                 if (instr.arg1 >= strings.size()) {
-                    Serial.println("SECURITY: Invalid string index at instruction " + String(i));
+                    Serial.print("SECURITY: Invalid string index at instruction ");
+                    Serial.println(i);
                     return false;
                 }
             }
@@ -107,7 +110,8 @@ protected:
             // Verify pin numbers are allowed
             if (instr.opcode == OP_LED_ON || instr.opcode == OP_LED_OFF) {
                 if (!isPinAllowed(instr.arg1)) {
-                    Serial.println("SECURITY: Unauthorized pin access at instruction " + String(i));
+                    Serial.print("SECURITY: Unauthorized pin access at instruction ");
+                    Serial.println(i);
                     return false;
                 }
             }
@@ -115,7 +119,8 @@ protected:
             // Verify delay values are reasonable
             if (instr.opcode == OP_DELAY) {
                 if (instr.arg1 > 60000) { // Max 60 seconds
-                    Serial.println("SECURITY: Excessive delay at instruction " + String(i));
+                    Serial.print("SECURITY: Excessive delay at instruction ");
+                    Serial.println(i);
                     return false;
                 }
             }

@@ -542,7 +542,8 @@ private:
         if (cleanedLine.isEmpty()) return;
         
         if (cleanedLine.length() > 512) {
-            Serial.println("ERROR: Line too long at line " + String(line_number));
+            Serial.print("ERROR: Line too long at line ");
+            Serial.println(line_number);
             return;
         }
         
@@ -562,7 +563,8 @@ private:
                     emitInstruction(OP_LOAD, var_index);
                     emitInstruction(OP_PRINT_NUM);
                 } else {
-                    Serial.println("ERROR: Invalid variable name in print at line " + String(line_number));
+                    Serial.print("ERROR: Invalid variable name in print at line ");
+                    Serial.println(line_number);
                 }
             } else {
                 if (text.startsWith("\"") && text.endsWith("\"")) {
@@ -589,7 +591,8 @@ private:
                 int pin = pin_str.toInt();
                 // Validate pin number for safety
                 if (pin < 0 || pin > 255) {
-                    Serial.println("ERROR: Invalid pin number at line " + String(line_number));
+                    Serial.print("ERROR: Invalid pin number at line ");
+                    Serial.println(line_number);
                     return;
                 }
                 
@@ -598,16 +601,19 @@ private:
                 } else if (state_str == "off" || state_str == "0") {
                     emitInstruction(OP_LED_OFF, pin);
                 } else {
-                    Serial.println("WARNING: Unknown LED state at line " + String(line_number));
+                    Serial.print("WARNING: Unknown LED state at line ");
+                    Serial.println(line_number);
                 }
             } else {
-                Serial.println("WARNING: Invalid LED command at line " + String(line_number));
+                Serial.print("WARNING: Invalid LED command at line ");
+                Serial.println(line_number);
             }
         }
         else if (command == "delay") {
             int delay_time = args.toInt();
             if (delay_time < 0 || delay_time > 60000) { // Max 60 seconds
-                Serial.println("WARNING: Delay time out of range at line " + String(line_number));
+                Serial.print("WARNING: Delay time out of range at line ");
+                Serial.println(line_number);
                 delay_time = min(max(delay_time, 0), 60000);
             }
             emitInstruction(OP_DELAY, delay_time);
@@ -647,7 +653,8 @@ private:
         else if (command == "input") {
             String var_name = args;
             if (!validateVariableName(var_name)) {
-                Serial.println("ERROR: Invalid variable name for input at line " + String(line_number));
+                Serial.print("ERROR: Invalid variable name for input at line ");
+                Serial.println(line_number);
                 return;
             }
             int var_index = getVariableIndex(var_name);
@@ -660,7 +667,10 @@ private:
                 String expression = args.substring(space1 + 1);
                 
                 if (!validateVariableName(var_name)) {
-                    Serial.println("ERROR: Invalid variable name '" + var_name + "' at line " + String(line_number));
+                    Serial.print("ERROR: Invalid variable name '");
+                    Serial.print(var_name);
+                    Serial.print("' at line ");
+                    Serial.print(line_number);
                     return;
                 }
                 
@@ -672,12 +682,14 @@ private:
                 compileExpression(expression);
                 emitInstruction(OP_STORE, getVariableIndex(var_name));
             } else {
-                Serial.println("ERROR: Invalid SET command at line " + String(line_number));
+                Serial.print("ERROR: Invalid SET command at line ");
+                Serial.println(line_number);
             }
         }
         else if (command == "if") {
             if (if_stack.size() >= MAX_IF_DEPTH) {
-                Serial.println("ERROR: IF nesting too deep at line " + String(line_number));
+                Serial.print("ERROR: IF nesting too deep at line ");
+                Serial.println(line_number);
                 return;
             }
             
@@ -690,7 +702,8 @@ private:
                 emitInstruction(OP_JUMP_IF, 0);
                 if_stack.push_back(jump_addr);
             } else {
-                Serial.println("ERROR: Invalid IF command at line " + String(line_number));
+                Serial.print("ERROR: Invalid IF command at line ");
+                Serial.println(line_number);
             }
         }
         else if (command == "else") {
@@ -706,7 +719,8 @@ private:
                 if_stack.pop_back();
                 if_stack.push_back(else_jump_addr);
             } else {
-                Serial.println("ERROR: ELSE without IF at line " + String(line_number));
+                Serial.print("ERROR: ELSE without IF at line ");
+                Serial.println(line_number);
             }
         }
         else if (command == "endif") {
@@ -717,12 +731,14 @@ private:
                 }
                 if_stack.pop_back();
             } else {
-                Serial.println("ERROR: ENDIF without IF at line " + String(line_number));
+                Serial.print("ERROR: ENDIF without IF at line ");
+                Serial.println(line_number);
             }
         }
         else if (command == "for") {
             if (loop_stack.size() >= MAX_LOOP_DEPTH) {
-                Serial.println("ERROR: Loop nesting too deep at line " + String(line_number));
+                Serial.print("ERROR: Loop nesting too deep at line ");
+                Serial.println(line_number);
                 return;
             }
             
@@ -734,7 +750,8 @@ private:
                 var_name.trim();
                 
                 if (!validateVariableName(var_name)) {
-                    Serial.println("ERROR: Invalid variable name in FOR at line " + String(line_number));
+                    Serial.print("ERROR: Invalid variable name in FOR at line ");
+                    Serial.println(line_number);
                     return;
                 }
                 
@@ -763,7 +780,8 @@ private:
                 loop_stack.push_back(loop_info);
                 
             } else {
-                Serial.println("ERROR: Invalid FOR command at line " + String(line_number));
+                Serial.print("ERROR: Invalid FOR command at line ");
+                Serial.println(line_number);
             }
         }
         else if (command == "endfor") {
@@ -789,14 +807,18 @@ private:
                     bytecode[loop_info.condition_address].arg1 = getCurrentAddress();
                 }
             } else {
-                Serial.println("ERROR: ENDFOR without FOR at line " + String(line_number));
+                Serial.print("ERROR: ENDFOR without FOR at line ");
+                Serial.println(line_number);
             }
         }
         else if (command == "halt") {
             emitInstruction(OP_HALT);
         }
         else {
-            Serial.println("WARNING: Unknown command at line " + String(line_number) + ": " + command);
+            Serial.print("WARNING: Unknown command at line ");
+            Serial.print(line_number);
+            Serial.print(": ");
+            Serial.println(command);
         }
     }
     
@@ -848,29 +870,57 @@ public:
         Serial.println("=== Compiled Xeno Program ===");
         Serial.println("String table:");
         for (size_t i = 0; i < string_table.size(); ++i) {
-            Serial.println("  " + String(i) + ": \"" + string_table[i] + "\"");
+            Serial.print("  ");
+            Serial.print(i);
+            Serial.print(": \"");
+            Serial.print(string_table[i]);
+            Serial.println("\"");
         }
         Serial.println("Bytecode:");
         for (size_t i = 0; i < bytecode.size(); ++i) {
-            Serial.print("  " + String(i) + ": ");
+            Serial.print("  ");
+            Serial.print(i);
+            Serial.print(": ");
             const XenoInstruction& instr = bytecode[i];
             
             switch (instr.opcode) {
                 case OP_NOP: Serial.println("NOP"); break;
-                case OP_PRINT: Serial.println("PRINT " + String(instr.arg1)); break;
-                case OP_LED_ON: Serial.println("LED_ON " + String(instr.arg1)); break;
-                case OP_LED_OFF: Serial.println("LED_OFF " + String(instr.arg1)); break;
-                case OP_DELAY: Serial.println("DELAY " + String(instr.arg1)); break;
-                case OP_PUSH: Serial.println("PUSH " + String(instr.arg1)); break;
+                case OP_PRINT: 
+                    Serial.print("PRINT ");
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_LED_ON: 
+                    Serial.print("LED_ON ");
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_LED_OFF: 
+                    Serial.print("LED_OFF ");
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_DELAY: 
+                    Serial.print("DELAY ");
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_PUSH: 
+                    Serial.print("PUSH ");
+                    Serial.println(instr.arg1);
+                    break;
                 case OP_PUSH_FLOAT: {
                     float fval;
                     memcpy(&fval, &instr.arg1, sizeof(float));
-                    Serial.println("PUSH_FLOAT " + String(fval, 4));
+                    Serial.print("PUSH_FLOAT ");
+                    Serial.println(fval, 4);
                     break;
                 }
                 case OP_PUSH_STRING: 
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "PUSH_STRING \"" + string_table[instr.arg1] + "\"" : "PUSH_STRING <invalid>");
+                    Serial.print("PUSH_STRING ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.print("\"");
+                        Serial.print(string_table[instr.arg1]);
+                        Serial.println("\"");
+                    } else {
+                        Serial.println("<invalid>");
+                    }
                     break;
                 case OP_POP: Serial.println("POP"); break;
                 case OP_ADD: Serial.println("ADD"); break;
@@ -884,8 +934,12 @@ public:
                 case OP_MIN: Serial.println("MIN"); break;
                 case OP_SQRT: Serial.println("SQRT"); break;
                 case OP_INPUT: 
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "INPUT " + string_table[instr.arg1] : "INPUT <invalid>");
+                    Serial.print("INPUT ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.println(string_table[instr.arg1]);
+                    } else {
+                        Serial.println("<invalid>");
+                    }
                     break;
                 case OP_EQ: Serial.println("EQ"); break;
                 case OP_NEQ: Serial.println("NEQ"); break;
@@ -895,17 +949,34 @@ public:
                 case OP_GTE: Serial.println("GTE"); break;
                 case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
                 case OP_STORE: 
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "STORE " + string_table[instr.arg1] : "STORE <invalid>");
+                    Serial.print("STORE ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.println(string_table[instr.arg1]);
+                    } else {
+                        Serial.println("<invalid>");
+                    }
                     break;
                 case OP_LOAD: 
-                    Serial.println(instr.arg1 < string_table.size() ? 
-                        "LOAD " + string_table[instr.arg1] : "LOAD <invalid>");
+                    Serial.print("LOAD ");
+                    if (instr.arg1 < string_table.size()) {
+                        Serial.println(string_table[instr.arg1]);
+                    } else {
+                        Serial.println("<invalid>");
+                    }
                     break;
-                case OP_JUMP: Serial.println("JUMP " + String(instr.arg1)); break;
-                case OP_JUMP_IF: Serial.println("JUMP_IF " + String(instr.arg1)); break;
+                case OP_JUMP: 
+                    Serial.print("JUMP ");
+                    Serial.println(instr.arg1);
+                    break;
+                case OP_JUMP_IF: 
+                    Serial.print("JUMP_IF ");
+                    Serial.println(instr.arg1);
+                    break;
                 case OP_HALT: Serial.println("HALT"); break;
-                default: Serial.println("UNKNOWN " + String(instr.opcode)); break;
+                default: 
+                    Serial.print("UNKNOWN ");
+                    Serial.println(instr.opcode);
+                    break;
             }
         }
     }
