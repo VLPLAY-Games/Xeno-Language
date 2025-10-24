@@ -1,7 +1,6 @@
 #ifndef XENO_VM_H
 #define XENO_VM_H
 
-#include <Arduino.h>
 #include <vector>
 #include <map>
 #include <stack>
