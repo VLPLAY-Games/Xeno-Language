@@ -20,7 +20,7 @@ private:
     std::vector<String> string_table;
     std::map<String, uint16_t> string_lookup;
     uint32_t program_counter;
-    XenoValue stack[64];
+    XenoValue stack[MAX_STACK_SIZE];
     uint32_t stack_pointer;
     std::map<String, XenoValue> variables;
     bool running;
@@ -91,7 +91,7 @@ private:
     
     // Safe stack operations with immediate termination on error
     bool safePush(const XenoValue& value) {
-        if (stack_pointer >= 64) {
+        if (stack_pointer >= MAX_STACK_SIZE) {
             Serial.println("CRITICAL ERROR: Stack overflow - terminating execution");
             running = false;
             return false;

@@ -8,6 +8,7 @@
 #define MAX_EXPRESSION_DEPTH 32
 #define MAX_LOOP_DEPTH 16
 #define MAX_IF_DEPTH 16
+#define MAX_STACK_SIZE 256
 
 class XenoSecurity {
 private:
