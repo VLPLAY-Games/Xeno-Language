@@ -67,7 +67,6 @@ void setup() {
     
     Serial.println("\n--- Compiling variable program ---");
     xeno.compile(variableProgram);
-    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing variable program ---");
     xeno.run();

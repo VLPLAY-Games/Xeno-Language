@@ -140,7 +140,6 @@ void setup() {
     
     Serial.println("\n--- Compiling logic program ---");
     xeno.compile(logicProgram);
-    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing logic program ---");
     xeno.run();

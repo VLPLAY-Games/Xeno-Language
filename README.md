@@ -3,6 +3,9 @@
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 
+- [Read in Russian](README.ru.md) 
+- [Read in Japanese](README.ja.md)
+
 # Xeno Language
 
 **Xeno Language** — a compact, safe interpreted language and virtual machine for the **ESP32 (Arduino)** ecosystem.  

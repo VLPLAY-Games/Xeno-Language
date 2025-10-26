@@ -9,9 +9,8 @@ void setup() {
     Serial.println("Xeno VM with Input and Math");
     Serial.println("=====================================");
     
-    // Example with float and string variables
+    // Example with input and math (max, min)
     String mixedTypeProgram = R"(
-        // Пример программы с новыми функциями
         set x 16
         set result sqrt(x)        // result = 4
         set a 10
@@ -19,7 +18,7 @@ void setup() {
         set maximum max(a, b)     // maximum = 20
         set minimum min(a, b)     // minimum = 10
 
-        input name               // Запрос ввода от пользователя
+        input name               // Input required
         print "Hello, "
         print $name
 
@@ -30,7 +29,6 @@ void setup() {
     
     Serial.println("\n--- Compiling mixed type program ---");
     xeno.compile(mixedTypeProgram);
-    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing mixed type program ---");
     xeno.run();

@@ -6,12 +6,12 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     
-    Serial.println("Xeno VM with Fixed Math Operations");
+    Serial.println("Xeno VM with Math Operations");
     Serial.println("==================================");
     
     // Example: Fixed math operations
     String mathProgram = R"(
-        print "Fixed Math Operations Demo"
+        print "Math Operations Demo"
         
         // Modulo (remainder) operations
         set a 17 % 5
@@ -26,7 +26,7 @@ void setup() {
         print "100 % 3 = "
         print $c
         
-        // Absolute value operations - FIXED
+        // Absolute value operations
         set d abs(-10)
         print "abs(-10) = "
         print $d
@@ -78,11 +78,10 @@ void setup() {
         halt
     )";
     
-    Serial.println("\n--- Compiling fixed math program ---");
+    Serial.println("\n--- Compiling math program ---");
     xeno.compile(mathProgram);
-    xeno.printCompiledCode();
     
-    Serial.println("\n--- Executing fixed math program ---");
+    Serial.println("\n--- Executing math program ---");
     xeno.run();
 }
 

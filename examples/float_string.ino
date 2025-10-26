@@ -65,7 +65,6 @@ void setup() {
     
     Serial.println("\n--- Compiling mixed type program ---");
     xeno.compile(mixedTypeProgram);
-    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing mixed type program ---");
     xeno.run();

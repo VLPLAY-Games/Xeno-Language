@@ -24,27 +24,27 @@ public:
         }
         Serial.println(fsum);
         
-        // String operations - расширенные
+        // String operations - extended
         String result = "";
         String temp1 = "Hello";
         String temp2 = "World";
         String temp3 = "Test";
         result = temp1 + " " + temp2 + " " + temp3;
         Serial.println(result);
-        // Конкатенация строк
+        // String concatenation
         for (int i = 0; i <= 100; i++) {
             result = temp1 + " " + temp2 + " " + temp3 + " " + String(i);
         }
         Serial.println(result);
         
-        // Множественная конкатенация
+        // Multiple concatenation
         String longString = "";
         for (int i = 0; i <= 50; i++) {
             longString = longString + "a" + "b" + "c";
         }
         Serial.println(longString);
         
-        // Сравнение строк
+        // String comparisons
         int compareCount = 0;
         for (int i = 0; i <= 100; i++) {
             if (temp1 == "Hello") compareCount++;
@@ -84,14 +84,14 @@ public:
             "set result temp1 + \" \" + temp2 + \" \" + temp3\n"
             "print $result\n"
             "\n"
-            "// Конкатенация строк\n"
+            "// String concatenation\n"
             "set k 0\n"
             "for k = 0 to 100\n"
             "    set result temp1 + \" \" + temp2 + \" \" + k\n"
             "endfor\n"
             "print $result\n"
             "\n"
-            "// Множественная конкатенация\n"
+            "// Multiple concatenation\n"
             "set longString \"\"\n"
             "set m 0\n"
             "for m = 0 to 50\n"
@@ -99,7 +99,7 @@ public:
             "endfor\n"
             "print $longString\n"
             "\n"
-            "// Сравнение строк\n"
+            "// String comparison\n"
             "set compareCount 0\n"
             "set n 0\n"
             "for n = 0 to 100\n"
@@ -119,7 +119,7 @@ public:
         
         Serial.println("=== XENO VM BENCHMARK ===");
         xeno.compile(source_code);
-        xeno.setMaxInstructions(200000); // Увеличили лимит для строковых операций
+        xeno.setMaxInstructions(200000); // Increased instruction limit
         unsigned long start = micros();
         xeno.run();
         
@@ -173,7 +173,7 @@ void setup() {
     Serial.println("=================================================");
     Serial.println();
     
-    // Запускаем тесты
+    // Run tests
     bench.runCppBenchmark();
     bench.runXenoBenchmark();
     bench.runFinalComparison();

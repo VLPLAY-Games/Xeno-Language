@@ -59,7 +59,6 @@ void setup() {
     
     Serial.println("\n--- Compiling for loop program ---");
     xeno.compile(forLoopProgram);
-    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing for loop program ---");
     xeno.run();
