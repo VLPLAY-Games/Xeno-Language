@@ -1,5 +1,4 @@
-#include "../xenoLang/xeno_vm.h"
-#include "../xenoLang/xeno_compiler.h"
+#include "../xenoLang/xeno.h"
 
 class Benchmark {
 private:
@@ -116,15 +115,13 @@ public:
             "halt";
             
         
-        XenoCompiler compiler;
+        Xeno xeno;
         
         Serial.println("=== XENO VM BENCHMARK ===");
-        compiler.compile(source_code);
-        XenoVM vm;
-        vm.setMaxInstructions(200000); // Увеличили лимит для строковых операций
-        vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
+        xeno.compile(source_code);
+        xeno.setMaxInstructions(200000); // Увеличили лимит для строковых операций
         unsigned long start = micros();
-        vm.run();
+        xeno.run();
         
         unsigned long end = micros();
         xeno_time = end - start;

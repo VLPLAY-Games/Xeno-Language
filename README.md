@@ -1,0 +1,233 @@
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Version](https://img.shields.io/badge/Version-0.1.0-lightgrey.svg)](#)
+[![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
+[![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
+
+# Xeno Language
+
+**Xeno Language** — a compact, safe interpreted language and virtual machine for the **ESP32 (Arduino)** ecosystem.  
+Implemented as: **compiler → bytecode → VM** with built-in commands for numbers, strings, branching, loops and basic GPIO control.
+
+**Developed by VL_PLAY Games**
+
+---
+
+## 🚀 Quick Pitch
+
+✨ **Highlights**
+- Execute code from `.xeno` files or embedded source strings.  
+- Lightweight and easy to embed into nearly any ESP32 project.  
+- Designed for hobbyists, education, and small automation tasks.
+
+⚡️ **Performance**
+- Benchmarks show Xeno is roughly **~22× slower than equivalent native C++**, depending on workload (see `benchmark.ino`).  
+- Compared to other interpreted MCU languages (MicroPython, Lua), Xeno's performance is in the same ballpark — exact differences depend heavily on the type of code and usage patterns. Use `benchmark.ino` for workload-specific comparisons.
+### ⚔️ Language Performance Comparison
+
+| Feature / Language            | **Xeno** 🧠       | **MicroPython** 🐍       | **Lua (NodeMCU)** 🌙    | **C++ (Native)** ⚙️     |
+|-------------------------------|:-----------------:|:------------------------:|:----------------------:|:-----------------------:|
+| Execution Speed (vs C++)      | ~22× slower       | ~18× slower *(approx.)*  | ~20× slower *(approx.)*| 🥇 Baseline             |
+| Memory Usage (RAM)            | Low (~20 KB)      | Medium (~30 KB)          | Medium (~25 KB)        | High control (manual)   |
+| File-based Execution          | ✅ `.xeno` files   | ✅ `.py` files           | ✅ `.lua` files        | ⚠️ Compiled only        |
+| Hardware Access (GPIO, etc.)  | ⚠️ Basic (LED only, in dev) | ✅ Rich | ✅ Rich | ✅ Full |
+| Ease of Embedding             | ⭐️⭐️⭐️⭐️⭐️        | ⭐️⭐️⭐️⭐️                 | ⭐️⭐️⭐️⭐️               | ⭐️⭐️                    |
+| Language Simplicity           | Moderately easy   | Easy                     | Moderate               | Complex                 |
+| Embeddable in C++ Projects    | ✅ Fully embeddable| ⚠️ Limited (separate runtime) | ⚠️ Limited (separate runtime) | —                  |
+| Ideal Use Cases               | Teaching, quick logic, in-app scripting | Prototyping, IoT | Scripting automation | Performance-critical    |
+
+> ⚡ **Notes:**  
+> - Speed ratios for **Xeno** were measured on **ESP32-C3 @160 MHz**. Values for MicroPython and Lua are approximate comparisons against C++ and will vary by workload and firmware. See `benchmark.ino` for full details.  
+> - **Xeno advantage:** Unlike MicroPython or Lua on many ESP32 workflows, **Xeno can be embedded directly inside an existing C++ firmware** — no separate interpreter firmware required.  
+> - **GPIO note:** Hardware access in Xeno is currently limited to LED control, with broader GPIO and peripheral support planned for future updates.
+
+---
+
+## System Requirements
+
+### Hardware
+- Any ESP32-class microcontroller (ESP32, ESP32-S2, etc.)  
+- Recommended free Flash: **≥ 60 KB**  
+- Recommended free RAM: **≥ 20 KB**
+
+### Software
+- ESP32 Arduino core: **3.2.0+**  
+- Arduino IDE: **2.0+**
+
+> Note: actual memory usage depends on enabled features, strings, and included examples. If your project is tight on RAM/Flash, strip unused features and reduce `MAX_*` values in config headers.
+
+---
+
+## Quickstart
+
+### Installation
+Copy the `xenoLang` folder into your Arduino project. The repository also contains example `.ino` sketches in `examples/`.
+
+### Minimal Arduino / ESP32 example
+```cpp
+#include "xenoLang/xeno.h"
+
+Xeno xeno;
+  // Increase allowed instruction count (optional)
+  // Example: xeno.setMaxInstructions(200000); // raises the VM instruction limit
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  String program = R"(
+    print "Hello from Xeno!"
+    set a 10
+    set b 20
+    print "a + b = "
+    set c a + b
+    print $c
+    halt
+  )";
+
+  if (!xeno.compile(program)) {
+    Serial.println("Compile error");
+    return;
+  }
+
+  xeno.run();
+}
+
+void loop() {
+  // Optionally use xeno.step() for single-step execution or poll status
+}
+```
+
+---
+
+## Language overview
+
+### Basic commands
+- `print "text"` — print a literal string.  
+- `print $var` — print variable value.  
+- `set var expr` — assign variable (supports expressions).  
+- `input var` — request input via Serial (stored as string).  
+- `halt` — stop program execution.  
+- `led <pin> on|off` — toggle an allowed GPIO pin.  
+- `delay <ms>` — delay in milliseconds (bounded).  
+- Stack & arithmetic: `push`, `pop`, `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
+- Control flow: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
+- Single-line comments use `//`.
+
+### Quick syntax snippets
+```
+// Comments
+print "Hello World"
+led 13 on
+delay 1000
+
+// Variables
+set x 10
+set name "Xeno"
+print $x
+
+// Arithmetic
+set result (x + 5) * 2
+
+// Conditionals
+if x > 5 then
+    print "Larger than 5"
+endif
+
+// Loops
+for i = 1 to 10
+    print $i
+endfor
+```
+
+### Operations & Comparisons
+- Arithmetic: `+ - * / % ^`, `abs()`  
+- Comparisons: `== != < > <= >=`  
+- Control: `if/then/else/endif`, `for/endfor`  
+- Peripherals: `print`, `led on/off`, `delay`
+
+---
+
+## Virtual Machine (VM)
+
+- Executes compiled bytecode with a runtime stack, variable table, and string table.  
+- Built-in safety checks (stack overflow, invalid opcode, divide by zero, bounds checking).  
+- API highlights (class `Xeno`):
+  - `bool compile(const String& source)` — compile source to bytecode.  
+  - `bool run()` — execute compiled bytecode.  
+  - `void step()` — execute a single VM instruction.  
+  - `void stop()` — stop execution.  
+  - `bool isRunning() const` — check running state.  
+  - `void printCompiledCode()` — print bytecode + string table / debug info.  
+  - `void setMaxInstructions(uint32_t max_instr)` - raises the VM instruction limit
+  - Version/info getters: `getLanguageVersion()`, `getCompilerVersion()`, `getVMVersion()`.
+
+---
+
+## Bytecode / Opcodes (summary)
+
+Common VM opcodes include:
+```
+OP_NOP, OP_PRINT, OP_PRINT_NUM, OP_PUSH, OP_POP,
+OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD,
+OP_POW, OP_ABS, OP_SQRT, OP_MAX, OP_MIN,
+OP_STORE, OP_LOAD,
+OP_JUMP, OP_JUMP_IF,
+OP_INPUT, OP_DELAY, OP_LED_ON, OP_LED_OFF,
+OP_PUSH_FLOAT, OP_PUSH_STRING,
+OP_EQ, OP_NEQ, OP_LT, OP_GT, OP_LTE, OP_GTE,
+OP_HALT
+```
+
+---
+
+## Security & Limits
+
+To protect the ESP32 and avoid runtime faults, Xeno enforces conservative limits:
+- `MAX_STRING_LENGTH` (e.g. 256)  
+- `MAX_VARIABLE_NAME_LENGTH` (e.g. 32)  
+- `MAX_EXPRESSION_DEPTH` (e.g. 32)  
+- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (configurable)  
+- `MAX_STACK_SIZE` (e.g. 256)  
+- Allowed GPIO pins are restricted and defined in `xeno_security.h` — attempts to control unauthorized pins are blocked.  
+- Bytecode validation is performed at compile/load time.
+
+---
+
+## Examples & Benchmarks
+See `examples/` in the repository:
+- `comparison.ino` — if/else + comparisons.  
+- `float_string.ino` — floats and string handling.  
+- `for_loop.ino` — for loops and blinking examples.  
+- `input_max_min.ino` — input handling + math functions.  
+- `math.ino`, `math2.ino` — math tests and benchmarks.  
+- `benchmark.ino` — performance comparison between native C++ and Xeno VM.
+
+---
+
+## Debugging tips
+- Always open Serial (e.g. 115200) for logs and input prompts.  
+- If you see `CRITICAL ERROR: Stack overflow`, reduce expression complexity or increase `MAX_STACK_SIZE` carefully.  
+- If GPIO commands fail, check the allowed pin list in `xeno_security.h`.
+
+---
+
+## Roadmap & Plans
+🎯 Planned next steps:
+- Continue actively developing core functionality.  
+- Improve optimization and reduce VM overhead.  
+- Add integration with **XenoOS** and better tooling for editing `.xeno` files.  
+- Add more examples, CI pipelines, and PlatformIO templates.
+
+---
+
+## Contributing
+Contributions, issues and pull requests are welcome. If you contribute, please:
+- Respect the Apache 2.0 license and include clear commit messages.  
+- Add small, focused PRs with tests/examples when possible.
+
+---
+
+## License
+This project is licensed under the **Apache License 2.0**. See the `LICENSE` file for details.
+
+**Xeno Language** — developed by **VL_PLAY Games**.  

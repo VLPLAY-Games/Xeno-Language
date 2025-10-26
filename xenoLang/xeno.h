@@ -66,6 +66,9 @@ public:
         compiler.printCompiledCode();
     }
 
+    void setMaxInstructions(uint32_t max_instr) {
+        vm.setMaxInstructions(max_instr);
+    }
 
     // Information about language
     static constexpr const char* getLanguageVersion() noexcept {
