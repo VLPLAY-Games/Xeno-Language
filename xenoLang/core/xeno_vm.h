@@ -15,8 +15,8 @@
  */
 
 
-#ifndef XENO_VM_H
-#define XENO_VM_H
+#ifndef XENOLANG_CORE_XENO_VM_H_
+#define XENOLANG_CORE_XENO_VM_H_
 
 #include <vector>
 #include <map>
@@ -24,13 +24,14 @@
 #include <cmath>
 #include <limits>
 #include <memory>
-#include "xeno_common.h"
-#include "xeno_security.h"
+#include <algorithm>
+#include "./xeno_common.h"
+#include "./xeno_security.h"
 
 
 // Xeno Virtual Machine
 class XenoVM {
-private:
+ private:
     std::vector<XenoInstruction> program;
     std::vector<String> string_table;
     std::map<String, uint16_t> string_lookup;
@@ -46,19 +47,19 @@ private:
     XenoSecurity security;
 
     friend class Xeno;
-    
+
     // Typedef for instruction handler functions
     typedef void (XenoVM::*InstructionHandler)(const XenoInstruction&);
-    
+
     // Dispatch table for fast instruction execution
     InstructionHandler dispatch_table[256];
-    
+
     void initializeDispatchTable() {
         // Initialize all to nullptr for safety
         for (int i = 0; i < 256; i++) {
             dispatch_table[i] = nullptr;
         }
-        
+
         // Map opcodes to handler functions
         dispatch_table[OP_NOP] = &XenoVM::handleNOP;
         dispatch_table[OP_PRINT] = &XenoVM::handlePRINT;
@@ -93,7 +94,7 @@ private:
         dispatch_table[OP_PUSH_STRING] = &XenoVM::handlePUSH_STRING;
         dispatch_table[OP_HALT] = &XenoVM::handleHALT;
     }
-    
+
     void resetState() {
         program_counter = 0;
         stack_pointer = 0;
@@ -111,14 +112,18 @@ private:
             case TYPE_INT:
                 return String(val.int_val);
             case TYPE_FLOAT:
-                return String(val.float_val, 3); // 2 знака после запятой
+                return String(val.float_val, 3);  // 3 decimal places
             case TYPE_STRING:
                 return string_table[val.string_index];
             default:
                 return String();
         }
     }
-    
+
+    float toFloat(const XenoValue& v) {
+        return (v.type == TYPE_INT) ? static_cast<float>(v.int_val) : v.float_val;
+    }
+
     // Safe stack operations with immediate termination on error
     bool safePush(const XenoValue& value) {
         if (stack_pointer >= MAX_STACK_SIZE) {
@@ -129,7 +134,7 @@ private:
         stack[stack_pointer++] = value;
         return true;
     }
-    
+
     bool safePop(XenoValue& value) {
         if (stack_pointer == 0) {
             Serial.println("CRITICAL ERROR: Stack underflow - terminating execution");
@@ -139,7 +144,7 @@ private:
         value = stack[--stack_pointer];
         return true;
     }
-    
+
     bool safePopTwo(XenoValue& a, XenoValue& b) {
         if (stack_pointer < 2) {
             Serial.println("CRITICAL ERROR: Stack underflow in binary operation - terminating execution");
@@ -150,7 +155,7 @@ private:
         a = stack[--stack_pointer];
         return true;
     }
-    
+
     bool safePeek(XenoValue& value) {
         if (stack_pointer == 0) {
             Serial.println("CRITICAL ERROR: Stack underflow in peek - terminating execution");
@@ -160,7 +165,7 @@ private:
         value = stack[stack_pointer - 1];
         return true;
     }
-    
+
     // Safe integer operations with overflow checking
     bool safeAdd(int32_t a, int32_t b, int32_t& result) {
         if ((b > 0 && a > std::numeric_limits<int32_t>::max() - b) ||
@@ -171,7 +176,7 @@ private:
         result = a + b;
         return true;
     }
-    
+
     bool safeSub(int32_t a, int32_t b, int32_t& result) {
         if ((b > 0 && a < std::numeric_limits<int32_t>::min() + b) ||
             (b < 0 && a > std::numeric_limits<int32_t>::max() + b)) {
@@ -181,13 +186,13 @@ private:
         result = a - b;
         return true;
     }
-    
+
     bool safeMul(int32_t a, int32_t b, int32_t& result) {
         if (a == 0 || b == 0) {
             result = 0;
             return true;
         }
-        
+
         if (a > 0) {
             if (b > 0) {
                 if (a > std::numeric_limits<int32_t>::max() / b) return false;
@@ -201,11 +206,11 @@ private:
                 if (a < std::numeric_limits<int32_t>::max() / b) return false;
             }
         }
-        
+
         result = a * b;
         return true;
     }
-    
+
     bool safePow(int32_t base, int32_t exponent, int32_t& result) {
         if (exponent < 0) return false;
         if (exponent == 0) {
@@ -216,7 +221,7 @@ private:
             result = 0;
             return true;
         }
-        
+
         result = 1;
         for (int32_t i = 0; i < exponent; ++i) {
             if (!safeMul(result, base, result)) {
@@ -232,13 +237,13 @@ private:
             Serial.println("ERROR: Modulo by zero");
             return false;
         }
-        
+
         // Handle special case that can cause overflow
         if (a == std::numeric_limits<int32_t>::min() && b == -1) {
             result = 0;
             return true;
         }
-        
+
         result = a % b;
         return true;
     }
@@ -265,8 +270,8 @@ private:
     XenoValue safeMax(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
                 return XenoValue::makeFloat(max(a_val, b_val));
             } else {
                 return XenoValue::makeInt(max(a.int_val, b.int_val));
@@ -279,8 +284,9 @@ private:
     XenoValue safeMin(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
+
                 return XenoValue::makeFloat(min(a_val, b_val));
             } else {
                 return XenoValue::makeInt(min(a.int_val, b.int_val));
@@ -288,7 +294,7 @@ private:
         }
         return XenoValue::makeInt(0);
     }
-    
+
     // Helper functions for type conversion and operations
     XenoValue convertToFloat(const XenoValue& val) {
         if (val.type == TYPE_FLOAT) return val;
@@ -297,12 +303,12 @@ private:
         }
         return XenoValue::makeFloat(0.0f);
     }
-    
+
     bool bothNumeric(const XenoValue& a, const XenoValue& b) {
-        return (a.type == TYPE_INT || a.type == TYPE_FLOAT) && 
+        return (a.type == TYPE_INT || a.type == TYPE_FLOAT) &&
                (b.type == TYPE_INT || b.type == TYPE_FLOAT);
     }
-    
+
     XenoValue performAddition(const XenoValue& a, const XenoValue& b) {
         if (a.type == TYPE_STRING || b.type == TYPE_STRING) {
             String str_a = convertToString(a);
@@ -311,12 +317,12 @@ private:
             uint16_t combined_index = addString(combined);
             return XenoValue::makeString(combined_index);
         }
-        
+
         // Иначе числовое сложение
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
                 return XenoValue::makeFloat(a_val + b_val);
             } else {
                 int32_t result;
@@ -327,15 +333,15 @@ private:
                 }
             }
         }
-        
+
         return XenoValue::makeInt(0);
     }
-    
+
     XenoValue performSubtraction(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
                 return XenoValue::makeFloat(a_val - b_val);
             } else {
                 int32_t result;
@@ -348,12 +354,12 @@ private:
         }
         return XenoValue::makeInt(0);
     }
-    
+
     XenoValue performMultiplication(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
                 return XenoValue::makeFloat(a_val * b_val);
             } else {
                 int32_t result;
@@ -366,13 +372,13 @@ private:
         }
         return XenoValue::makeInt(0);
     }
-    
+
     XenoValue performDivision(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
-                
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
+
                 if (b_val != 0.0f) {
                     return XenoValue::makeFloat(a_val / b_val);
                 }
@@ -393,7 +399,7 @@ private:
         }
         return XenoValue::makeInt(0);
     }
-    
+
     XenoValue performModulo(const XenoValue& a, const XenoValue& b) {
         if (a.type == TYPE_INT && b.type == TYPE_INT) {
             int32_t result;
@@ -407,12 +413,12 @@ private:
             return XenoValue::makeInt(0);
         }
     }
-    
+
     XenoValue performPower(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
                 return XenoValue::makeFloat(pow(a_val, b_val));
             } else {
                 int32_t result;
@@ -425,7 +431,7 @@ private:
         }
         return XenoValue::makeInt(0);
     }
-    
+
     XenoValue performAbs(const XenoValue& a) {
         if (a.type == TYPE_INT) {
             if (a.int_val == std::numeric_limits<int32_t>::min()) {
@@ -438,13 +444,13 @@ private:
         }
         return XenoValue::makeInt(0);
     }
-    
+
     bool performComparison(const XenoValue& a, const XenoValue& b, uint8_t op) {
         if (a.type != b.type) {
             if (bothNumeric(a, b)) {
-                float a_val = (a.type == TYPE_INT) ? static_cast<float>(a.int_val) : a.float_val;
-                float b_val = (b.type == TYPE_INT) ? static_cast<float>(b.int_val) : b.float_val;
-                
+                float a_val = toFloat(a);
+                float b_val = toFloat(b);
+
                 switch (op) {
                     case OP_EQ: return a_val == b_val;
                     case OP_NEQ: return a_val != b_val;
@@ -456,7 +462,7 @@ private:
             }
             return false;
         }
-        
+
         switch (a.type) {
             case TYPE_INT:
                 switch (op) {
@@ -468,7 +474,7 @@ private:
                     case OP_GTE: return a.int_val >= b.int_val;
                 }
                 break;
-                
+
             case TYPE_FLOAT:
                 switch (op) {
                     case OP_EQ: return a.float_val == b.float_val;
@@ -479,7 +485,7 @@ private:
                     case OP_GTE: return a.float_val >= b.float_val;
                 }
                 break;
-                
+
             case TYPE_STRING:
                 {
                     const String& str_a = string_table[a.string_index];
@@ -497,18 +503,18 @@ private:
         }
         return false;
     }
-    
+
     // Optimized string addition with lookup table
     uint16_t addString(const String& str) {
         // Sanitize input string first
         String safe_str = security.sanitizeString(str);
-        
+
         // Check lookup first
         auto it = string_lookup.find(safe_str);
         if (it != string_lookup.end()) {
             return it->second;
         }
-        
+
         // Not in lookup, add to string table
         for (size_t i = 0; i < string_table.size(); ++i) {
             if (string_table[i] == safe_str) {
@@ -516,21 +522,21 @@ private:
                 return i;
             }
         }
-        
+
         if (string_table.size() >= 65535) {
             Serial.println("ERROR: String table overflow");
             return 0;
         }
-        
+
         string_table.push_back(safe_str);
         uint16_t new_index = string_table.size() - 1;
         string_lookup[safe_str] = new_index;
         return new_index;
     }
-    
+
     // Fast instruction handlers
     void handleNOP(const XenoInstruction& instr) { /* Do nothing */ }
-    
+
     void handlePRINT(const XenoInstruction& instr) {
         if (instr.arg1 < string_table.size()) {
             Serial.println(string_table[instr.arg1]);
@@ -538,7 +544,7 @@ private:
             Serial.println("ERROR: Invalid string index");
         }
     }
-    
+
     void handleLED_ON(const XenoInstruction& instr) {
         if (!security.isPinAllowed(instr.arg1)) {
             Serial.print("ERROR: Pin not allowed: ");
@@ -550,7 +556,7 @@ private:
         Serial.print("LED ON pin ");
         Serial.println(instr.arg1);
     }
-    
+
     void handleLED_OFF(const XenoInstruction& instr) {
         if (!security.isPinAllowed(instr.arg1)) {
             Serial.print("ERROR: Pin not allowed: ");
@@ -562,66 +568,66 @@ private:
         Serial.print("LED OFF pin ");
         Serial.println(instr.arg1);
     }
-    
+
     void handleDELAY(const XenoInstruction& instr) {
         delay(instr.arg1);
     }
-    
+
     void handlePUSH(const XenoInstruction& instr) {
         if (!safePush(XenoValue::makeInt(instr.arg1))) return;
     }
-    
+
     void handlePUSH_FLOAT(const XenoInstruction& instr) {
         float fval;
         memcpy(&fval, &instr.arg1, sizeof(float));
         if (!safePush(XenoValue::makeFloat(fval))) return;
     }
-    
+
     void handlePUSH_STRING(const XenoInstruction& instr) {
         if (!safePush(XenoValue::makeString(instr.arg1))) return;
     }
-    
+
     void handlePOP(const XenoInstruction& instr) {
         XenoValue temp;
         if (!safePop(temp)) return;
     }
-    
+
     void handleADD(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(performAddition(a, b))) return;
     }
-    
+
     void handleSUB(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(performSubtraction(a, b))) return;
     }
-    
+
     void handleMUL(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(performMultiplication(a, b))) return;
     }
-    
+
     void handleDIV(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(performDivision(a, b))) return;
     }
-    
+
     void handleMOD(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(performModulo(a, b))) return;
     }
-    
+
     void handleABS(const XenoInstruction& instr) {
         XenoValue a;
         if (!safePeek(a)) return;
         stack[stack_pointer - 1] = performAbs(a);
     }
-    
+
     void handlePOW(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
@@ -652,17 +658,17 @@ private:
             running = false;
             return;
         }
-        
+
         String var_name = string_table[instr.arg1];
         Serial.print("INPUT ");
         Serial.print(var_name);
         Serial.print(": ");
-        
+
         // Wait for input with timeout
         unsigned long startTime = millis();
         String input_str = "";
-        
-        while (millis() - startTime < 30000) { // 30 second timeout
+
+        while (millis() - startTime < 30000) {  // 30 second timeout
             if (Serial.available() > 0) {
                 input_str = Serial.readString();
                 input_str.trim();
@@ -670,13 +676,13 @@ private:
             }
             delay(100);
         }
-        
+
         if (input_str.isEmpty()) {
             Serial.println("TIMEOUT - using default value 0");
             variables[var_name] = XenoValue::makeInt(0);
             return;
         }
-        
+
         // Determine input type and convert
         XenoValue input_value;
         if (isInteger(input_str)) {
@@ -687,12 +693,12 @@ private:
             // Treat as string
             input_value = XenoValue::makeString(addString(input_str));
         }
-        
+
         variables[var_name] = input_value;
         Serial.print("-> ");
         Serial.println(input_str);
     }
-    
+
     // Helper functions for input parsing
     bool isInteger(const String& str) {
         if (str.isEmpty()) return false;
@@ -704,7 +710,7 @@ private:
         }
         return true;
     }
-    
+
     bool isFloat(const String& str) {
         if (str.isEmpty()) return false;
         const char* cstr = str.c_str();
@@ -721,43 +727,43 @@ private:
         }
         return has_decimal;
     }
-    
+
     void handleEQ(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1))) return;
     }
-    
+
     void handleNEQ(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1))) return;
     }
-    
+
     void handleLT(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1))) return;
     }
-    
+
     void handleGT(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1))) return;
     }
-    
+
     void handleLTE(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1))) return;
     }
-    
+
     void handleGTE(const XenoInstruction& instr) {
         XenoValue a, b;
         if (!safePopTwo(a, b)) return;
         if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1))) return;
     }
-    
+
     void handlePRINT_NUM(const XenoInstruction& instr) {
         XenoValue val;
         if (!safePeek(val)) return;
@@ -767,7 +773,7 @@ private:
             case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
         }
     }
-    
+
     void handleSTORE(const XenoInstruction& instr) {
         if (instr.arg1 >= string_table.size()) {
             Serial.println("ERROR: Invalid variable name index in STORE");
@@ -779,7 +785,7 @@ private:
         String var_name = string_table[instr.arg1];
         variables[var_name] = value;
     }
-    
+
     void handleLOAD(const XenoInstruction& instr) {
         if (instr.arg1 >= string_table.size()) {
             Serial.println("ERROR: Invalid variable name index in LOAD");
@@ -796,7 +802,7 @@ private:
             if (!safePush(XenoValue::makeInt(0))) return;
         }
     }
-    
+
     void handleJUMP(const XenoInstruction& instr) {
         if (instr.arg1 < program.size()) {
             program_counter = instr.arg1;
@@ -806,28 +812,28 @@ private:
             return;
         }
     }
-    
+
     void handleJUMP_IF(const XenoInstruction& instr) {
         XenoValue condition_val;
         if (!safePop(condition_val)) return;
-        
+
         int condition = 0;
         switch (condition_val.type) {
             case TYPE_INT: condition = (condition_val.int_val != 0); break;
             case TYPE_FLOAT: condition = (condition_val.float_val != 0.0f); break;
             case TYPE_STRING: condition = !string_table[condition_val.string_index].isEmpty(); break;
         }
-        
+
         if (condition && instr.arg1 < program.size()) {
             program_counter = instr.arg1;
         }
     }
-    
+
     void handleHALT(const XenoInstruction& instr) {
         running = false;
     }
-    
-protected:
+
+ protected:
     static constexpr const char* xeno_vm_name = "Xeno Virtual Machine";
     static constexpr const char* xeno_vm_version = "v0.1.0";
     static constexpr const char* xeno_vm_date = "26.10.2025";
@@ -838,55 +844,55 @@ protected:
         program.reserve(128);
         string_table.reserve(32);
     }
-    
+
     void setMaxInstructions(uint32_t max_instr) {
         max_instructions = max_instr;
     }
-    
-    void loadProgram(const std::vector<XenoInstruction>& bytecode, 
+
+    void loadProgram(const std::vector<XenoInstruction>& bytecode,
                     const std::vector<String>& strings) {
         resetState();
-        
+
         // Sanitize all input strings first
         std::vector<String> sanitized_strings;
         sanitized_strings.reserve(strings.size());
         for (const String& str : strings) {
             sanitized_strings.push_back(security.sanitizeString(str));
         }
-        
+
         // Verify bytecode integrity before loading
         if (!security.verifyBytecode(bytecode, sanitized_strings)) {
             Serial.println("SECURITY: Bytecode verification failed - refusing to load");
             running = false;
             return;
         }
-        
+
         program = bytecode;
         string_table = sanitized_strings;
-        
+
         // Pre-populate lookup with initial strings
         for (size_t i = 0; i < string_table.size(); ++i) {
             string_lookup[string_table[i]] = i;
         }
-        
+
         running = true;
         Serial.println("Program loaded and verified successfully");
     }
-    
+
     bool step() {
         if (!running || program_counter >= program.size()) {
             return false;
         }
-        
+
         // Check iteration limit to prevent infinite loops
         if (++iteration_count > MAX_ITERATIONS) {
             Serial.println("ERROR: Iteration limit exceeded - possible infinite loop");
             running = false;
             return false;
         }
-        
+
         const XenoInstruction& instr = program[program_counter++];
-        
+
         // Fast dispatch using function pointer table
         InstructionHandler handler = dispatch_table[instr.opcode];
         if (handler != nullptr) {
@@ -897,39 +903,39 @@ protected:
             running = false;
             return false;
         }
-        
+
         instruction_count++;
         if (instruction_count > max_instructions) {
             Serial.println("ERROR: Instruction limit exceeded - possible infinite loop");
             running = false;
             return false;
         }
-        
+
         return running;
     }
-    
+
     void run() {
         Serial.println("Starting Xeno VM...");
-        
+
         while (step()) {
             // Continue execution
         }
-        
+
         Serial.println("Xeno VM finished");
     }
-    
+
     void stop() {
         running = false;
         program_counter = 0;
         stack_pointer = 0;
     }
-    
+
     bool isRunning() const { return running; }
     uint32_t getPC() const { return program_counter; }
     uint32_t getSP() const { return stack_pointer; }
     uint32_t getInstructionCount() const { return instruction_count; }
     uint32_t getIterationCount() const { return iteration_count; }
-    
+
     void dumpState() {
         Serial.println("=== VM State ===");
 
@@ -967,7 +973,7 @@ protected:
         }
         if (stack_pointer > 10) Serial.println("  ...");
         Serial.println("]");
-        
+
         Serial.println("Variables: {");
         for (const auto& var : variables) {
             String type_str;
@@ -995,14 +1001,14 @@ protected:
         }
         Serial.println("}");
     }
-    
+
     void disassemble() {
         Serial.println("=== Disassembly ===");
         for (size_t i = 0; i < program.size(); ++i) {
             const XenoInstruction& instr = program[i];
             Serial.print(i);
             Serial.print(": ");
-            
+
             switch (instr.opcode) {
                 case OP_NOP: Serial.println("NOP"); break;
                 case OP_PRINT:
@@ -1016,20 +1022,20 @@ protected:
                     }
                     Serial.println();
                     break;
-                case OP_LED_ON: 
-                    Serial.print("LED_ON pin="); 
+                case OP_LED_ON:
+                    Serial.print("LED_ON pin=");
                     Serial.println(instr.arg1);
                     break;
-                case OP_LED_OFF: 
-                    Serial.print("LED_OFF pin="); 
+                case OP_LED_OFF:
+                    Serial.print("LED_OFF pin=");
                     Serial.println(instr.arg1);
                     break;
-                case OP_DELAY: 
+                case OP_DELAY:
                     Serial.print("DELAY ");
                     Serial.print(instr.arg1);
                     Serial.println("ms");
                     break;
-                case OP_PUSH: 
+                case OP_PUSH:
                     Serial.print("PUSH ");
                     Serial.println(instr.arg1);
                     break;
@@ -1096,16 +1102,16 @@ protected:
                     }
                     Serial.println();
                     break;
-                case OP_JUMP: 
+                case OP_JUMP:
                     Serial.print("JUMP ");
                     Serial.println(instr.arg1);
                     break;
-                case OP_JUMP_IF: 
+                case OP_JUMP_IF:
                     Serial.print("JUMP_IF ");
                     Serial.println(instr.arg1);
                     break;
                 case OP_HALT: Serial.println("HALT"); break;
-                default: 
+                default:
                     Serial.print("UNKNOWN ");
                     Serial.println(instr.opcode);
                     break;
@@ -1114,4 +1120,4 @@ protected:
     }
 };
 
-#endif // XENO_VM_H
+#endif  // XENOLANG_CORE_XENO_VM_H_

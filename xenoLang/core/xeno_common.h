@@ -15,15 +15,15 @@
  */
 
 
-#ifndef XENO_COMMON_H
-#define XENO_COMMON_H
+#ifndef XENOLANG_CORE_XENO_COMMON_H_
+#define XENOLANG_CORE_XENO_COMMON_H_
 
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
     OP_NOP = 0,
     OP_PRINT = 1,
     OP_LED_ON = 2,
-    OP_LED_OFF = 3,  
+    OP_LED_OFF = 3,
     OP_DELAY = 4,
     OP_PUSH = 5,
     OP_POP = 6,
@@ -69,23 +69,23 @@ struct XenoValue {
         float float_val;
         uint16_t string_index;
     };
-    
+
     XenoValue() : type(TYPE_INT), int_val(0) {}
-    
+
     static XenoValue makeInt(int32_t val) {
         XenoValue v;
         v.type = TYPE_INT;
         v.int_val = val;
         return v;
     }
-    
+
     static XenoValue makeFloat(float val) {
         XenoValue v;
         v.type = TYPE_FLOAT;
         v.float_val = val;
         return v;
     }
-    
+
     static XenoValue makeString(uint16_t str_idx) {
         XenoValue v;
         v.type = TYPE_STRING;
@@ -99,12 +99,14 @@ struct XenoInstruction {
     uint8_t opcode;
     uint32_t arg1;
     uint16_t arg2;
-    
-    XenoInstruction(uint8_t op = OP_NOP, uint32_t a1 = 0, uint16_t a2 = 0) 
-        : opcode(op), arg1(a1), arg2(a2) {}
+
+    explicit XenoInstruction(uint8_t op = OP_NOP,
+                         uint32_t a1 = 0,
+                         uint16_t a2 = 0)
+    : opcode(op), arg1(a1), arg2(a2) {}
 };
 
-// Структура для хранения информации о цикле
+// Structure for storing information about loop
 struct LoopInfo {
     String var_name;
     int start_address;
@@ -112,4 +114,4 @@ struct LoopInfo {
     int end_jump_address;
 };
 
-#endif // XENO_COMMON_H
+#endif  // XENOLANG_CORE_XENO_COMMON_H_

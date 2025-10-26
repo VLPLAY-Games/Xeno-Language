@@ -15,14 +15,14 @@
  */
 
 
-#ifndef XENO_H
-#define XENO_H
+#ifndef XENOLANG_XENO_H_
+#define XENOLANG_XENO_H_
 
 #include "core/xeno_compiler.h"
 #include "core/xeno_vm.h"
 
 class Xeno {
-private:
+ private:
     static constexpr const char* xeno_language_version = "v0.1.0";
     static constexpr const char* xeno_language_date = "26.10.2025";
     static constexpr const char* xeno_language_name = "Xeno Language";
@@ -30,38 +30,38 @@ private:
     XenoCompiler compiler;
     XenoVM vm;
 
-public:
+ public:
     bool compile(const String& source_code) {
         compiler.compile(source_code);
         return true;
     }
-    
+
     bool run() {
         vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
         vm.run();
         return true;
     }
-    
+
     void step() {
         vm.step();
     }
-    
+
     void stop() {
         vm.stop();
     }
-    
+
     bool isRunning() const {
         return vm.isRunning();
     }
-    
+
     void dumpState() {
         vm.dumpState();
     }
-    
+
     void disassemble() {
         vm.disassemble();
     }
-    
+
     void printCompiledCode() {
         compiler.printCompiledCode();
     }
@@ -110,4 +110,4 @@ public:
     }
 };
 
-#endif // XENO_H
+#endif  // XENOLANG_XENO_H_
