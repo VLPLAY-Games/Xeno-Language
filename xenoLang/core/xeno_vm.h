@@ -125,7 +125,7 @@ class XenoVM {
     }
 
     // Safe stack operations with immediate termination on error
-    bool safePush(const XenoValue& value) {
+    bool Push(const XenoValue& value) {
         if (stack_pointer >= MAX_STACK_SIZE) {
             Serial.println("CRITICAL ERROR: Stack overflow - terminating execution");
             running = false;
@@ -135,7 +135,7 @@ class XenoVM {
         return true;
     }
 
-    bool safePop(XenoValue& value) {
+    bool Pop(XenoValue& value) {
         if (stack_pointer == 0) {
             Serial.println("CRITICAL ERROR: Stack underflow - terminating execution");
             running = false;
@@ -145,7 +145,7 @@ class XenoVM {
         return true;
     }
 
-    bool safePopTwo(XenoValue& a, XenoValue& b) {
+    bool PopTwo(XenoValue& a, XenoValue& b) {
         if (stack_pointer < 2) {
             Serial.println("CRITICAL ERROR: Stack underflow in binary operation - terminating execution");
             running = false;
@@ -156,7 +156,7 @@ class XenoVM {
         return true;
     }
 
-    bool safePeek(XenoValue& value) {
+    bool Peek(XenoValue& value) {
         if (stack_pointer == 0) {
             Serial.println("CRITICAL ERROR: Stack underflow in peek - terminating execution");
             running = false;
@@ -167,7 +167,7 @@ class XenoVM {
     }
 
     // Safe integer operations with overflow checking
-    bool safeAdd(int32_t a, int32_t b, int32_t& result) {
+    bool Add(int32_t a, int32_t b, int32_t& result) {
         if ((b > 0 && a > std::numeric_limits<int32_t>::max() - b) ||
             (b < 0 && a < std::numeric_limits<int32_t>::min() - b)) {
             Serial.println("ERROR: Integer overflow in addition");
@@ -177,7 +177,7 @@ class XenoVM {
         return true;
     }
 
-    bool safeSub(int32_t a, int32_t b, int32_t& result) {
+    bool Sub(int32_t a, int32_t b, int32_t& result) {
         if ((b > 0 && a < std::numeric_limits<int32_t>::min() + b) ||
             (b < 0 && a > std::numeric_limits<int32_t>::max() + b)) {
             Serial.println("ERROR: Integer overflow in subtraction");
@@ -187,7 +187,7 @@ class XenoVM {
         return true;
     }
 
-    bool safeMul(int32_t a, int32_t b, int32_t& result) {
+    bool Mul(int32_t a, int32_t b, int32_t& result) {
         if (a == 0 || b == 0) {
             result = 0;
             return true;
@@ -211,7 +211,7 @@ class XenoVM {
         return true;
     }
 
-    bool safePow(int32_t base, int32_t exponent, int32_t& result) {
+    bool Pow(int32_t base, int32_t exponent, int32_t& result) {
         if (exponent < 0) return false;
         if (exponent == 0) {
             result = 1;
@@ -224,7 +224,7 @@ class XenoVM {
 
         result = 1;
         for (int32_t i = 0; i < exponent; ++i) {
-            if (!safeMul(result, base, result)) {
+            if (!Mul(result, base, result)) {
                 Serial.println("ERROR: Integer overflow in power operation");
                 return false;
             }
@@ -232,7 +232,7 @@ class XenoVM {
         return true;
     }
 
-    bool safeMod(int32_t a, int32_t b, int32_t& result) {
+    bool Mod(int32_t a, int32_t b, int32_t& result) {
         if (b == 0) {
             Serial.println("ERROR: Modulo by zero");
             return false;
@@ -249,7 +249,7 @@ class XenoVM {
     }
 
     // Safe square root with validation
-    XenoValue safeSqrt(const XenoValue& a) {
+    XenoValue Sqrt(const XenoValue& a) {
         if (a.type == TYPE_INT) {
             if (a.int_val < 0) {
                 Serial.println("ERROR: Square root of negative number");
@@ -267,7 +267,7 @@ class XenoVM {
     }
 
     // Safe max operation
-    XenoValue safeMax(const XenoValue& a, const XenoValue& b) {
+    XenoValue Max(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
                 float a_val = toFloat(a);
@@ -281,7 +281,7 @@ class XenoVM {
     }
 
     // Safe min operation
-    XenoValue safeMin(const XenoValue& a, const XenoValue& b) {
+    XenoValue Min(const XenoValue& a, const XenoValue& b) {
         if (bothNumeric(a, b)) {
             if (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT) {
                 float a_val = toFloat(a);
@@ -326,7 +326,7 @@ class XenoVM {
                 return XenoValue::makeFloat(a_val + b_val);
             } else {
                 int32_t result;
-                if (safeAdd(a.int_val, b.int_val, result)) {
+                if (Add(a.int_val, b.int_val, result)) {
                     return XenoValue::makeInt(result);
                 } else {
                     return XenoValue::makeInt(0);
@@ -345,7 +345,7 @@ class XenoVM {
                 return XenoValue::makeFloat(a_val - b_val);
             } else {
                 int32_t result;
-                if (safeSub(a.int_val, b.int_val, result)) {
+                if (Sub(a.int_val, b.int_val, result)) {
                     return XenoValue::makeInt(result);
                 } else {
                     return XenoValue::makeInt(0);
@@ -363,7 +363,7 @@ class XenoVM {
                 return XenoValue::makeFloat(a_val * b_val);
             } else {
                 int32_t result;
-                if (safeMul(a.int_val, b.int_val, result)) {
+                if (Mul(a.int_val, b.int_val, result)) {
                     return XenoValue::makeInt(result);
                 } else {
                     return XenoValue::makeInt(0);
@@ -403,7 +403,7 @@ class XenoVM {
     XenoValue performModulo(const XenoValue& a, const XenoValue& b) {
         if (a.type == TYPE_INT && b.type == TYPE_INT) {
             int32_t result;
-            if (safeMod(a.int_val, b.int_val, result)) {
+            if (Mod(a.int_val, b.int_val, result)) {
                 return XenoValue::makeInt(result);
             } else {
                 return XenoValue::makeInt(0);
@@ -422,7 +422,7 @@ class XenoVM {
                 return XenoValue::makeFloat(pow(a_val, b_val));
             } else {
                 int32_t result;
-                if (safePow(a.int_val, b.int_val, result)) {
+                if (Pow(a.int_val, b.int_val, result)) {
                     return XenoValue::makeInt(result);
                 } else {
                     return XenoValue::makeInt(0);
@@ -574,82 +574,82 @@ class XenoVM {
     }
 
     void handlePUSH(const XenoInstruction& instr) {
-        if (!safePush(XenoValue::makeInt(instr.arg1))) return;
+        if (!Push(XenoValue::makeInt(instr.arg1))) return;
     }
 
     void handlePUSH_FLOAT(const XenoInstruction& instr) {
         float fval;
         memcpy(&fval, &instr.arg1, sizeof(float));
-        if (!safePush(XenoValue::makeFloat(fval))) return;
+        if (!Push(XenoValue::makeFloat(fval))) return;
     }
 
     void handlePUSH_STRING(const XenoInstruction& instr) {
-        if (!safePush(XenoValue::makeString(instr.arg1))) return;
+        if (!Push(XenoValue::makeString(instr.arg1))) return;
     }
 
     void handlePOP(const XenoInstruction& instr) {
         XenoValue temp;
-        if (!safePop(temp)) return;
+        if (!Pop(temp)) return;
     }
 
     void handleADD(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(performAddition(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(performAddition(a, b))) return;
     }
 
     void handleSUB(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(performSubtraction(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(performSubtraction(a, b))) return;
     }
 
     void handleMUL(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(performMultiplication(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(performMultiplication(a, b))) return;
     }
 
     void handleDIV(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(performDivision(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(performDivision(a, b))) return;
     }
 
     void handleMOD(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(performModulo(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(performModulo(a, b))) return;
     }
 
     void handleABS(const XenoInstruction& instr) {
         XenoValue a;
-        if (!safePeek(a)) return;
+        if (!Peek(a)) return;
         stack[stack_pointer - 1] = performAbs(a);
     }
 
     void handlePOW(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(performPower(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(performPower(a, b))) return;
     }
 
     void handleMAX(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(safeMax(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(Max(a, b))) return;
     }
 
     void handleMIN(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(safeMin(a, b))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(Min(a, b))) return;
     }
 
     void handleSQRT(const XenoInstruction& instr) {
         XenoValue a;
-        if (!safePeek(a)) return;
-        stack[stack_pointer - 1] = safeSqrt(a);
+        if (!Peek(a)) return;
+        stack[stack_pointer - 1] = Sqrt(a);
     }
 
     void handleINPUT(const XenoInstruction& instr) {
@@ -730,43 +730,43 @@ class XenoVM {
 
     void handleEQ(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1))) return;
     }
 
     void handleNEQ(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1))) return;
     }
 
     void handleLT(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1))) return;
     }
 
     void handleGT(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1))) return;
     }
 
     void handleLTE(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1))) return;
     }
 
     void handleGTE(const XenoInstruction& instr) {
         XenoValue a, b;
-        if (!safePopTwo(a, b)) return;
-        if (!safePush(XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1))) return;
+        if (!PopTwo(a, b)) return;
+        if (!Push(XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1))) return;
     }
 
     void handlePRINT_NUM(const XenoInstruction& instr) {
         XenoValue val;
-        if (!safePeek(val)) return;
+        if (!Peek(val)) return;
         switch (val.type) {
             case TYPE_INT: Serial.println(val.int_val); break;
             case TYPE_FLOAT: Serial.println(val.float_val, 2); break;
@@ -781,7 +781,7 @@ class XenoVM {
             return;
         }
         XenoValue value;
-        if (!safePop(value)) return;
+        if (!Pop(value)) return;
         String var_name = string_table[instr.arg1];
         variables[var_name] = value;
     }
@@ -795,11 +795,11 @@ class XenoVM {
         String var_name = string_table[instr.arg1];
         auto it = variables.find(var_name);
         if (it != variables.end()) {
-            if (!safePush(it->second)) return;
+            if (!Push(it->second)) return;
         } else {
             Serial.print("ERROR: Variable not found: ");
             Serial.println(var_name);
-            if (!safePush(XenoValue::makeInt(0))) return;
+            if (!Push(XenoValue::makeInt(0))) return;
         }
     }
 
@@ -815,7 +815,7 @@ class XenoVM {
 
     void handleJUMP_IF(const XenoInstruction& instr) {
         XenoValue condition_val;
-        if (!safePop(condition_val)) return;
+        if (!Pop(condition_val)) return;
 
         int condition = 0;
         switch (condition_val.type) {
