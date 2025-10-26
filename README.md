@@ -109,7 +109,7 @@ void loop() {
 - `halt` — stop program execution.  
 - `led <pin> on|off` — toggle an allowed GPIO pin.  
 - `delay <ms>` — delay in milliseconds (bounded).  
-- Stack & arithmetic: `push`, `pop`, `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
+- Stack & arithmetic: `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
 - Control flow: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
 - Single-line comments use `//`.
 
