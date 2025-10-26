@@ -16,6 +16,8 @@ private:
     // Allowed pins for safety
     static constexpr std::array<uint8_t, 13> ALLOWED_PINS = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, LED_BUILTIN};
     static constexpr size_t NUM_ALLOWED_PINS = ALLOWED_PINS.size();
+    
+    friend class XenoVM;
 
 
 protected:
@@ -143,8 +145,6 @@ protected:
         
         return true;
     }
-public:
-    friend class XenoVM;
 };
 
 

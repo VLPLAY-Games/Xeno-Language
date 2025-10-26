@@ -11,7 +11,6 @@
 #include "xeno_security.h"
 
 
-
 // Xeno Virtual Machine
 class XenoVM {
 private:
@@ -28,6 +27,8 @@ private:
     uint32_t iteration_count;
     static const uint32_t MAX_ITERATIONS = 100000;
     XenoSecurity security;
+
+    friend class Xeno;
     
     // Typedef for instruction handler functions
     typedef void (XenoVM::*InstructionHandler)(const XenoInstruction&);
@@ -809,7 +810,11 @@ private:
         running = false;
     }
     
-public:
+protected:
+    static constexpr const char* xeno_vm_name = "Xeno Virtual Machine";
+    static constexpr const char* xeno_vm_version = "v0.1.0";
+    static constexpr const char* xeno_vm_date = "26.10.2025";
+    
     XenoVM() {
         initializeDispatchTable();
         resetState();

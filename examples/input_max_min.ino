@@ -1,9 +1,6 @@
-#include "xenoLang/xeno_vm.h"
-#include "xenoLang/xeno_compiler.h"
+#include "xenoLang/xeno.h"
 
-XenoCompiler compiler;
-XenoVM vm;
-XenoSecurity sec;
+Xeno xeno;
 
 void setup() {
     Serial.begin(115200);
@@ -32,12 +29,11 @@ void setup() {
     )";
     
     Serial.println("\n--- Compiling mixed type program ---");
-    compiler.compile(mixedTypeProgram);
-    compiler.printCompiledCode();
+    xeno.compile(mixedTypeProgram);
+    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing mixed type program ---");
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
-    vm.run();
+    xeno.run();
 }
 
 void loop() {

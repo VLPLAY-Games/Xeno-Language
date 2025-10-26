@@ -1,8 +1,6 @@
-#include "xenoLang/xeno_vm.h"
-#include "xenoLang/xeno_compiler.h"
+#include "xenoLang/xeno.h"
 
-XenoCompiler compiler;
-XenoVM vm;
+Xeno xeno;
 
 void setup() {
     Serial.begin(115200);
@@ -60,12 +58,11 @@ void setup() {
     )";
     
     Serial.println("\n--- Compiling for loop program ---");
-    compiler.compile(forLoopProgram);
-    compiler.printCompiledCode();
+    xeno.compile(forLoopProgram);
+    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing for loop program ---");
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
-    vm.run();
+    xeno.run();
 }
 
 void loop() {

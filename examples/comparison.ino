@@ -1,9 +1,7 @@
 // Example of using Xeno VM with comparisons and if-else
-#include "xenoLang/xeno_vm.h"
-#include "xenoLang/xeno_compiler.h"
+#include "xenoLang/xeno.h"
 
-XenoCompiler compiler;
-XenoVM vm;
+Xeno xeno;
 
 void setup() {
     Serial.begin(115200);
@@ -141,12 +139,11 @@ void setup() {
     )";
     
     Serial.println("\n--- Compiling logic program ---");
-    compiler.compile(logicProgram);
-    compiler.printCompiledCode();
+    xeno.compile(logicProgram);
+    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing logic program ---");
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
-    vm.run();
+    xeno.run();
 }
 
 void loop() {

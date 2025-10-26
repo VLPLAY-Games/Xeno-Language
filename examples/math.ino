@@ -1,9 +1,6 @@
-// Example of using Xeno VM with proper variable names
-#include "xenoLang/xeno_vm.h"
-#include "xenoLang/xeno_compiler.h"
+#include "xenoLang/xeno.h"
 
-XenoCompiler compiler;
-XenoVM vm;
+Xeno xeno;
 
 void setup() {
     Serial.begin(115200);
@@ -69,12 +66,11 @@ void setup() {
     )";
     
     Serial.println("\n--- Compiling variable program ---");
-    compiler.compile(variableProgram);
-    compiler.printCompiledCode();
+    xeno.compile(variableProgram);
+    xeno.printCompiledCode();
     
     Serial.println("\n--- Executing variable program ---");
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
-    vm.run();
+    xeno.run();
 }
 
 void loop() {

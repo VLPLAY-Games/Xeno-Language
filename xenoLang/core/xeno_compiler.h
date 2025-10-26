@@ -1,10 +1,11 @@
 #ifndef XENO_COMPILER_H
 #define XENO_COMPILER_H
 
-#include "xeno_common.h"
 #include <vector>
 #include <map>
 #include <stack>
+#include "xeno_common.h"
+#include "xeno_security.h"
 
 
 // Xeno Compiler - converts source code to bytecode
@@ -15,6 +16,8 @@ private:
     std::map<String, XenoValue> variable_map;
     std::vector<int> if_stack;
     std::vector<LoopInfo> loop_stack;
+
+    friend class Xeno;
     
     // Security validation
     bool validateString(const String& str) {
@@ -821,7 +824,11 @@ private:
         }
     }
     
-public:
+protected:
+    static constexpr const char* xeno_compiler_name = "Xeno Compiler";
+    static constexpr const char* xeno_compiler_version = "v0.1.0";
+    static constexpr const char* xeno_compiler_date = "26.10.2025";
+
     XenoCompiler() {
         bytecode.reserve(128);
         string_table.reserve(32);
