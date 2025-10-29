@@ -1,4 +1,3 @@
-// Example of using Xeno VM with comparisons and if-else
 #include "xenoLang/xeno.h"
 
 Xeno xeno;

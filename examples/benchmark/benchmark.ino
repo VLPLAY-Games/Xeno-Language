@@ -1,4 +1,4 @@
-#include "../xenoLang/xeno.h"
+#include "xenoLang/xeno.h"
 
 class Benchmark {
 private:
