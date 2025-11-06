@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Version-0.1.0-lightgrey.svg)](#)
+[![Version](https://img.shields.io/badge/Version-0.1.1-lightgrey.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
