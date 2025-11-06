@@ -74,28 +74,16 @@ Usage examples can be found in: File → Examples → Xeno Language
 #include <XenoLanguage.h>
 
 XenoLanguage xeno;
-  // Increase allowed instruction count (optional)
-  // Example: xeno.setMaxInstructions(200000); // raises the VM instruction limit
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
 
   String program = R"(
     print "Hello from Xeno!"
-    set a 10
-    set b 20
-    print "a + b = "
-    set c a + b
-    print $c
     halt
   )";
 
-  if (!xeno.compile(program)) {
-    Serial.println("Compile error");
-    return;
-  }
-
+  xeno.compile(program);
   xeno.run();
 }
 
