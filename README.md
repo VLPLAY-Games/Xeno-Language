@@ -23,13 +23,13 @@ Implemented as: **compiler → bytecode → VM** with built-in commands for numb
 - Designed for hobbyists, education, and small automation tasks.
 
 ⚡️ **Performance**
-- Benchmarks show Xeno is roughly **~22× slower than equivalent native C++**, depending on workload (see `benchmark.ino`).  
+- Benchmarks show Xeno is roughly **~26× slower than equivalent native C++**, depending on workload (see `benchmark.ino`).  
 - Compared to other interpreted MCU languages (MicroPython, Lua), Xeno's performance is in the same ballpark — exact differences depend heavily on the type of code and usage patterns. Use `benchmark.ino` for workload-specific comparisons.
 ### ⚔️ Language Performance Comparison
 
 | Feature / Language            | **Xeno** 🧠       | **MicroPython** 🐍       | **Lua (NodeMCU)** 🌙    | **C++ (Native)** ⚙️     |
 |-------------------------------|:-----------------:|:------------------------:|:----------------------:|:-----------------------:|
-| Execution Speed (vs C++)      | ~22× slower       | ~18× slower *(approx.)*  | ~20× slower *(approx.)*| 🥇 Baseline             |
+| Execution Speed (vs C++)      | ~26× slower       | ~18× slower *(approx.)*  | ~20× slower *(approx.)*| 🥇 Baseline             |
 | Memory Usage (RAM)            | Low (~20 KB)      | Medium (~30 KB)          | Medium (~25 KB)        | High control (manual)   |
 | File-based Execution          | ✅ `.xeno` files   | ✅ `.py` files           | ✅ `.lua` files        | ⚠️ Compiled only        |
 | Hardware Access (GPIO, etc.)  | ⚠️ Basic (LED only, in dev) | ✅ Rich | ✅ Rich | ✅ Full |
@@ -63,13 +63,17 @@ Implemented as: **compiler → bytecode → VM** with built-in commands for numb
 ## Quickstart
 
 ### Installation
-Copy the `xenoLang` folder into your Arduino project. The repository also contains example `.ino` sketches in `examples/`.
+- Download the latest library version from [Releases section](https://github.com/VLPLAY-Games/Xeno-Language/releases)
+- In Arduino IDE: Sketch → Include Library → Add .ZIP Library...
+- Select the downloaded `Xeno-Language-vX.X.X.zip` file
+
+Usage examples can be found in: File → Examples → Xeno Language
 
 ### Minimal Arduino / ESP32 example
 ```cpp
-#include "xenoLang/xeno.h"
+#include <XenoLanguage.h>
 
-Xeno xeno;
+XenoLanguage xeno;
   // Increase allowed instruction count (optional)
   // Example: xeno.setMaxInstructions(200000); // raises the VM instruction limit
 

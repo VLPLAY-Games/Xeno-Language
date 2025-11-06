@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-
 #ifndef XENOLANG_CORE_XENO_COMMON_H_
 #define XENOLANG_CORE_XENO_COMMON_H_
+
+#include <Arduino.h>
 
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
@@ -70,28 +71,11 @@ struct XenoValue {
         uint16_t string_index;
     };
 
-    XenoValue() : type(TYPE_INT), int_val(0) {}
-
-    static XenoValue makeInt(int32_t val) {
-        XenoValue v;
-        v.type = TYPE_INT;
-        v.int_val = val;
-        return v;
-    }
-
-    static XenoValue makeFloat(float val) {
-        XenoValue v;
-        v.type = TYPE_FLOAT;
-        v.float_val = val;
-        return v;
-    }
-
-    static XenoValue makeString(uint16_t str_idx) {
-        XenoValue v;
-        v.type = TYPE_STRING;
-        v.string_index = str_idx;
-        return v;
-    }
+    XenoValue();
+    
+    static XenoValue makeInt(int32_t val);
+    static XenoValue makeFloat(float val);
+    static XenoValue makeString(uint16_t str_idx);
 };
 
 // Bytecode instruction structure
@@ -102,8 +86,7 @@ struct XenoInstruction {
 
     explicit XenoInstruction(uint8_t op = OP_NOP,
                          uint32_t a1 = 0,
-                         uint16_t a2 = 0)
-    : opcode(op), arg1(a1), arg2(a2) {}
+                         uint16_t a2 = 0);
 };
 
 // Structure for storing information about loop

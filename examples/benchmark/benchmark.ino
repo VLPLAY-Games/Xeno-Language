@@ -1,4 +1,4 @@
-#include "xenoLang/xeno.h"
+#include <XenoLanguage.h>
 
 class Benchmark {
 private:
@@ -87,7 +87,7 @@ public:
             "// String concatenation\n"
             "set k 0\n"
             "for k = 0 to 100\n"
-            "    set result temp1 + \" \" + temp2 + \" \" + k\n"
+            "    set result temp1 + \" \" + temp2 + \" \" + temp3 + \" \" + k\n"
             "endfor\n"
             "print $result\n"
             "\n"
@@ -115,7 +115,7 @@ public:
             "halt";
             
         
-        Xeno xeno;
+        XenoLanguage xeno;
         
         Serial.println("=== XENO VM BENCHMARK ===");
         xeno.compile(source_code);

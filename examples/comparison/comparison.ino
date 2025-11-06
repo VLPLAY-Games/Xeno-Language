@@ -1,6 +1,6 @@
-#include "xenoLang/xeno.h"
+#include <XenoLanguage.h>
 
-Xeno xeno;
+XenoLanguage xeno;
 
 void setup() {
     Serial.begin(115200);
