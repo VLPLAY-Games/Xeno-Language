@@ -103,6 +103,10 @@ bool XenoCompiler::isFloat(const String& str) {
     return has_decimal && str.length() > 1;
 }
 
+bool XenoCompiler::isBool(const String& str) {
+    return str == "true" || str == "false";
+}
+
 bool XenoCompiler::isQuotedString(const String& str) {
     return str.length() >= 2 &&
            str[0] == '"' &&
@@ -242,7 +246,7 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
     }
 
     for (const String& token : tokens) {
-        if (isInteger(token) || isFloat(token) || isQuotedString(token) ||
+        if (isInteger(token) || isFloat(token) || isBool(token) || isQuotedString(token) ||
             isValidVariable(token) ||
             (token.startsWith("[") && token.endsWith("]")) ||
             (token.startsWith("{") && token.endsWith("}")) ||
@@ -400,6 +404,9 @@ void XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
             uint32_t fbits;
             memcpy(&fbits, &fval, sizeof(float));
             emitInstruction(OP_PUSH_FLOAT, fbits);
+        } else if (isBool(token)) {
+            bool bval = (token == "true");
+            emitInstruction(OP_PUSH_BOOL, bval);
         } else if (isQuotedString(token)) {
             String str = token.substring(1, token.length() - 1);
             if (!validateString(str)) {
@@ -477,6 +484,7 @@ XenoDataType XenoCompiler::determineValueType(const String& value) {
     if (isQuotedString(value)) return TYPE_STRING;
     if (isFloat(value)) return TYPE_FLOAT;
     if (isInteger(value)) return TYPE_INT;
+    if (isBool(value)) return TYPE_BOOL;
     if (isValidVariable(value)) {
         auto it = variable_map.find(value);
         return it != variable_map.end() ? it->second.type : TYPE_INT;
@@ -498,6 +506,9 @@ XenoValue XenoCompiler::createValueFromString(const String& str, XenoDataType ty
         case TYPE_STRING:
             value.string_index = addString(
                 str.substring(1, str.length() - 1));
+            break;
+        case TYPE_BOOL:
+            value.bool_val = (str == "true");
             break;
     }
     return value;
@@ -576,9 +587,9 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
                 return;
             }
 
-            if (state_str == "on" || state_str == "1") {
+            if (state_str == "on" || state_str == "1" || state_str == "true") {
                 emitInstruction(OP_LED_ON, pin);
-            } else if (state_str == "off" || state_str == "0") {
+            } else if (state_str == "off" || state_str == "0" || state_str == "false") {
                 emitInstruction(OP_LED_OFF, pin);
             } else {
                 Serial.print("WARNING: Unknown LED state at line ");
@@ -605,6 +616,9 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             uint32_t fbits;
             memcpy(&fbits, &fval, sizeof(float));
             emitInstruction(OP_PUSH_FLOAT, fbits);
+        } else if (isBool(args)) {
+            bool bval = (args == "true");
+            emitInstruction(OP_PUSH_BOOL, bval);
         } else if (isQuotedString(args)) {
             String str = args.substring(1, args.length() - 1);
             if (!validateString(str)) {
@@ -651,7 +665,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             }
 
             XenoDataType value_type = determineValueType(expression);
-            if (isInteger(expression) || isFloat(expression) || isQuotedString(expression)) {
+            if (isInteger(expression) || isFloat(expression) || isQuotedString(expression) || isBool(expression)) {
                 variable_map[var_name] = createValueFromString(expression, value_type);
             }
 
@@ -881,6 +895,10 @@ void XenoCompiler::printCompiledCode() {
                 Serial.println(fval, 4);
                 break;
             }
+            case OP_PUSH_BOOL:
+                Serial.print("PUSH_BOOL ");
+                Serial.println(instr.arg1 ? "true" : "false");
+                break;
             case OP_PUSH_STRING:
                 Serial.print("PUSH_STRING ");
                 if (instr.arg1 < string_table.size()) {

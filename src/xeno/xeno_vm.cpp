@@ -52,6 +52,7 @@ void XenoVM::initializeDispatchTable() {
     dispatch_table[OP_GTE] = &XenoVM::handleGTE;
     dispatch_table[OP_PUSH_FLOAT] = &XenoVM::handlePUSH_FLOAT;
     dispatch_table[OP_PUSH_STRING] = &XenoVM::handlePUSH_STRING;
+    dispatch_table[OP_PUSH_BOOL] = &XenoVM::handlePUSH_BOOL;
     dispatch_table[OP_HALT] = &XenoVM::handleHALT;
 }
 
@@ -75,6 +76,8 @@ String XenoVM::convertToString(const XenoValue& val) {
             return String(val.float_val, 3);
         case TYPE_STRING:
             return string_table[val.string_index];
+        case TYPE_BOOL:
+            return val.bool_val ? "true" : "false";
         default:
             return String();
     }
@@ -451,6 +454,17 @@ bool XenoVM::performComparison(const XenoValue& a, const XenoValue& b, uint8_t o
                 }
             }
             break;
+
+        case TYPE_BOOL:
+            switch (op) {
+                case OP_EQ: return a.bool_val == b.bool_val;
+                case OP_NEQ: return a.bool_val != b.bool_val;
+                case OP_LT: return a.bool_val < b.bool_val;
+                case OP_GT: return a.bool_val > b.bool_val;
+                case OP_LTE: return a.bool_val <= b.bool_val;
+                case OP_GTE: return a.bool_val >= b.bool_val;
+            }
+            break;
     }
     return false;
 }
@@ -509,6 +523,10 @@ bool XenoVM::isFloat(const String& str) {
     return has_decimal;
 }
 
+bool XenoVM::isBool(const String& str) {
+    return str == "true" || str == "false";
+}
+
 void XenoVM::handleNOP(const XenoInstruction& instr) { /* Do nothing */ }
 
 void XenoVM::handlePRINT(const XenoInstruction& instr) {
@@ -555,6 +573,10 @@ void XenoVM::handlePUSH_FLOAT(const XenoInstruction& instr) {
     float fval;
     memcpy(&fval, &instr.arg1, sizeof(float));
     if (!Push(XenoValue::makeFloat(fval))) return;
+}
+
+void XenoVM::handlePUSH_BOOL(const XenoInstruction& instr) {
+    if (!Push(XenoValue::makeBool(instr.arg1))) return;
 }
 
 void XenoVM::handlePUSH_STRING(const XenoInstruction& instr) {
@@ -661,6 +683,8 @@ void XenoVM::handleINPUT(const XenoInstruction& instr) {
         input_value = XenoValue::makeInt(input_str.toInt());
     } else if (isFloat(input_str)) {
         input_value = XenoValue::makeFloat(input_str.toFloat());
+    } else if (isBool(input_str)) {
+        input_value = XenoValue::makeBool(input_str == "true");
     } else {
         input_value = XenoValue::makeString(addString(input_str));
     }
@@ -713,6 +737,7 @@ void XenoVM::handlePRINT_NUM(const XenoInstruction& instr) {
         case TYPE_INT: Serial.println(val.int_val); break;
         case TYPE_FLOAT: Serial.println(val.float_val, 2); break;
         case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
+        case TYPE_BOOL: Serial.println(val.bool_val ? "true" : "false"); break;
     }
 }
 
@@ -764,6 +789,7 @@ void XenoVM::handleJUMP_IF(const XenoInstruction& instr) {
         case TYPE_INT: condition = (condition_val.int_val != 0); break;
         case TYPE_FLOAT: condition = (condition_val.float_val != 0.0f); break;
         case TYPE_STRING: condition = !string_table[condition_val.string_index].isEmpty(); break;
+        case TYPE_BOOL: condition = condition_val.bool_val; break;
     }
 
     if (condition && instr.arg1 < program.size()) {
@@ -895,6 +921,10 @@ void XenoVM::dumpState() {
                 type_str = "STRING";
                 value_str = "\"" + string_table[stack[i].string_index] + "\"";
                 break;
+            case TYPE_BOOL:
+                type_str = "BOOL";
+                value_str = stack[i].bool_val ? "true" : "false";
+                break;
         }
         Serial.print("  ");
         Serial.print(i);
@@ -922,6 +952,10 @@ void XenoVM::dumpState() {
             case TYPE_STRING:
                 type_str = "STRING";
                 value_str = "\"" + string_table[var.second.string_index] + "\"";
+                break;
+            case TYPE_BOOL:
+                type_str = "BOOL";
+                value_str = var.second.bool_val ? "true" : "false";
                 break;
         }
         Serial.print("  ");
@@ -978,6 +1012,10 @@ void XenoVM::disassemble() {
                 Serial.println(fval, 4);
                 break;
             }
+            case OP_PUSH_BOOL:
+                Serial.print("PUSH_BOOL ");
+                Serial.println(instr.arg1 ? "true" : "false");
+                break;
             case OP_PUSH_STRING:
                 Serial.print("PUSH_STRING ");
                 if (instr.arg1 < string_table.size()) {

@@ -52,6 +52,7 @@ enum XenoOpcodes {
     OP_MIN = 28,
     OP_SQRT = 29,
     OP_INPUT = 30,
+    OP_PUSH_BOOL = 31,
     OP_HALT = 255
 };
 
@@ -59,7 +60,8 @@ enum XenoOpcodes {
 enum XenoDataType {
     TYPE_INT = 0,
     TYPE_FLOAT = 1,
-    TYPE_STRING = 2
+    TYPE_STRING = 2,
+    TYPE_BOOL = 3
 };
 
 // Value structure that can hold different data types
@@ -69,6 +71,7 @@ struct XenoValue {
         int32_t int_val;
         float float_val;
         uint16_t string_index;
+        bool bool_val;
     };
 
     XenoValue();
@@ -76,6 +79,7 @@ struct XenoValue {
     static XenoValue makeInt(int32_t val);
     static XenoValue makeFloat(float val);
     static XenoValue makeString(uint16_t str_idx);
+    static XenoValue makeBool(bool val);
 };
 
 // Bytecode instruction structure

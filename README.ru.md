@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Version-0.1.1-lightgrey.svg)](#)
+[![Version](https://img.shields.io/badge/Version-0.1.2-lightgrey.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -100,45 +100,56 @@ void loop() {
 - `print "text"` — выводит текстовую строку.  
 - `print $var` — выводит значение переменной.  
 - `set var expr` — присваивает переменную (поддерживает выражения).  
-- `input var` — запрашивает ввод через Serial (сохраняется как строка).  
+- `input var` — запрашивает ввод через Serial (сохраняется как строка, число или булево значение).  
 - `halt` — останавливает выполнение программы.  
 - `led <pin> on|off` — переключает разрешённый GPIO-пин.  
 - `delay <ms>` — задержка в миллисекундах (с ограничением).  
 - Стек и арифметика: `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
 - Управление потоком: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
+- Булевы значения: `true`, `false`.  
 - Однострочные комментарии: `//`.
 
 ### Быстрые примеры синтаксиса
 ```
-// Comments
+// Комментарии
 print "Hello World"
 led 13 on
 delay 1000
 
-// Variables
+// Переменные
 set x 10
 set name "Xeno"
+set flag true
 print $x
+print $flag
 
-// Arithmetic
+// Арифметика
 set result (x + 5) * 2
 
-// Conditionals
+// Условия
 if x > 5 then
-    print "Larger than 5"
+print "More than 5"
 endif
 
-// Loops
+// Циклы
 for i = 1 to 10
-    print $i
+print $i
 endfor
+
+// Булевы операции
+set a true
+set b false
+if a == true then
+print "a is true"
+endif
 ```
 
 ### Операции и сравнения
-- Арифметика: `+ - * / % ^`, `abs()`  
-- Сравнения: `== != < > <= >=`  
+- Арифметика: `+ - * / % ^`, `abs()`, `sqrt()`, `max()`, `min()`  
+- Сравнения: `== != < > <= >=` 
 - Управление: `if/then/else/endif`, `for/endfor`  
-- Переферийные команды: `print`, `led on/off`, `delay`
+- Периферийные команды: `print`, `led on/off`, `delay`  
+- Типы данных: целые числа, числа с плавающей точкой, строки, булевы значения
 
 ---
 
@@ -168,7 +179,7 @@ OP_POW, OP_ABS, OP_SQRT, OP_MAX, OP_MIN,
 OP_STORE, OP_LOAD,
 OP_JUMP, OP_JUMP_IF,
 OP_INPUT, OP_DELAY, OP_LED_ON, OP_LED_OFF,
-OP_PUSH_FLOAT, OP_PUSH_STRING,
+OP_PUSH_FLOAT, OP_PUSH_STRING, OP_PUSH_BOOL,
 OP_EQ, OP_NEQ, OP_LT, OP_GT, OP_LTE, OP_GTE,
 OP_HALT
 ```
@@ -178,11 +189,11 @@ OP_HALT
 ## Безопасность и ограничения
 
 Чтобы защитить ESP32 и избежать сбоев во время выполнения, Xeno накладывает консервативные ограничения:
-- `MAX_STRING_LENGTH` (например, 256)  
-- `MAX_VARIABLE_NAME_LENGTH` (например, 32)  
-- `MAX_EXPRESSION_DEPTH` (например, 32)  
-- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (конфигурируемые)  
-- `MAX_STACK_SIZE` (например, 256)  
+- `MAX_STRING_LENGTH` (256)  
+- `MAX_VARIABLE_NAME_LENGTH` (32)  
+- `MAX_EXPRESSION_DEPTH` (32)  
+- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (16)  
+- `MAX_STACK_SIZE` (256)  
 - Разрешённые GPIO-пины ограничены и определены в `xeno_security.h` — попытки управления неразрешёнными пинами блокируются.  
 - Проверка байткода выполняется на этапе компиляции/загрузки.
 
@@ -196,13 +207,15 @@ OP_HALT
 - `input_max_min.ino` — ввод и математические функции.  
 - `math.ino`, `math2.ino` — математические тесты и бенчмарки.  
 - `benchmark.ino` — сравнительный тест производительности между нативным C++ и Xeno VM.
+- `bool.ino` — работа с булевыми переменными.
 
 ---
 
 ## Советы по отладке
-- Всегда открывайте Serial (например, 115200) для логов и ввода.  
+- Всегда открывайте Serial (115200) для логов и ввода.  
 - Если появляется `CRITICAL ERROR: Stack overflow`, уменьшите сложность выражений или осторожно увеличьте `MAX_STACK_SIZE`.  
-- Если команды GPIO не работают — проверьте список разрешённых пинов в `xeno_security.h`.
+- Если команды GPIO не работают — проверьте список разрешённых пинов в `xeno_security.h`.  
+- Используйте `printCompiledCode()` для отладки скомпилированного байткода.
 
 ---
 

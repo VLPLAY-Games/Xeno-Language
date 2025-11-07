@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Version-0.1.1-lightgrey.svg)](#)
+[![Version](https://img.shields.io/badge/Version-0.1.2-lightgrey.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -94,18 +94,21 @@ void loop() {
 
 ---
 
+## 日本語
+
 ## 言語概要
 
 ### 基本コマンド
 - `print "text"` — リテラル文字列を出力。  
 - `print $var` — 変数の値を出力。  
 - `set var expr` — 変数に代入（式をサポート）。  
-- `input var` — Serial経由で入力を要求（文字列として保存）。  
+- `input var` — Serial経由で入力を要求（文字列、数値、ブール値として保存）。  
 - `halt` — プログラム実行を停止。  
 - `led <pin> on|off` — 許可されたGPIOピンを切り替え。  
 - `delay <ms>` — ミリ秒単位で待機（上限あり）。  
 - スタック & 算術: `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
 - 制御フロー: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
+- ブール値: `true`, `false`.  
 - 一行コメントは `//`。
 
 ### クイック構文スニペット
@@ -118,27 +121,37 @@ delay 1000
 // Variables
 set x 10
 set name "Xeno"
+set flag true
 print $x
+print $flag
 
 // Arithmetic
 set result (x + 5) * 2
 
 // Conditionals
 if x > 5 then
-    print "Larger than 5"
+print "Larger than 5"
 endif
 
 // Loops
 for i = 1 to 10
-    print $i
+print $i
 endfor
+
+// Boolean operations
+set a true
+set b false
+if a == true then
+print "a is true"
+endif
 ```
 
 ### 演算 & 比較
-- 算術: `+ - * / % ^`, `abs()`  
+- 算術: `+ - * / % ^`, `abs()`, `sqrt()`, `max()`, `min()`  
 - 比較: `== != < > <= >=`  
 - 制御: `if/then/else/endif`, `for/endfor`  
 - 周辺機能: `print`, `led on/off`, `delay`
+- データ型: 整数、浮動小数点数、文字列、ブール値
 
 ---
 
@@ -168,21 +181,22 @@ OP_POW, OP_ABS, OP_SQRT, OP_MAX, OP_MIN,
 OP_STORE, OP_LOAD,
 OP_JUMP, OP_JUMP_IF,
 OP_INPUT, OP_DELAY, OP_LED_ON, OP_LED_OFF,
-OP_PUSH_FLOAT, OP_PUSH_STRING,
+OP_PUSH_FLOAT, OP_PUSH_STRING, OP_PUSH_BOOL,
 OP_EQ, OP_NEQ, OP_LT, OP_GT, OP_LTE, OP_GTE,
 OP_HALT
 ```
+
 
 ---
 
 ## セキュリティ & 制限
 
 ESP32を保護し実行時障害を避けるため、Xenoは保守的な制限を課しています:
-- `MAX_STRING_LENGTH`（例: 256）  
-- `MAX_VARIABLE_NAME_LENGTH`（例: 32）  
-- `MAX_EXPRESSION_DEPTH`（例: 32）  
-- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH`（設定可能）  
-- `MAX_STACK_SIZE`（例: 256）  
+- `MAX_STRING_LENGTH` (256)  
+- `MAX_VARIABLE_NAME_LENGTH` (32)  
+- `MAX_EXPRESSION_DEPTH` (32)  
+- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (16)  
+- `MAX_STACK_SIZE` (256)  
 - 許可されるGPIOピンは `xeno_security.h` 内で制限されており、許可されていないピンの制御はブロックされます。  
 - バイトコードの検証はコンパイル／ロード時に行われます。
 
@@ -196,13 +210,15 @@ ESP32を保護し実行時障害を避けるため、Xenoは保守的な制限�
 - `input_max_min.ino` — 入力処理 + 数学関数。  
 - `math.ino`, `math2.ino` — 数学テストとベンチ。  
 - `benchmark.ino` — ネイティブC++とXeno VMの性能比較。
+- `bool.ino` — ブール変数と演算。
 
 ---
 
 ## デバッグのヒント
-- ログと入力プロンプトのために常に Serial（例: 115200）を開いてください。  
+- ログと入力プロンプトのために常に Serial (115200) を開いてください。  
 - `CRITICAL ERROR: Stack overflow` が出たら、式の複雑さを減らすか慎重に `MAX_STACK_SIZE` を増やしてください。  
-- GPIOコマンドが失敗する場合は、`xeno_security.h` の許可ピンリストを確認してください。
+- GPIOコマンドが失敗する場合は、`xeno_security.h` の許可ピンリストを確認してください。  
+- コンパイル済みバイトコードのデバッグには `printCompiledCode()` を使用してください。
 
 ---
 

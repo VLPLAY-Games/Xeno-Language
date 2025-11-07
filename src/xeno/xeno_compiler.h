@@ -41,6 +41,7 @@ class XenoCompiler {
     int getVariableIndex(const String& var_name);
     bool isInteger(const String& str);
     bool isFloat(const String& str);
+    bool isBool(const String& str);
     bool isQuotedString(const String& str);
     bool isValidVariable(const String& str);
     bool isComparisonOperator(const String& str);
@@ -61,8 +62,8 @@ class XenoCompiler {
 
  protected:
     static constexpr const char* xeno_compiler_name = "Xeno Compiler";
-    static constexpr const char* xeno_compiler_version = "v0.1.0";
-    static constexpr const char* xeno_compiler_date = "26.10.2025";
+    static constexpr const char* xeno_compiler_version = "v0.1.2";
+    static constexpr const char* xeno_compiler_date = "07.11.2025";
 
     XenoCompiler();
     void compile(const String& source_code);

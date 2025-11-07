@@ -77,6 +77,7 @@ class XenoVM {
     uint16_t addString(const String& str);
     bool isInteger(const String& str);
     bool isFloat(const String& str);
+    bool isBool(const String& str);
 
     void handleNOP(const XenoInstruction& instr);
     void handlePRINT(const XenoInstruction& instr);
@@ -85,6 +86,7 @@ class XenoVM {
     void handleDELAY(const XenoInstruction& instr);
     void handlePUSH(const XenoInstruction& instr);
     void handlePUSH_FLOAT(const XenoInstruction& instr);
+    void handlePUSH_BOOL(const XenoInstruction& instr);
     void handlePUSH_STRING(const XenoInstruction& instr);
     void handlePOP(const XenoInstruction& instr);
     void handleADD(const XenoInstruction& instr);
@@ -113,8 +115,8 @@ class XenoVM {
 
  protected:
     static constexpr const char* xeno_vm_name = "Xeno Virtual Machine";
-    static constexpr const char* xeno_vm_version = "v0.1.0";
-    static constexpr const char* xeno_vm_date = "26.10.2025";
+    static constexpr const char* xeno_vm_version = "v0.1.2";
+    static constexpr const char* xeno_vm_date = "07.11.2025";
 
     XenoVM();
     void setMaxInstructions(uint32_t max_instr);

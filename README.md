@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Version-0.1.1-lightgrey.svg)](#)
+[![Version](https://img.shields.io/badge/Version-0.1.2-lightgrey.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -100,12 +100,13 @@ void loop() {
 - `print "text"` — print a literal string.  
 - `print $var` — print variable value.  
 - `set var expr` — assign variable (supports expressions).  
-- `input var` — request input via Serial (stored as string).  
+- `input var` — request input via Serial (stored as string, number or boolean).  
 - `halt` — stop program execution.  
 - `led <pin> on|off` — toggle an allowed GPIO pin.  
 - `delay <ms>` — delay in milliseconds (bounded).  
 - Stack & arithmetic: `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
 - Control flow: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
+- Boolean values: `true`, `false`.  
 - Single-line comments use `//`.
 
 ### Quick syntax snippets
@@ -118,27 +119,37 @@ delay 1000
 // Variables
 set x 10
 set name "Xeno"
+set flag true
 print $x
+print $flag
 
 // Arithmetic
 set result (x + 5) * 2
 
 // Conditionals
 if x > 5 then
-    print "Larger than 5"
+print "Larger than 5"
 endif
 
 // Loops
 for i = 1 to 10
-    print $i
+print $i
 endfor
+
+// Boolean operations
+set a true
+set b false
+if a == true then
+print "a is true"
+endif
 ```
 
 ### Operations & Comparisons
-- Arithmetic: `+ - * / % ^`, `abs()`  
-- Comparisons: `== != < > <= >=`  
+- Arithmetic: `+ - * / % ^`, `abs()`, `sqrt()`, `max()`, `min()`  
+- Comparisons: `== != < > <= >=`
 - Control: `if/then/else/endif`, `for/endfor`  
-- Peripherals: `print`, `led on/off`, `delay`
+- Peripherals: `print`, `led on/off`, `delay`  
+- Data types: integers, floats, strings, booleans
 
 ---
 
@@ -168,7 +179,7 @@ OP_POW, OP_ABS, OP_SQRT, OP_MAX, OP_MIN,
 OP_STORE, OP_LOAD,
 OP_JUMP, OP_JUMP_IF,
 OP_INPUT, OP_DELAY, OP_LED_ON, OP_LED_OFF,
-OP_PUSH_FLOAT, OP_PUSH_STRING,
+OP_PUSH_FLOAT, OP_PUSH_STRING, OP_PUSH_BOOL,
 OP_EQ, OP_NEQ, OP_LT, OP_GT, OP_LTE, OP_GTE,
 OP_HALT
 ```
@@ -178,11 +189,11 @@ OP_HALT
 ## Security & Limits
 
 To protect the ESP32 and avoid runtime faults, Xeno enforces conservative limits:
-- `MAX_STRING_LENGTH` (e.g. 256)  
-- `MAX_VARIABLE_NAME_LENGTH` (e.g. 32)  
-- `MAX_EXPRESSION_DEPTH` (e.g. 32)  
-- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (configurable)  
-- `MAX_STACK_SIZE` (e.g. 256)  
+- `MAX_STRING_LENGTH` (256)  
+- `MAX_VARIABLE_NAME_LENGTH` (32)  
+- `MAX_EXPRESSION_DEPTH` (32)  
+- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (16)  
+- `MAX_STACK_SIZE` (256)  
 - Allowed GPIO pins are restricted and defined in `xeno_security.h` — attempts to control unauthorized pins are blocked.  
 - Bytecode validation is performed at compile/load time.
 
@@ -196,13 +207,15 @@ See `examples/` in the repository:
 - `input_max_min.ino` — input handling + math functions.  
 - `math.ino`, `math2.ino` — math tests and benchmarks.  
 - `benchmark.ino` — performance comparison between native C++ and Xeno VM.
+- `bool.ino` — boolean variables and operations.
 
 ---
 
 ## Debugging tips
-- Always open Serial (e.g. 115200) for logs and input prompts.  
+- Always open Serial (115200) for logs and input prompts.  
 - If you see `CRITICAL ERROR: Stack overflow`, reduce expression complexity or increase `MAX_STACK_SIZE` carefully.  
-- If GPIO commands fail, check the allowed pin list in `xeno_security.h`.
+- If GPIO commands fail, check the allowed pin list in `xeno_security.h`.  
+- Use `printCompiledCode()` to debug compiled bytecode.
 
 ---
 
@@ -225,4 +238,4 @@ Contributions, issues and pull requests are welcome. If you contribute, please:
 ## License
 This project is licensed under the **Apache License 2.0**. See the `LICENSE` file for details.
 
-**Xeno Language** — developed by **VL_PLAY Games**.  
+**Xeno Language** — developed by **VL_PLAY Games**.

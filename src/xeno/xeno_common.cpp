@@ -39,5 +39,12 @@ XenoValue XenoValue::makeString(uint16_t str_idx) {
     return v;
 }
 
+XenoValue XenoValue::makeBool(bool val) {
+    XenoValue v;
+    v.type = TYPE_BOOL;
+    v.bool_val = val;
+    return v;
+}
+
 XenoInstruction::XenoInstruction(uint8_t op, uint32_t a1, uint16_t a2)
     : opcode(op), arg1(a1), arg2(a2) {}
