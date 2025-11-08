@@ -217,6 +217,51 @@ String XenoCompiler::processFunctions(const String& expr) {
         depth++;
     }
 
+    // Обработка sin()
+    int sinPos = result.indexOf("sin(");
+    while (sinPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
+        int endPos = findMatchingParenthesis(result, sinPos + 3);
+        if (endPos > sinPos) {
+            String inner = result.substring(sinPos + 4, endPos);
+            inner = processFunctions(inner);
+            result = result.substring(0, sinPos)
+                    + "#" + inner + "#"
+                    + result.substring(endPos + 1);
+        } else break;
+        sinPos = result.indexOf("sin(");
+        depth++;
+    }
+
+    // Обработка cos()
+    int cosPos = result.indexOf("cos(");
+    while (cosPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
+        int endPos = findMatchingParenthesis(result, cosPos + 3);
+        if (endPos > cosPos) {
+            String inner = result.substring(cosPos + 4, endPos);
+            inner = processFunctions(inner);
+            result = result.substring(0, cosPos)
+                    + "@" + inner + "@"
+                    + result.substring(endPos + 1);
+        } else break;
+        cosPos = result.indexOf("cos(");
+        depth++;
+    }
+
+    // Обработка tan()
+    int tanPos = result.indexOf("tan(");
+    while (tanPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
+        int endPos = findMatchingParenthesis(result, tanPos + 3);
+        if (endPos > tanPos) {
+            String inner = result.substring(tanPos + 4, endPos);
+            inner = processFunctions(inner);
+            result = result.substring(0, tanPos)
+                    + "&" + inner + "&"
+                    + result.substring(endPos + 1);
+        } else break;
+        tanPos = result.indexOf("tan(");
+        depth++;
+    }
+
     if (depth >= MAX_EXPRESSION_DEPTH) {
         Serial.println("ERROR: Expression too complex");
     }
@@ -324,7 +369,7 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
             continue;
         }
 
-        if ((c == '[' || c == '{' || c == '|' || c == '~') && !inSpecial) {
+        if ((c == '[' || c == '{' || c == '|' || c == '~' || c == '#' || c == '@' || c == '&') && !inSpecial) {
             if (!currentToken.isEmpty()) {
                 tokens.push_back(currentToken);
                 currentToken = "";
@@ -449,6 +494,18 @@ void XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
             String innerExpr = token.substring(1, token.length() - 1);
             compileExpression(innerExpr);
             emitInstruction(OP_SQRT);
+        } else if (token.startsWith("#") && token.endsWith("#")) {
+            String innerExpr = token.substring(1, token.length() - 1);
+            compileExpression(innerExpr);
+            emitInstruction(OP_SIN);
+        } else if (token.startsWith("@") && token.endsWith("@")) {
+            String innerExpr = token.substring(1, token.length() - 1);
+            compileExpression(innerExpr);
+            emitInstruction(OP_COS);
+        } else if (token.startsWith("&") && token.endsWith("&")) {
+            String innerExpr = token.substring(1, token.length() - 1);
+            compileExpression(innerExpr);
+            emitInstruction(OP_TAN);
         } else if (token == "+") emitInstruction(OP_ADD);
         else if (token == "-") emitInstruction(OP_SUB);
         else if (token == "*") emitInstruction(OP_MUL);

@@ -25,7 +25,7 @@ bool XenoSecurity::isPinAllowed(uint8_t pin) {
     return false;
 }
 
-String XenoSecurity::sanitizeString(const String& input) {
+String XenoSecurity::sanitizeString(consFt String& input) {
     String sanitized;
     sanitized.reserve(input.length());
 
@@ -76,7 +76,7 @@ bool XenoSecurity::verifyBytecode(const std::vector<XenoInstruction>& bytecode,
         const XenoInstruction& instr = bytecode[i];
 
         // Check for valid opcode range
-        if (instr.opcode > 31 && instr.opcode != 255) {
+        if (instr.opcode > 34 && instr.opcode != 255) {
             Serial.print("SECURITY: Invalid opcode at instruction ");
             Serial.println(i);
             return false;

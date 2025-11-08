@@ -43,6 +43,9 @@ void XenoVM::initializeDispatchTable() {
     dispatch_table[OP_MAX] = &XenoVM::handleMAX;
     dispatch_table[OP_MIN] = &XenoVM::handleMIN;
     dispatch_table[OP_SQRT] = &XenoVM::handleSQRT;
+    dispatch_table[OP_SIN] = &XenoVM::handleSIN;
+    dispatch_table[OP_COS] = &XenoVM::handleCOS;
+    dispatch_table[OP_TAN] = &XenoVM::handleTAN;
     dispatch_table[OP_INPUT] = &XenoVM::handleINPUT;
     dispatch_table[OP_EQ] = &XenoVM::handleEQ;
     dispatch_table[OP_NEQ] = &XenoVM::handleNEQ;
@@ -647,6 +650,28 @@ void XenoVM::handleSQRT(const XenoInstruction& instr) {
     if (!Peek(a)) return;
     stack[stack_pointer - 1] = Sqrt(a);
 }
+
+void XenoVM::handleSIN(const XenoInstruction& instr) {
+    XenoValue a;
+    if (!Peek(a)) return;
+    float val = toFloat(a);
+    stack[stack_pointer - 1] = XenoValue::makeFloat(sin(val));
+}
+
+void XenoVM::handleCOS(const XenoInstruction& instr) {
+    XenoValue a;
+    if (!Peek(a)) return;
+    float val = toFloat(a);
+    stack[stack_pointer - 1] = XenoValue::makeFloat(cos(val));
+}
+
+void XenoVM::handleTAN(const XenoInstruction& instr) {
+    XenoValue a;
+    if (!Peek(a)) return;
+    float val = toFloat(a);
+    stack[stack_pointer - 1] = XenoValue::makeFloat(tan(val));
+}
+
 
 void XenoVM::handleINPUT(const XenoInstruction& instr) {
     if (instr.arg1 >= string_table.size()) {

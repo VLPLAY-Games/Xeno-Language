@@ -111,6 +111,9 @@ class XenoVM {
     void handleLOAD(const XenoInstruction& instr);
     void handleJUMP(const XenoInstruction& instr);
     void handleJUMP_IF(const XenoInstruction& instr);
+    void handleSIN(const XenoInstruction& instr);
+    void handleCOS(const XenoInstruction& instr);
+    void handleTAN(const XenoInstruction& instr);
     void handleHALT(const XenoInstruction& instr);
 
  protected:

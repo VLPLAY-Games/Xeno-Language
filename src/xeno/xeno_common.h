@@ -53,6 +53,9 @@ enum XenoOpcodes {
     OP_SQRT = 29,
     OP_INPUT = 30,
     OP_PUSH_BOOL = 31,
+    OP_SIN = 32,
+    OP_COS = 33,
+    OP_TAN = 34,
     OP_HALT = 255
 };
 
