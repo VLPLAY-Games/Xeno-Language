@@ -14,7 +14,67 @@
  * limitations under the License.
  */
 
- #include "xeno_compiler.h"
+#include "xeno_compiler.h"
+
+
+const XenoCompiler::Constant XenoCompiler::constants[] = {
+    {"M_PI", "3.141592653589793"},
+    {"M_E", "2.718281828459045"},
+    {"M_TAU", "6.283185307179586"},
+    {"M_SQRT2", "1.4142135623730951"},
+    {"M_SQRT3", "1.7320508075688772"},
+    {"P_LIGHT_SPEED", "299792458"}
+};
+
+const size_t XenoCompiler::constants_count = std::size(constants);
+
+void XenoCompiler::processConstants(String& expr) {
+    int pos = 0;
+    while (pos < expr.length()) {
+        if (expr[pos] == 'M' || expr[pos] == 'P') {
+            int start_pos = pos;
+            for (size_t i = 0; i < constants_count; i++) {
+                const char* name = constants[i].name;
+                size_t name_len = strlen(name);
+                if (pos + name_len <= expr.length()) {
+                    bool match = true;
+                    for (size_t j = 0; j < name_len; j++) {
+                        if (expr[pos + j] != name[j]) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) {
+                        bool is_isolated = true;
+                        if (start_pos > 0) {
+                            char prev_char = expr[start_pos - 1];
+                            if (isalnum(prev_char) || prev_char == '_') {
+                                is_isolated = false;
+                            }
+                        }
+                        if (start_pos + name_len < expr.length()) {
+                            char next_char = expr[start_pos + name_len];
+                            if (isalnum(next_char) || next_char == '_') {
+                                is_isolated = false;
+                            }
+                        }
+                        if (is_isolated) {
+                            const char* value = constants[i].value;
+                            size_t value_len = strlen(value);
+                            expr = expr.substring(0, start_pos) + 
+                                   value + 
+                                   expr.substring(start_pos + name_len);
+                            pos = start_pos + value_len;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        pos++;
+    }
+}
+
 
 bool XenoCompiler::validateString(const String& str) {
     if (str.length() > MAX_STRING_LENGTH) {
@@ -152,6 +212,8 @@ String XenoCompiler::processFunctions(const String& expr) {
 
     String result = expr;
     int depth = 0;
+
+    processConstants(result);
 
     int absPos = result.indexOf("abs(");
     while (absPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {

@@ -32,6 +32,13 @@ class XenoCompiler {
     std::vector<int> if_stack;
     std::vector<LoopInfo> loop_stack;
 
+    struct Constant {
+        const char* name;
+        const char* value;
+    };
+    static const Constant constants[];
+    static const size_t constants_count;
+
     friend class XenoLanguage;
 
     bool validateString(const String& str);
@@ -59,6 +66,8 @@ class XenoCompiler {
     void emitInstruction(uint8_t opcode, uint32_t arg1 = 0, uint16_t arg2 = 0);
     int getCurrentAddress();
     void compileLine(const String& line, int line_number);
+    void processConstants(String& expr);
+    
 
  protected:
     static constexpr const char* xeno_compiler_name = "Xeno Compiler";
