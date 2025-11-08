@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef XENOLANG_CORE_XENO_SECURITY_H_
-#define XENOLANG_CORE_XENO_SECURITY_H_
+#ifndef SRC_XENO_XENO_SECURITY_H_
+#define SRC_XENO_XENO_SECURITY_H_
 
 #include <Arduino.h>
 #include <array>
@@ -45,4 +45,4 @@ class XenoSecurity {
                        const std::vector<String>& strings);
 };
 
-#endif  // XENOLANG_CORE_XENO_SECURITY_H_
+#endif  // SRC_XENO_XENO_SECURITY_H_

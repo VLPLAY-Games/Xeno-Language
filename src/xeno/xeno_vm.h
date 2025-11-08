@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef XENOLANG_CORE_XENO_VM_H_
-#define XENOLANG_CORE_XENO_VM_H_
+#ifndef SRC_XENO_XENO_VM_H_
+#define SRC_XENO_XENO_VM_H_
 
 #include <vector>
 #include <map>
 #include <stack>
-#include <cmath>
-#include <limits>
-#include <memory>
-#include <algorithm>
 #include "xeno_common.h"
 #include "xeno_security.h"
 
@@ -137,4 +133,4 @@ class XenoVM {
     void disassemble();
 };
 
-#endif  // XENOLANG_CORE_XENO_VM_H_
+#endif  // SRC_XENO_XENO_VM_H_

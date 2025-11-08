@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <vector>
 #include "xeno_security.h"
 
 bool XenoSecurity::isPinAllowed(uint8_t pin) {

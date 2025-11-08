@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef XENO_LANGUAGE_H
-#define XENO_LANGUAGE_H
+#ifndef SRC_XENOLANGUAGE_H_
+#define SRC_XENOLANGUAGE_H_
 
 #include "xeno/xeno_compiler.h"
 #include "xeno/xeno_vm.h"
@@ -64,4 +64,4 @@ class XenoLanguage {
     const char* getVMName() noexcept;
 };
 
-#endif
+#endif // SRC_XENOLANGUAGE_H_

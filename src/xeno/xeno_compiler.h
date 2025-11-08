@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef XENOLANG_CORE_XENO_COMPILER_H_
-#define XENOLANG_CORE_XENO_COMPILER_H_
+#ifndef SRC_XENO_XENO_COMPILER_H_
+#define SRC_XENO_XENO_COMPILER_H_
 
 #include <vector>
 #include <map>
@@ -81,4 +81,4 @@ class XenoCompiler {
     void printCompiledCode();
 };
 
-#endif  // XENOLANG_CORE_XENO_COMPILER_H_
+#endif  // SRC_XENO_XENO_COMPILER_H_

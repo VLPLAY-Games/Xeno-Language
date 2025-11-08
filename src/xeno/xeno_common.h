@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef XENOLANG_CORE_XENO_COMMON_H_
-#define XENOLANG_CORE_XENO_COMMON_H_
+#ifndef SRC_XENO_XENO_COMMON_H_
+#define SRC_XENO_XENO_COMMON_H_
 
 #include <Arduino.h>
 
@@ -104,4 +104,4 @@ struct LoopInfo {
     int end_jump_address;
 };
 
-#endif  // XENOLANG_CORE_XENO_COMMON_H_
+#endif  // SRC_XENO_XENO_COMMON_H_

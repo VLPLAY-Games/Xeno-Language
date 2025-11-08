@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
- #include "xeno_vm.h"
+#include <algorithm>
+#include <limits>
+#include <vector>
+#include "xeno_vm.h"
 
 void XenoVM::initializeDispatchTable() {
     for (int i = 0; i < 256; i++) {
