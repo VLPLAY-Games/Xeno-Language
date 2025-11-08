@@ -78,7 +78,7 @@ struct XenoValue {
     };
 
     XenoValue();
-    
+
     static XenoValue makeInt(int32_t val);
     static XenoValue makeFloat(float val);
     static XenoValue makeString(uint16_t str_idx);

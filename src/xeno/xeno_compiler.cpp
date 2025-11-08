@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <stack>
+#include <algorithm>
+#include <vector>
 #include "xeno_compiler.h"
 
 
@@ -61,8 +64,8 @@ void XenoCompiler::processConstants(String& expr) {
                         if (is_isolated) {
                             const char* value = constants[i].value;
                             size_t value_len = strlen(value);
-                            expr = expr.substring(0, start_pos) + 
-                                   value + 
+                            expr = expr.substring(0, start_pos) +
+                                   value +
                                    expr.substring(start_pos + name_len);
                             pos = start_pos + value_len;
                             break;
@@ -289,7 +292,9 @@ String XenoCompiler::processFunctions(const String& expr) {
             result = result.substring(0, sinPos)
                     + "#" + inner + "#"
                     + result.substring(endPos + 1);
-        } else break;
+        } else {
+            break;
+        }
         sinPos = result.indexOf("sin(");
         depth++;
     }
@@ -304,7 +309,9 @@ String XenoCompiler::processFunctions(const String& expr) {
             result = result.substring(0, cosPos)
                     + "@" + inner + "@"
                     + result.substring(endPos + 1);
-        } else break;
+        } else {
+            break;
+        }
         cosPos = result.indexOf("cos(");
         depth++;
     }
@@ -319,7 +326,9 @@ String XenoCompiler::processFunctions(const String& expr) {
             result = result.substring(0, tanPos)
                     + "&" + inner + "&"
                     + result.substring(endPos + 1);
-        } else break;
+        } else {
+            break;
+        }
         tanPos = result.indexOf("tan(");
         depth++;
     }

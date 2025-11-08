@@ -64,4 +64,4 @@ class XenoLanguage {
     const char* getVMName() noexcept;
 };
 
-#endif // SRC_XENOLANGUAGE_H_
+#endif  // SRC_XENOLANGUAGE_H_

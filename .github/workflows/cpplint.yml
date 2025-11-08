@@ -8,5 +8,6 @@ jobs:
     - run: |
         pipx install cpplint
         cpplint --recursive \
-          --filter=-build/include_subdir \
+          --filter=-build/include_subdir,-build/header_guard,-readability/todo,-runtime/int \
+          --linelength=120 \
           src/

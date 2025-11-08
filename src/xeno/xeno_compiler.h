@@ -67,7 +67,7 @@ class XenoCompiler {
     int getCurrentAddress();
     void compileLine(const String& line, int line_number);
     void processConstants(String& expr);
-    
+
 
  protected:
     static constexpr const char* xeno_compiler_name = "Xeno Compiler";
