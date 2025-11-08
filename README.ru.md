@@ -1,7 +1,15 @@
-[![Version](https://img.shields.io/badge/Version-0.1.2-lightgrey.svg)](#)
+[![Active](https://img.shields.io/badge/Project-Active-brightgreen.svg)](#)
+[![Last Commit](https://img.shields.io/github/last-commit/VLPLAY-Games/Xeno-Language)](#)
+
+[![Version](https://img.shields.io/badge/Version-0.1.3-lightgrey.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+[![Arduino Library](https://www.ardu-badge.com/badge/Xeno-Language.svg?)](https://www.ardu-badge.com/Xeno%20Language)
+
+[![Arduino Lint](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/arduino-lint.yml/badge.svg)](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/arduino-lint.yml)
+[![cpplint](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/cpplint.yml/badge.svg)](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/cpplint.yml)
 
 - [Read in English](README.md) 
 - [Read in Japanese](README.ja.md)
@@ -63,6 +71,12 @@
 ## Быстрый старт
 
 ### Установка
+**Способ 1: Менеджер библиотек (Рекомендуется)**
+- В Arduino IDE: Сервис → Управление библиотеками...
+- Найдите "Xeno Language"
+- Нажмите "Установить"
+
+**Способ 2: Ручная установка**
 - Скачайте последнюю версию библиотеки из [раздела Releases](https://github.com/VLPLAY-Games/Xeno-Language/releases)
 - В Arduino IDE: Скетч → Подключить библиотеку → Добавить .ZIP библиотеку...
 - Выберите скачанный файл `Xeno-Language-vX.X.X.zip`
@@ -104,7 +118,9 @@ void loop() {
 - `halt` — останавливает выполнение программы.  
 - `led <pin> on|off` — переключает разрешённый GPIO-пин.  
 - `delay <ms>` — задержка в миллисекундах (с ограничением).  
-- Стек и арифметика: `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
+- Арифметические операторы: `+`, `-`, `*`, `/`, `%`, `^` (степень).  
+- Функции: `abs()`, `sqrt()`, `sin()`, `cos()`, `tan()`, `max()`, `min()`.  
+- Константы: `M_PI`, `M_E`, `M_TAU`, `M_SQRT2`, `M_SQRT3`, `P_LIGHT_SPEED`.  
 - Управление потоком: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
 - Булевы значения: `true`, `false`.  
 - Однострочные комментарии: `//`.
@@ -145,7 +161,8 @@ endif
 ```
 
 ### Операции и сравнения
-- Арифметика: `+ - * / % ^`, `abs()`, `sqrt()`, `max()`, `min()`  
+- Арифметика: `+ - * / % ^`, `abs()`, `sqrt()`, `sin()`, `cos()`, `tan()`, `max()`, `min()`  
+- Константы: `M_PI`, `M_E`, `M_TAU`, `M_SQRT2`, `M_SQRT3`, `P_LIGHT_SPEED`
 - Сравнения: `== != < > <= >=` 
 - Управление: `if/then/else/endif`, `for/endfor`  
 - Периферийные команды: `print`, `led on/off`, `delay`  

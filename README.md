@@ -1,7 +1,15 @@
-[![Version](https://img.shields.io/badge/Version-0.1.2-lightgrey.svg)](#)
+[![Active](https://img.shields.io/badge/Project-Active-brightgreen.svg)](#)
+[![Last Commit](https://img.shields.io/github/last-commit/VLPLAY-Games/Xeno-Language)](#)
+
+[![Version](https://img.shields.io/badge/Version-0.1.3-lightgrey.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+[![Arduino Library](https://www.ardu-badge.com/badge/Xeno-Language.svg?)](https://www.ardu-badge.com/Xeno%20Language)
+
+[![Arduino Lint](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/arduino-lint.yml/badge.svg)](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/arduino-lint.yml)
+[![cpplint](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/cpplint.yml/badge.svg)](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/cpplint.yml)
 
 - [Read in Russian](README.ru.md) 
 - [Read in Japanese](README.ja.md)
@@ -63,6 +71,12 @@ Implemented as: **compiler → bytecode → VM** with built-in commands for numb
 ## Quickstart
 
 ### Installation
+**Method 1: Library Manager (Recommended)**
+- In Arduino IDE: Tools → Manage Libraries...
+- Search for "Xeno Language"
+- Click "Install"
+
+**Method 2: Manual Installation**
 - Download the latest library version from [Releases section](https://github.com/VLPLAY-Games/Xeno-Language/releases)
 - In Arduino IDE: Sketch → Include Library → Add .ZIP Library...
 - Select the downloaded `Xeno-Language-vX.X.X.zip` file
@@ -104,7 +118,9 @@ void loop() {
 - `halt` — stop program execution.  
 - `led <pin> on|off` — toggle an allowed GPIO pin.  
 - `delay <ms>` — delay in milliseconds (bounded).  
-- Stack & arithmetic: `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
+- Arithmetic operators: `+`, `-`, `*`, `/`, `%`, `^` (power).  
+- Functions: `abs()`, `sqrt()`, `sin()`, `cos()`, `tan()`, `max()`, `min()`.  
+- Constants: `M_PI`, `M_E`, `M_TAU`, `M_SQRT2`, `M_SQRT3`, `P_LIGHT_SPEED`.  
 - Control flow: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
 - Boolean values: `true`, `false`.  
 - Single-line comments use `//`.
@@ -145,7 +161,8 @@ endif
 ```
 
 ### Operations & Comparisons
-- Arithmetic: `+ - * / % ^`, `abs()`, `sqrt()`, `max()`, `min()`  
+- Arithmetic: `+ - * / % ^`, `abs()`, `sqrt()`, `sin()`, `cos()`, `tan()`, `max()`, `min()`  
+- Constants: `M_PI`, `M_E`, `M_TAU`, `M_SQRT2`, `M_SQRT3`, `P_LIGHT_SPEED`
 - Comparisons: `== != < > <= >=`
 - Control: `if/then/else/endif`, `for/endfor`  
 - Peripherals: `print`, `led on/off`, `delay`  

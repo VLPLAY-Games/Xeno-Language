@@ -1,7 +1,15 @@
-[![Version](https://img.shields.io/badge/Version-0.1.2-lightgrey.svg)](#)
+[![Active](https://img.shields.io/badge/Project-Active-brightgreen.svg)](#)
+[![Last Commit](https://img.shields.io/github/last-commit/VLPLAY-Games/Xeno-Language)](#)
+
+[![Version](https://img.shields.io/badge/Version-0.1.3-lightgrey.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](#)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-brightgreen.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+[![Arduino Library](https://www.ardu-badge.com/badge/Xeno-Language.svg?)](https://www.ardu-badge.com/Xeno%20Language)
+
+[![Arduino Lint](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/arduino-lint.yml/badge.svg)](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/arduino-lint.yml)
+[![cpplint](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/cpplint.yml/badge.svg)](https://github.com/VLPLAY-Games/Xeno-Language/actions/workflows/cpplint.yml)
 
 - [Read in Russian](README.ru.md) 
 - [Read in English](README.md)
@@ -63,6 +71,12 @@
 ## クイックスタート
 
 ### インストール
+**方法1: ライブラリマネージャ（推奨）**
+- Arduino IDEで: ツール → ライブラリを管理...
+- "Xeno Language"を検索
+- 「インストール」をクリック
+
+**方法2: 手動インストール**
 - [リリースセクション](https://github.com/VLPLAY-Games/Xeno-Language/releases)から最新バージョンのライブラリをダウンロード
 - Arduino IDEで: スケッチ → ライブラリをインクルード → .ZIP形式のライブラリをインストール...
 - ダウンロードした `Xeno-Language-vX.X.X.zip` ファイルを選択
@@ -106,9 +120,11 @@ void loop() {
 - `halt` — プログラム実行を停止。  
 - `led <pin> on|off` — 許可されたGPIOピンを切り替え。  
 - `delay <ms>` — ミリ秒単位で待機（上限あり）。  
-- スタック & 算術: `add`, `sub`, `mul`, `div`, `mod`, `abs`, `pow`, `sqrt`, `max`, `min`.  
-- 制御フロー: `if ... then ... else ... endif`, `for var = start to end ... endfor`.  
-- ブール値: `true`, `false`.  
+- 算術演算子: `+`, `-`, `*`, `/`, `%`, `^` (累乗)。  
+- 関数: `abs()`, `sqrt()`, `sin()`, `cos()`, `tan()`, `max()`, `min()`。  
+- 定数: `M_PI`, `M_E`, `M_TAU`, `M_SQRT2`, `M_SQRT3`, `P_LIGHT_SPEED`。  
+- 制御フロー: `if ... then ... else ... endif`, `for var = start to end ... endfor`。  
+- ブール値: `true`, `false`。  
 - 一行コメントは `//`。
 
 ### クイック構文スニペット
@@ -147,7 +163,8 @@ endif
 ```
 
 ### 演算 & 比較
-- 算術: `+ - * / % ^`, `abs()`, `sqrt()`, `max()`, `min()`  
+- 算術: `+ - * / % ^`, `abs()`, `sqrt()`, `sin()`, `cos()`, `tan()`, `max()`, `min()`  
+- 定数: `M_PI`, `M_E`, `M_TAU`, `M_SQRT2`, `M_SQRT3`, `P_LIGHT_SPEED`
 - 比較: `== != < > <= >=`  
 - 制御: `if/then/else/endif`, `for/endfor`  
 - 周辺機能: `print`, `led on/off`, `delay`

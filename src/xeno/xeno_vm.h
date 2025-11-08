@@ -114,8 +114,8 @@ class XenoVM {
 
  protected:
     static constexpr const char* xeno_vm_name = "Xeno Virtual Machine";
-    static constexpr const char* xeno_vm_version = "v0.1.2";
-    static constexpr const char* xeno_vm_date = "07.11.2025";
+    static constexpr const char* xeno_vm_version = "v0.1.3";
+    static constexpr const char* xeno_vm_date = "08.11.2025";
 
     XenoVM();
     void setMaxInstructions(uint32_t max_instr);
