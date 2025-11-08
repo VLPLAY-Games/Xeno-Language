@@ -25,7 +25,7 @@ bool XenoSecurity::isPinAllowed(uint8_t pin) {
     return false;
 }
 
-String XenoSecurity::sanitizeString(consFt String& input) {
+String XenoSecurity::sanitizeString(const String& input) {
     String sanitized;
     sanitized.reserve(input.length());
 

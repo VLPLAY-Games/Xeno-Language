@@ -1016,6 +1016,9 @@ void XenoCompiler::printCompiledCode() {
                 Serial.print("JUMP_IF ");
                 Serial.println(instr.arg1);
                 break;
+            case OP_SIN: Serial.println("SIN"); break;
+            case OP_COS: Serial.println("COS"); break;
+            case OP_TAN: Serial.println("TAN"); break;
             case OP_HALT: Serial.println("HALT"); break;
             default:
                 Serial.print("UNKNOWN ");
