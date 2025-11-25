@@ -70,9 +70,6 @@ class XenoCompiler {
 
 
  protected:
-    static constexpr const char* xeno_compiler_name = "Xeno Compiler";
-    static constexpr const char* xeno_compiler_version = "v0.1.3";
-    static constexpr const char* xeno_compiler_date = "08.11.2025";
 
     XenoCompiler();
     void compile(const String& source_code);

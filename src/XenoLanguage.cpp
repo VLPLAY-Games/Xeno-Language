@@ -54,27 +54,3 @@ void XenoLanguage::printCompiledCode() {
 void XenoLanguage::setMaxInstructions(uint32_t max_instr) {
     vm.setMaxInstructions(max_instr);
 }
-
-const char* XenoLanguage::getCompilerVersion() noexcept {
-    return compiler.xeno_compiler_version;
-}
-
-const char* XenoLanguage::getCompilerDate() noexcept {
-    return compiler.xeno_compiler_date;
-}
-
-const char* XenoLanguage::getCompilerName() noexcept {
-    return compiler.xeno_compiler_name;
-}
-
-const char* XenoLanguage::getVMVersion() noexcept {
-    return vm.xeno_vm_version;
-}
-
-const char* XenoLanguage::getVMDate() noexcept {
-    return vm.xeno_vm_date;
-}
-
-const char* XenoLanguage::getVMName() noexcept {
-    return vm.xeno_vm_name;
-}

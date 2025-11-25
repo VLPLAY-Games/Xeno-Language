@@ -52,16 +52,6 @@ class XenoLanguage {
     static constexpr const char* getLanguageName() noexcept {
         return xeno_language_name;
     }
-
-    // Information about language Compiler
-    const char* getCompilerVersion() noexcept;
-    const char* getCompilerDate() noexcept;
-    const char* getCompilerName() noexcept;
-
-    // Information about language VM
-    const char* getVMVersion() noexcept;
-    const char* getVMDate() noexcept;
-    const char* getVMName() noexcept;
 };
 
 #endif  // SRC_XENOLANGUAGE_H_
