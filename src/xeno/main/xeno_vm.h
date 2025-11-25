@@ -20,8 +20,8 @@
 #include <vector>
 #include <map>
 #include <stack>
-#include "xeno_common.h"
-#include "xeno_security.h"
+#include "../common/xeno_common.h"
+#include "../common/xeno_security.h"
 
 class XenoVM {
  private:
@@ -113,7 +113,6 @@ class XenoVM {
     void handleHALT(const XenoInstruction& instr);
 
  protected:
-
     XenoVM();
     void setMaxInstructions(uint32_t max_instr);
     void loadProgram(const std::vector<XenoInstruction>& bytecode,

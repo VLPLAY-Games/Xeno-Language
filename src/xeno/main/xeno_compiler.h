@@ -21,8 +21,8 @@
 #include <map>
 #include <stack>
 #include <algorithm>
-#include "xeno_common.h"
-#include "xeno_security.h"
+#include "../common/xeno_common.h"
+#include "../common/xeno_security.h"
 
 class XenoCompiler {
  private:
@@ -70,7 +70,6 @@ class XenoCompiler {
 
 
  protected:
-
     XenoCompiler();
     void compile(const String& source_code);
     const std::vector<XenoInstruction>& getBytecode() const;

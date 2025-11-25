@@ -17,8 +17,8 @@
 #ifndef SRC_XENOLANGUAGE_H_
 #define SRC_XENOLANGUAGE_H_
 
-#include "xeno/xeno_compiler.h"
-#include "xeno/xeno_vm.h"
+#include "xeno/main/xeno_compiler.h"
+#include "xeno/main/xeno_vm.h"
 
 class XenoLanguage {
  private:

@@ -18,6 +18,7 @@
 #include <limits>
 #include <vector>
 #include "xeno_vm.h"
+#include "../debug/xeno_debug_tools.h"
 
 void XenoVM::initializeDispatchTable() {
     for (int i = 0; i < 256; i++) {
@@ -997,125 +998,5 @@ void XenoVM::dumpState() {
 }
 
 void XenoVM::disassemble() {
-    Serial.println("=== Disassembly ===");
-    for (size_t i = 0; i < program.size(); ++i) {
-        const XenoInstruction& instr = program[i];
-        Serial.print(i);
-        Serial.print(": ");
-
-        switch (instr.opcode) {
-            case OP_NOP: Serial.println("NOP"); break;
-            case OP_PRINT:
-                Serial.print("PRINT ");
-                if (instr.arg1 < string_table.size()) {
-                    Serial.print("\"");
-                    Serial.print(string_table[instr.arg1]);
-                    Serial.print("\"");
-                } else {
-                    Serial.print("<invalid string>");
-                }
-                Serial.println();
-                break;
-            case OP_LED_ON:
-                Serial.print("LED_ON pin=");
-                Serial.println(instr.arg1);
-                break;
-            case OP_LED_OFF:
-                Serial.print("LED_OFF pin=");
-                Serial.println(instr.arg1);
-                break;
-            case OP_DELAY:
-                Serial.print("DELAY ");
-                Serial.print(instr.arg1);
-                Serial.println("ms");
-                break;
-            case OP_PUSH:
-                Serial.print("PUSH ");
-                Serial.println(instr.arg1);
-                break;
-            case OP_PUSH_FLOAT: {
-                float fval;
-                memcpy(&fval, &instr.arg1, sizeof(float));
-                Serial.print("PUSH_FLOAT ");
-                Serial.println(fval, 4);
-                break;
-            }
-            case OP_PUSH_BOOL:
-                Serial.print("PUSH_BOOL ");
-                Serial.println(instr.arg1 ? "true" : "false");
-                break;
-            case OP_PUSH_STRING:
-                Serial.print("PUSH_STRING ");
-                if (instr.arg1 < string_table.size()) {
-                    Serial.print("\"");
-                    Serial.print(string_table[instr.arg1]);
-                    Serial.print("\"");
-                } else {
-                    Serial.print("<invalid>");
-                }
-                Serial.println();
-                break;
-            case OP_POP: Serial.println("POP"); break;
-            case OP_ADD: Serial.println("ADD"); break;
-            case OP_SUB: Serial.println("SUB"); break;
-            case OP_MUL: Serial.println("MUL"); break;
-            case OP_DIV: Serial.println("DIV"); break;
-            case OP_MOD: Serial.println("MOD"); break;
-            case OP_ABS: Serial.println("ABS"); break;
-            case OP_POW: Serial.println("POW"); break;
-            case OP_MAX: Serial.println("MAX"); break;
-            case OP_MIN: Serial.println("MIN"); break;
-            case OP_SQRT: Serial.println("SQRT"); break;
-            case OP_INPUT:
-                Serial.print("INPUT ");
-                if (instr.arg1 < string_table.size()) {
-                    Serial.print(string_table[instr.arg1]);
-                } else {
-                    Serial.print("<invalid var>");
-                }
-                Serial.println();
-                break;
-            case OP_EQ: Serial.println("EQ"); break;
-            case OP_NEQ: Serial.println("NEQ"); break;
-            case OP_LT: Serial.println("LT"); break;
-            case OP_GT: Serial.println("GT"); break;
-            case OP_LTE: Serial.println("LTE"); break;
-            case OP_GTE: Serial.println("GTE"); break;
-            case OP_PRINT_NUM: Serial.println("PRINT_NUM"); break;
-            case OP_STORE:
-                Serial.print("STORE ");
-                if (instr.arg1 < string_table.size()) {
-                    Serial.print(string_table[instr.arg1]);
-                } else {
-                    Serial.print("<invalid var>");
-                }
-                Serial.println();
-                break;
-            case OP_LOAD:
-                Serial.print("LOAD ");
-                if (instr.arg1 < string_table.size()) {
-                    Serial.print(string_table[instr.arg1]);
-                } else {
-                    Serial.print("<invalid var>");
-                }
-                Serial.println();
-                break;
-            case OP_JUMP:
-                Serial.print("JUMP ");
-                Serial.println(instr.arg1);
-                break;
-            case OP_JUMP_IF:
-                Serial.print("JUMP_IF ");
-                Serial.println(instr.arg1);
-                break;
-            case OP_SIN: Serial.println("SIN"); break;
-            case OP_COS: Serial.println("COS"); break;
-            case OP_TAN: Serial.println("TAN"); break;
-            case OP_HALT: Serial.println("HALT"); break;
-            default:
-                Serial.print("UNKNOWN ");
-                Serial.println(instr.opcode);
-                break;
-        }
-    }
+    Debugger::disassemble(program, string_table, "Disassembly");
 }
