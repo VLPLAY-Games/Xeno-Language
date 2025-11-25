@@ -69,7 +69,7 @@ void XenoVM::resetState() {
     running = false;
     instruction_count = 0;
     iteration_count = 0;
-    max_instructions = security_config.max_instructions;
+    max_instructions = security_config.getCurrentMaxInstructions();
     memset(stack.data(), 0, sizeof(XenoValue) * stack.size());
     variables.clear();
     string_lookup.clear();
@@ -798,18 +798,19 @@ XenoVM::XenoVM(XenoSecurityConfig& config)
     resetState();
     program.reserve(128);
     string_table.reserve(32);
-    stack.resize(security_config.MAX_STACK_SIZE);
+    stack.resize(security_config.getMaxStackSize());
 }
 
+
 void XenoVM::setMaxInstructions(uint32_t max_instr) {
-    if (max_instr < security_config.MIN_INSTRUCTIONS) {
-        max_instructions = security_config.MIN_INSTRUCTIONS;
+    if (max_instr < security_config.getMinInstructionsLimit()) {
+        max_instructions = security_config.getMinInstructionsLimit();
         Serial.print("WARNING: max_instructions set to minimum: ");
-        Serial.println(security_config.MIN_INSTRUCTIONS);
-    } else if (max_instr > security_config.MAX_INSTRUCTIONS) {
-        max_instructions = security_config.MAX_INSTRUCTIONS;
+        Serial.println(security_config.getMinInstructionsLimit());
+    } else if (max_instr > security_config.getMaxInstructionsLimitValue()) {
+        max_instructions = security_config.getMaxInstructionsLimitValue();
         Serial.print("WARNING: max_instructions set to maximum: ");
-        Serial.println(security_config.MAX_INSTRUCTIONS);
+        Serial.println(security_config.getMaxInstructionsLimitValue());
     } else {
         max_instructions = max_instr;
     }

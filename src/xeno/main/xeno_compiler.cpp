@@ -134,7 +134,7 @@ void XenoCompiler::compileSimpleCommand(const String& command, uint8_t opcode) {
 }
 
 bool XenoCompiler::validateString(const String& str) {
-    if (str.length() > security_config.MAX_STRING_LENGTH) {
+    if (str.length() > security_config.getMaxStringLength()) {
         Serial.println("ERROR: String too long");
         return false;
     }
@@ -142,7 +142,7 @@ bool XenoCompiler::validateString(const String& str) {
 }
 
 bool XenoCompiler::validateVariableName(const String& name) {
-    if (name.length() > security_config.MAX_VARIABLE_NAME_LENGTH) {
+    if (name.length() > security_config.getMaxVariableNameLength()) {
         Serial.println("ERROR: Variable name too long");
         return false;
     }
@@ -231,7 +231,7 @@ bool XenoCompiler::isQuotedString(const String& str) {
 }
 
 bool XenoCompiler::isValidVariable(const String& str) {
-    if (str.isEmpty() || str.length() > security_config.MAX_VARIABLE_NAME_LENGTH) return false;
+    if (str.isEmpty() || str.length() > security_config.getMaxVariableNameLength()) return false;
 
     const char first = str[0];
     if (!isalpha(first) && first != '_') return false;
@@ -272,11 +272,11 @@ String XenoCompiler::processFunctions(const String& expr) {
 
     processConstants(result);
 
-    for (size_t i = 0; i < math_functions_count && depth < security_config.MAX_EXPRESSION_DEPTH; i++) {
+    for (size_t i = 0; i < math_functions_count && depth < security_config.getMaxExpressionDepth(); i++) {
         const FunctionInfo& func = math_functions[i];
         int pos = result.indexOf(func.name);
         
-        while (pos >= 0 && depth < security_config.MAX_EXPRESSION_DEPTH) {
+        while (pos >= 0 && depth < security_config.getMaxExpressionDepth()) {
             int endPos = findMatchingParenthesis(result, pos + strlen(func.name) - 1);
             if (endPos > pos) {
                 String inner = result.substring(pos + strlen(func.name), endPos);
@@ -292,7 +292,7 @@ String XenoCompiler::processFunctions(const String& expr) {
         }
     }
 
-    if (depth >= security_config.MAX_EXPRESSION_DEPTH) {
+    if (depth >= security_config.getMaxExpressionDepth()) {
         Serial.println("ERROR: Expression too complex");
     }
 
@@ -726,7 +726,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             Serial.println(line_number);
         }
     } else if (command == "if") {
-        if (if_stack.size() >= security_config.MAX_IF_DEPTH) {
+        if (if_stack.size() >= security_config.getMaxIfDepth()) {
             Serial.print("ERROR: IF nesting too deep at line ");
             Serial.println(line_number);
             return;
@@ -772,7 +772,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             Serial.println(line_number);
         }
     } else if (command == "for") {
-        if (loop_stack.size() >= security_config.MAX_LOOP_DEPTH) {
+        if (loop_stack.size() >= security_config.getMaxLoopDepth()) {
             Serial.print("ERROR: Loop nesting too deep at line ");
             Serial.println(line_number);
             return;
@@ -858,8 +858,8 @@ XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     : security_config(config), security(config) {
     bytecode.reserve(128);
     string_table.reserve(32);
-    if_stack.reserve(security_config.MAX_IF_DEPTH);
-    loop_stack.reserve(security_config.MAX_LOOP_DEPTH);
+    if_stack.reserve(security_config.getMaxIfDepth());
+    loop_stack.reserve(security_config.getMaxLoopDepth());
 }
 
 void XenoCompiler::compile(const String& source_code) {

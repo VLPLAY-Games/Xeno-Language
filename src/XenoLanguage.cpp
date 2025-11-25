@@ -55,16 +55,11 @@ void XenoLanguage::printCompiledCode() {
 }
 
 bool XenoLanguage::setMaxInstructions(uint32_t max_instr) {
-    return security_config.setMaxInstructions(max_instr);
+    return security_config.setCurrentMaxInstructions(max_instr);
 }
 
-XenoSecurityConfig& XenoLanguage::getSecurityConfig() {
+const XenoSecurityConfig& XenoLanguage::getSecurityConfig() const {
     return security_config;
-}
-
-bool XenoLanguage::updateSecurityConfig(const XenoSecurityConfig& new_config) {
-    security_config = new_config;
-    return true;
 }
 
 bool XenoLanguage::setStringLimit(size_t length) {
@@ -75,32 +70,56 @@ bool XenoLanguage::setVariableNameLimit(size_t length) {
     return security_config.setMaxVariableNameLength(length);
 }
 
+bool XenoLanguage::setExpressionDepth(size_t depth) {
+    return security_config.setMaxExpressionDepth(depth);
+}
+
+bool XenoLanguage::setLoopDepth(size_t depth) {
+    return security_config.setMaxLoopDepth(depth);
+}
+
+bool XenoLanguage::setIfDepth(size_t depth) {
+    return security_config.setMaxIfDepth(depth);
+}
+
 bool XenoLanguage::setStackSize(size_t size) {
     return security_config.setMaxStackSize(size);
 }
 
 bool XenoLanguage::setAllowedPins(const std::vector<uint8_t>& pins) {
-    security_config.setAllowedPins(pins);
-    return true;
+    return security_config.setAllowedPins(pins);
 }
 
 bool XenoLanguage::addAllowedPin(uint8_t pin) {
-    for (auto existing_pin : security_config.ALLOWED_PINS) {
+    std::vector<uint8_t> current_pins = security_config.getAllowedPins();
+
+    for (uint8_t existing_pin : current_pins) {
         if (existing_pin == pin) {
             return true;
         }
     }
-    security_config.ALLOWED_PINS.push_back(pin);
-    return true;
+    
+    // Добавляем новый пин
+    current_pins.push_back(pin);
+    return security_config.setAllowedPins(current_pins);
 }
 
 bool XenoLanguage::removeAllowedPin(uint8_t pin) {
-    auto& pins = security_config.ALLOWED_PINS;
-    for (auto it = pins.begin(); it != pins.end(); ++it) {
+    std::vector<uint8_t> current_pins = security_config.getAllowedPins();
+    
+    for (auto it = current_pins.begin(); it != current_pins.end(); ++it) {
         if (*it == pin) {
-            pins.erase(it);
-            return true;
+            current_pins.erase(it);
+            return security_config.setAllowedPins(current_pins);
         }
     }
     return false;
+}
+
+bool XenoLanguage::validateSecurityConfig() const {
+    return security_config.validateConfig();
+}
+
+String XenoLanguage::getSecurityLimitsInfo() const {
+    return security_config.getSecurityLimitsInfo();
 }

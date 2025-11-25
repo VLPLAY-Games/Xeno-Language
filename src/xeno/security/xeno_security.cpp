@@ -17,8 +17,9 @@
 #include "xeno_security.h"
 
 bool XenoSecurity::isPinAllowed(uint8_t pin) {
-    for (size_t i = 0; i < config.ALLOWED_PINS.size(); i++) {
-        if (pin == config.ALLOWED_PINS[i]) {
+    const std::vector<uint8_t>& allowed_pins = config.getAllowedPins();
+    for (size_t i = 0; i < allowed_pins.size(); i++) {
+        if (pin == allowed_pins[i]) {
             return true;
         }
     }
@@ -43,7 +44,7 @@ String XenoSecurity::sanitizeString(const String& input) {
             sanitized += '?';
         }
 
-        if (sanitized.length() >= config.MAX_STRING_LENGTH) {
+        if (sanitized.length() >= config.getMaxStringLength()) {
             sanitized += "...";
             break;
         }
