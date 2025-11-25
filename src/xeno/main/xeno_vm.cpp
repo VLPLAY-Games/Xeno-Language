@@ -595,87 +595,57 @@ void XenoVM::handlePOP(const XenoInstruction& instr) {
     if (!Pop(temp)) return;
 }
 
-void XenoVM::handleADD(const XenoInstruction& instr) {
+void XenoVM::handleBinaryOp(const XenoInstruction& instr, uint8_t op) {
     XenoValue a, b;
     if (!PopTwo(a, b)) return;
-    if (!Push(performAddition(a, b))) return;
+    
+    XenoValue result;
+    switch (op) {
+        case OP_ADD: result = performAddition(a, b); break;
+        case OP_SUB: result = performSubtraction(a, b); break;
+        case OP_MUL: result = performMultiplication(a, b); break;
+        case OP_DIV: result = performDivision(a, b); break;
+        case OP_MOD: result = performModulo(a, b); break;
+        case OP_POW: result = performPower(a, b); break;
+        case OP_MAX: result = Max(a, b); break;
+        case OP_MIN: result = Min(a, b); break;
+        default: return;
+    }
+    
+    if (!Push(result)) return;
 }
 
-void XenoVM::handleSUB(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(performSubtraction(a, b))) return;
-}
-
-void XenoVM::handleMUL(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(performMultiplication(a, b))) return;
-}
-
-void XenoVM::handleDIV(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(performDivision(a, b))) return;
-}
-
-void XenoVM::handleMOD(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(performModulo(a, b))) return;
-}
-
-void XenoVM::handleABS(const XenoInstruction& instr) {
+void XenoVM::handleUnaryOp(const XenoInstruction& instr, uint8_t op) {
     XenoValue a;
     if (!Peek(a)) return;
-    stack[stack_pointer - 1] = performAbs(a);
+    
+    XenoValue result;
+    switch (op) {
+        case OP_ABS: result = performAbs(a); break;
+        case OP_SQRT: result = Sqrt(a); break;
+        case OP_SIN: result = XenoValue::makeFloat(sin(toFloat(a))); break;
+        case OP_COS: result = XenoValue::makeFloat(cos(toFloat(a))); break;
+        case OP_TAN: result = XenoValue::makeFloat(tan(toFloat(a))); break;
+        default: return;
+    }
+    
+    stack[stack_pointer - 1] = result;
 }
 
-void XenoVM::handlePOW(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(performPower(a, b))) return;
-}
+void XenoVM::handleADD(const XenoInstruction& instr) { handleBinaryOp(instr, OP_ADD); }
+void XenoVM::handleSUB(const XenoInstruction& instr) { handleBinaryOp(instr, OP_SUB); }
+void XenoVM::handleMUL(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MUL); }
+void XenoVM::handleDIV(const XenoInstruction& instr) { handleBinaryOp(instr, OP_DIV); }
+void XenoVM::handleMOD(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MOD); }
+void XenoVM::handlePOW(const XenoInstruction& instr) { handleBinaryOp(instr, OP_POW); }
+void XenoVM::handleMAX(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MAX); }
+void XenoVM::handleMIN(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MIN); }
 
-void XenoVM::handleMAX(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(Max(a, b))) return;
-}
-
-void XenoVM::handleMIN(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(Min(a, b))) return;
-}
-
-void XenoVM::handleSQRT(const XenoInstruction& instr) {
-    XenoValue a;
-    if (!Peek(a)) return;
-    stack[stack_pointer - 1] = Sqrt(a);
-}
-
-void XenoVM::handleSIN(const XenoInstruction& instr) {
-    XenoValue a;
-    if (!Peek(a)) return;
-    float val = toFloat(a);
-    stack[stack_pointer - 1] = XenoValue::makeFloat(sin(val));
-}
-
-void XenoVM::handleCOS(const XenoInstruction& instr) {
-    XenoValue a;
-    if (!Peek(a)) return;
-    float val = toFloat(a);
-    stack[stack_pointer - 1] = XenoValue::makeFloat(cos(val));
-}
-
-void XenoVM::handleTAN(const XenoInstruction& instr) {
-    XenoValue a;
-    if (!Peek(a)) return;
-    float val = toFloat(a);
-    stack[stack_pointer - 1] = XenoValue::makeFloat(tan(val));
-}
-
+void XenoVM::handleABS(const XenoInstruction& instr) { handleUnaryOp(instr, OP_ABS); }
+void XenoVM::handleSQRT(const XenoInstruction& instr) { handleUnaryOp(instr, OP_SQRT); }
+void XenoVM::handleSIN(const XenoInstruction& instr) { handleUnaryOp(instr, OP_SIN); }
+void XenoVM::handleCOS(const XenoInstruction& instr) { handleUnaryOp(instr, OP_COS); }
+void XenoVM::handleTAN(const XenoInstruction& instr) { handleUnaryOp(instr, OP_TAN); }
 
 void XenoVM::handleINPUT(const XenoInstruction& instr) {
     if (instr.arg1 >= string_table.size()) {

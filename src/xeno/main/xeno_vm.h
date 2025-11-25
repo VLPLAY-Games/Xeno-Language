@@ -112,6 +112,9 @@ class XenoVM {
     void handleTAN(const XenoInstruction& instr);
     void handleHALT(const XenoInstruction& instr);
 
+    void handleBinaryOp(const XenoInstruction& instr, uint8_t op);
+    void handleUnaryOp(const XenoInstruction& instr, uint8_t op);
+
  protected:
     XenoVM();
     void setMaxInstructions(uint32_t max_instr);
