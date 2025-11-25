@@ -39,6 +39,28 @@ class XenoCompiler {
     static const Constant constants[];
     static const size_t constants_count;
 
+    struct FunctionInfo {
+        const char* name;
+        char open_bracket;
+        char close_bracket;
+        uint8_t opcode;
+        int num_args;
+    };
+    
+    static const FunctionInfo math_functions[];
+    static const size_t math_functions_count;
+
+    void compileMathFunction(const String& token, const FunctionInfo& func);
+    void compileSimpleCommand(const String& command, uint8_t opcode);
+
+    struct SimpleCommand {
+        const char* name;
+        uint8_t opcode;
+    };
+    
+    static const SimpleCommand simple_commands[];
+    static const size_t simple_commands_count;
+
     friend class XenoLanguage;
 
     bool validateString(const String& str);

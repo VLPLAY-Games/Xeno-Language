@@ -32,6 +32,36 @@ const XenoCompiler::Constant XenoCompiler::constants[] = {
 
 const size_t XenoCompiler::constants_count = std::size(constants);
 
+const XenoCompiler::FunctionInfo XenoCompiler::math_functions[] = {
+    {"abs(", '[', ']', OP_ABS, 1},
+    {"max(", '{', '}', OP_MAX, 2},
+    {"min(", '|', '|', OP_MIN, 2},
+    {"sqrt(", '~', '~', OP_SQRT, 1},
+    {"sin(", '#', '#', OP_SIN, 1},
+    {"cos(", '@', '@', OP_COS, 1},
+    {"tan(", '&', '&', OP_TAN, 1}
+};
+
+const size_t XenoCompiler::math_functions_count = sizeof(math_functions) / sizeof(math_functions[0]);
+
+const XenoCompiler::SimpleCommand XenoCompiler::simple_commands[] = {
+    {"pop", OP_POP},
+    {"add", OP_ADD},
+    {"sub", OP_SUB},
+    {"mul", OP_MUL},
+    {"div", OP_DIV},
+    {"mod", OP_MOD},
+    {"abs", OP_ABS},
+    {"pow", OP_POW},
+    {"max", OP_MAX},
+    {"min", OP_MIN},
+    {"sqrt", OP_SQRT},
+    {"printnum", OP_PRINT_NUM},
+    {"halt", OP_HALT}
+};
+
+const size_t XenoCompiler::simple_commands_count = sizeof(simple_commands) / sizeof(simple_commands[0]);
+
 void XenoCompiler::processConstants(String& expr) {
     int pos = 0;
     while (pos < expr.length()) {
@@ -79,6 +109,29 @@ void XenoCompiler::processConstants(String& expr) {
     }
 }
 
+void XenoCompiler::compileMathFunction(const String& token, const FunctionInfo& func) {
+    String innerExpr = token.substring(1, token.length() - 1);
+    
+    if (func.num_args == 1) {
+        compileExpression(innerExpr);
+        emitInstruction(func.opcode);
+    } else if (func.num_args == 2) {
+        int commaPos = innerExpr.indexOf(',');
+        if (commaPos > 0) {
+            String arg1 = innerExpr.substring(0, commaPos);
+            String arg2 = innerExpr.substring(commaPos + 1);
+            compileExpression(arg1);
+            compileExpression(arg2);
+            emitInstruction(func.opcode);
+        } else {
+            Serial.println("ERROR: Function requires two arguments");
+        }
+    }
+}
+
+void XenoCompiler::compileSimpleCommand(const String& command, uint8_t opcode) {
+    emitInstruction(opcode);
+}
 
 bool XenoCompiler::validateString(const String& str) {
     if (str.length() > MAX_STRING_LENGTH) {
@@ -219,119 +272,24 @@ String XenoCompiler::processFunctions(const String& expr) {
 
     processConstants(result);
 
-    int absPos = result.indexOf("abs(");
-    while (absPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
-        int endPos = findMatchingParenthesis(result, absPos + 3);
-        if (endPos > absPos) {
-            String inner = result.substring(absPos + 4, endPos);
-            inner = processFunctions(inner);
-            result = result.substring(0, absPos)
-                    + "[" + inner + "]"
-                    + result.substring(endPos + 1);
-        } else {
-            break;
+    for (size_t i = 0; i < math_functions_count && depth < MAX_EXPRESSION_DEPTH; i++) {
+        const FunctionInfo& func = math_functions[i];
+        int pos = result.indexOf(func.name);
+        
+        while (pos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
+            int endPos = findMatchingParenthesis(result, pos + strlen(func.name) - 1);
+            if (endPos > pos) {
+                String inner = result.substring(pos + strlen(func.name), endPos);
+                inner = processFunctions(inner);
+                result = result.substring(0, pos)
+                        + String(func.open_bracket) + inner + String(func.close_bracket)
+                        + result.substring(endPos + 1);
+            } else {
+                break;
+            }
+            pos = result.indexOf(func.name);
+            depth++;
         }
-        absPos = result.indexOf("abs(");
-        depth++;
-    }
-
-    int maxPos = result.indexOf("max(");
-    while (maxPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
-        int endPos = findMatchingParenthesis(result, maxPos + 3);
-        if (endPos > maxPos) {
-            String inner = result.substring(maxPos + 4, endPos);
-            inner = processFunctions(inner);
-            result = result.substring(0, maxPos)
-                    + "{" + inner + "}"
-                    + result.substring(endPos + 1);
-        } else {
-            break;
-        }
-        maxPos = result.indexOf("max(");
-        depth++;
-    }
-
-    int minPos = result.indexOf("min(");
-    while (minPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
-        int endPos = findMatchingParenthesis(result, minPos + 3);
-        if (endPos > minPos) {
-            String inner = result.substring(minPos + 4, endPos);
-            inner = processFunctions(inner);
-            result = result.substring(0, minPos)
-                    + "|" + inner + "|"
-                    + result.substring(endPos + 1);
-        } else {
-            break;
-        }
-        minPos = result.indexOf("min(");
-        depth++;
-    }
-
-    int sqrtPos = result.indexOf("sqrt(");
-    while (sqrtPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
-        int endPos = findMatchingParenthesis(result, sqrtPos + 4);
-        if (endPos > sqrtPos) {
-            String inner = result.substring(sqrtPos + 5, endPos);
-            inner = processFunctions(inner);
-            result = result.substring(0, sqrtPos)
-                    + "~" + inner + "~"
-                    + result.substring(endPos + 1);
-        } else {
-            break;
-        }
-        sqrtPos = result.indexOf("sqrt(");
-        depth++;
-    }
-
-    // Обработка sin()
-    int sinPos = result.indexOf("sin(");
-    while (sinPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
-        int endPos = findMatchingParenthesis(result, sinPos + 3);
-        if (endPos > sinPos) {
-            String inner = result.substring(sinPos + 4, endPos);
-            inner = processFunctions(inner);
-            result = result.substring(0, sinPos)
-                    + "#" + inner + "#"
-                    + result.substring(endPos + 1);
-        } else {
-            break;
-        }
-        sinPos = result.indexOf("sin(");
-        depth++;
-    }
-
-    // Обработка cos()
-    int cosPos = result.indexOf("cos(");
-    while (cosPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
-        int endPos = findMatchingParenthesis(result, cosPos + 3);
-        if (endPos > cosPos) {
-            String inner = result.substring(cosPos + 4, endPos);
-            inner = processFunctions(inner);
-            result = result.substring(0, cosPos)
-                    + "@" + inner + "@"
-                    + result.substring(endPos + 1);
-        } else {
-            break;
-        }
-        cosPos = result.indexOf("cos(");
-        depth++;
-    }
-
-    // Обработка tan()
-    int tanPos = result.indexOf("tan(");
-    while (tanPos >= 0 && depth < MAX_EXPRESSION_DEPTH) {
-        int endPos = findMatchingParenthesis(result, tanPos + 3);
-        if (endPos > tanPos) {
-            String inner = result.substring(tanPos + 4, endPos);
-            inner = processFunctions(inner);
-            result = result.substring(0, tanPos)
-                    + "&" + inner + "&"
-                    + result.substring(endPos + 1);
-        } else {
-            break;
-        }
-        tanPos = result.indexOf("tan(");
-        depth++;
     }
 
     if (depth >= MAX_EXPRESSION_DEPTH) {
@@ -526,70 +484,39 @@ void XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
             emitInstruction(OP_PUSH_BOOL, bval);
         } else if (isQuotedString(token)) {
             String str = token.substring(1, token.length() - 1);
-            if (!validateString(str)) {
-                str = "";
-            }
+            if (!validateString(str)) str = "";
             int str_id = addString(str);
             emitInstruction(OP_PUSH_STRING, str_id);
         } else if (isValidVariable(token)) {
             int var_index = getVariableIndex(token);
             emitInstruction(OP_LOAD, var_index);
-        } else if (token.startsWith("[") && token.endsWith("]")) {
-            String innerExpr = token.substring(1, token.length() - 1);
-            compileExpression(innerExpr);
-            emitInstruction(OP_ABS);
-        } else if (token.startsWith("{") && token.endsWith("}")) {
-            String innerExpr = token.substring(1, token.length() - 1);
-            int commaPos = innerExpr.indexOf(',');
-            if (commaPos > 0) {
-                String arg1 = innerExpr.substring(0, commaPos);
-                String arg2 = innerExpr.substring(commaPos + 1);
-                compileExpression(arg1);
-                compileExpression(arg2);
-                emitInstruction(OP_MAX);
-            } else {
-                Serial.println("ERROR: max function requires two arguments");
+        } else {
+            bool function_processed = false;
+            for (size_t i = 0; i < math_functions_count; i++) {
+                const FunctionInfo& func = math_functions[i];
+                if (token.startsWith(String(func.open_bracket)) && 
+                    token.endsWith(String(func.close_bracket))) {
+                    compileMathFunction(token, func);
+                    function_processed = true;
+                    break;
+                }
             }
-        } else if (token.startsWith("|") && token.endsWith("|")) {
-            String innerExpr = token.substring(1, token.length() - 1);
-            int commaPos = innerExpr.indexOf(',');
-            if (commaPos > 0) {
-                String arg1 = innerExpr.substring(0, commaPos);
-                String arg2 = innerExpr.substring(commaPos + 1);
-                compileExpression(arg1);
-                compileExpression(arg2);
-                emitInstruction(OP_MIN);
-            } else {
-                Serial.println("ERROR: min function requires two arguments");
+            
+            if (!function_processed) {
+                if (token == "+") emitInstruction(OP_ADD);
+                else if (token == "-") emitInstruction(OP_SUB);
+                else if (token == "*") emitInstruction(OP_MUL);
+                else if (token == "/") emitInstruction(OP_DIV);
+                else if (token == "%") emitInstruction(OP_MOD);
+                else if (token == "^") emitInstruction(OP_POW);
+                else if (token == "==") emitInstruction(OP_EQ);
+                else if (token == "!=") emitInstruction(OP_NEQ);
+                else if (token == "<") emitInstruction(OP_LT);
+                else if (token == ">") emitInstruction(OP_GT);
+                else if (token == "<=") emitInstruction(OP_LTE);
+                else if (token == ">=") emitInstruction(OP_GTE);
             }
-        } else if (token.startsWith("~") && token.endsWith("~")) {
-            String innerExpr = token.substring(1, token.length() - 1);
-            compileExpression(innerExpr);
-            emitInstruction(OP_SQRT);
-        } else if (token.startsWith("#") && token.endsWith("#")) {
-            String innerExpr = token.substring(1, token.length() - 1);
-            compileExpression(innerExpr);
-            emitInstruction(OP_SIN);
-        } else if (token.startsWith("@") && token.endsWith("@")) {
-            String innerExpr = token.substring(1, token.length() - 1);
-            compileExpression(innerExpr);
-            emitInstruction(OP_COS);
-        } else if (token.startsWith("&") && token.endsWith("&")) {
-            String innerExpr = token.substring(1, token.length() - 1);
-            compileExpression(innerExpr);
-            emitInstruction(OP_TAN);
-        } else if (token == "+") emitInstruction(OP_ADD);
-        else if (token == "-") emitInstruction(OP_SUB);
-        else if (token == "*") emitInstruction(OP_MUL);
-        else if (token == "/") emitInstruction(OP_DIV);
-        else if (token == "%") emitInstruction(OP_MOD);
-        else if (token == "^") emitInstruction(OP_POW);
-        else if (token == "==") emitInstruction(OP_EQ);
-        else if (token == "!=") emitInstruction(OP_NEQ);
-        else if (token == "<") emitInstruction(OP_LT);
-        else if (token == ">") emitInstruction(OP_GT);
-        else if (token == "<=") emitInstruction(OP_LTE);
-        else if (token == ">=") emitInstruction(OP_GTE);
+        }
     }
 }
 
@@ -666,16 +593,23 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
     }
 
     int firstSpace = cleanedLine.indexOf(' ');
-    String command = (firstSpace > 0)
-                ? cleanedLine.substring(0, firstSpace)
-                : cleanedLine;
-
-    String args = (firstSpace > 0)
-                ? cleanedLine.substring(firstSpace + 1)
-                : "";
+    String command = (firstSpace > 0) ? cleanedLine.substring(0, firstSpace) : cleanedLine;
+    String args = (firstSpace > 0) ? cleanedLine.substring(firstSpace + 1) : "";
     args.trim();
-
     command.toLowerCase();
+
+    bool simple_command_found = false;
+    for (size_t i = 0; i < simple_commands_count; i++) {
+        if (command == simple_commands[i].name) {
+            emitInstruction(simple_commands[i].opcode);
+            simple_command_found = true;
+            break;
+        }
+    }
+    
+    if (simple_command_found) {
+        return;
+    }
 
     if (command == "print") {
         String text = args;
@@ -759,18 +693,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             int32_t value = args.toInt();
             emitInstruction(OP_PUSH, static_cast<uint32_t>(value));
         }
-    } else if (command == "pop") emitInstruction(OP_POP);
-    else if (command == "add") emitInstruction(OP_ADD);
-    else if (command == "sub") emitInstruction(OP_SUB);
-    else if (command == "mul") emitInstruction(OP_MUL);
-    else if (command == "div") emitInstruction(OP_DIV);
-    else if (command == "mod") emitInstruction(OP_MOD);
-    else if (command == "abs") emitInstruction(OP_ABS);
-    else if (command == "pow") emitInstruction(OP_POW);
-    else if (command == "max") emitInstruction(OP_MAX);
-    else if (command == "min") emitInstruction(OP_MIN);
-    else if (command == "sqrt") emitInstruction(OP_SQRT);
-    else if (command == "input") {
+    } else if (command == "input") {
         String var_name = args;
         if (!validateVariableName(var_name)) {
             Serial.print("ERROR: Invalid variable name for input at line ");
@@ -925,8 +848,6 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             Serial.print("ERROR: ENDFOR without FOR at line ");
             Serial.println(line_number);
         }
-    } else if (command == "halt") {
-        emitInstruction(OP_HALT);
     } else {
         Serial.print("WARNING: Unknown command at line ");
         Serial.print(line_number);
