@@ -21,8 +21,8 @@
 #include <map>
 #include <stack>
 #include <algorithm>
-#include "../common/xeno_common.h"
-#include "../common/xeno_security.h"
+#include "../xeno_common.h"
+#include "../security/xeno_security.h"
 
 class XenoCompiler {
  private:
@@ -31,6 +31,8 @@ class XenoCompiler {
     std::map<String, XenoValue> variable_map;
     std::vector<int> if_stack;
     std::vector<LoopInfo> loop_stack;
+    XenoSecurityConfig& security_config;
+    XenoSecurity security;
 
     struct Constant {
         const char* name;
@@ -90,9 +92,8 @@ class XenoCompiler {
     void compileLine(const String& line, int line_number);
     void processConstants(String& expr);
 
-
  protected:
-    XenoCompiler();
+    XenoCompiler(XenoSecurityConfig& config);
     void compile(const String& source_code);
     const std::vector<XenoInstruction>& getBytecode() const;
     const std::vector<String>& getStringTable() const;

@@ -19,7 +19,7 @@
 #define SRC_XENO_DEBUG_H_
 
 #include <vector>
-#include "../common/xeno_common.h"
+#include "../xeno_common.h"
 
 class Debugger {
 protected:

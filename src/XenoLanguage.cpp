@@ -16,6 +16,9 @@
 
 #include "XenoLanguage.h"
 
+XenoLanguage::XenoLanguage() : compiler(security_config), vm(security_config) {
+}
+
 bool XenoLanguage::compile(const String& source_code) {
     compiler.compile(source_code);
     return true;
@@ -51,6 +54,53 @@ void XenoLanguage::printCompiledCode() {
     compiler.printCompiledCode();
 }
 
-void XenoLanguage::setMaxInstructions(uint32_t max_instr) {
-    vm.setMaxInstructions(max_instr);
+bool XenoLanguage::setMaxInstructions(uint32_t max_instr) {
+    return security_config.setMaxInstructions(max_instr);
+}
+
+XenoSecurityConfig& XenoLanguage::getSecurityConfig() {
+    return security_config;
+}
+
+bool XenoLanguage::updateSecurityConfig(const XenoSecurityConfig& new_config) {
+    security_config = new_config;
+    return true;
+}
+
+bool XenoLanguage::setStringLimit(size_t length) {
+    return security_config.setMaxStringLength(length);
+}
+
+bool XenoLanguage::setVariableNameLimit(size_t length) {
+    return security_config.setMaxVariableNameLength(length);
+}
+
+bool XenoLanguage::setStackSize(size_t size) {
+    return security_config.setMaxStackSize(size);
+}
+
+bool XenoLanguage::setAllowedPins(const std::vector<uint8_t>& pins) {
+    security_config.setAllowedPins(pins);
+    return true;
+}
+
+bool XenoLanguage::addAllowedPin(uint8_t pin) {
+    for (auto existing_pin : security_config.ALLOWED_PINS) {
+        if (existing_pin == pin) {
+            return true;
+        }
+    }
+    security_config.ALLOWED_PINS.push_back(pin);
+    return true;
+}
+
+bool XenoLanguage::removeAllowedPin(uint8_t pin) {
+    auto& pins = security_config.ALLOWED_PINS;
+    for (auto it = pins.begin(); it != pins.end(); ++it) {
+        if (*it == pin) {
+            pins.erase(it);
+            return true;
+        }
+    }
+    return false;
 }

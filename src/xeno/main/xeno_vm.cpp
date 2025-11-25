@@ -69,8 +69,8 @@ void XenoVM::resetState() {
     running = false;
     instruction_count = 0;
     iteration_count = 0;
-    max_instructions = 10000;
-    memset(stack, 0, sizeof(stack));
+    max_instructions = security_config.max_instructions;
+    memset(stack.data(), 0, sizeof(XenoValue) * stack.size());
     variables.clear();
     string_lookup.clear();
 }
@@ -95,7 +95,7 @@ float XenoVM::toFloat(const XenoValue& v) {
 }
 
 bool XenoVM::Push(const XenoValue& value) {
-    if (stack_pointer >= MAX_STACK_SIZE) {
+    if (stack_pointer >= stack.size()) {
         Serial.println("CRITICAL ERROR: Stack overflow - terminating execution");
         running = false;
         return false;
@@ -792,15 +792,27 @@ void XenoVM::handleHALT(const XenoInstruction& instr) {
     running = false;
 }
 
-XenoVM::XenoVM() {
+XenoVM::XenoVM(XenoSecurityConfig& config) 
+    : security_config(config), security(config) {
     initializeDispatchTable();
     resetState();
     program.reserve(128);
     string_table.reserve(32);
+    stack.resize(security_config.MAX_STACK_SIZE);
 }
 
 void XenoVM::setMaxInstructions(uint32_t max_instr) {
-    max_instructions = max_instr;
+    if (max_instr < security_config.MIN_INSTRUCTIONS) {
+        max_instructions = security_config.MIN_INSTRUCTIONS;
+        Serial.print("WARNING: max_instructions set to minimum: ");
+        Serial.println(security_config.MIN_INSTRUCTIONS);
+    } else if (max_instr > security_config.MAX_INSTRUCTIONS) {
+        max_instructions = security_config.MAX_INSTRUCTIONS;
+        Serial.print("WARNING: max_instructions set to maximum: ");
+        Serial.println(security_config.MAX_INSTRUCTIONS);
+    } else {
+        max_instructions = max_instr;
+    }
 }
 
 void XenoVM::loadProgram(const std::vector<XenoInstruction>& bytecode,

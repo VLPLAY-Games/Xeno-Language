@@ -20,8 +20,9 @@
 #include <vector>
 #include <map>
 #include <stack>
-#include "../common/xeno_common.h"
-#include "../common/xeno_security.h"
+#include "../xeno_common.h"
+#include "../security/xeno_security.h"
+#include "../security/xeno_security_config.h"
 
 class XenoVM {
  private:
@@ -29,7 +30,7 @@ class XenoVM {
     std::vector<String> string_table;
     std::map<String, uint16_t> string_lookup;
     uint32_t program_counter;
-    XenoValue stack[MAX_STACK_SIZE];
+    std::vector<XenoValue> stack;
     uint32_t stack_pointer;
     std::map<String, XenoValue> variables;
     bool running;
@@ -38,6 +39,7 @@ class XenoVM {
     uint32_t iteration_count;
     static const uint32_t MAX_ITERATIONS = 100000;
     XenoSecurity security;
+    XenoSecurityConfig& security_config;
 
     friend class XenoLanguage;
 
@@ -118,7 +120,7 @@ class XenoVM {
     void handlePushOp(const XenoInstruction& instr, XenoDataType type);
 
  protected:
-    XenoVM();
+    XenoVM(XenoSecurityConfig& config);  // Обновить конструктор
     void setMaxInstructions(uint32_t max_instr);
     void loadProgram(const std::vector<XenoInstruction>& bytecode,
                     const std::vector<String>& strings);

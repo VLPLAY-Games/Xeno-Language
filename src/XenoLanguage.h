@@ -19,17 +19,21 @@
 
 #include "xeno/main/xeno_compiler.h"
 #include "xeno/main/xeno_vm.h"
+#include "xeno/security/xeno_security_config.h"
 
 class XenoLanguage {
- private:
-    static constexpr const char* xeno_language_version = "v0.1.3";
-    static constexpr const char* xeno_language_date = "08.11.2025";
+private:
+    static constexpr const char* xeno_language_version = "v0.1.4";
+    static constexpr const char* xeno_language_date = "25.11.2025";
     static constexpr const char* xeno_language_name = "Xeno Language";
 
+    XenoSecurityConfig security_config;
     XenoCompiler compiler;
     XenoVM vm;
 
- public:
+public:
+    XenoLanguage();
+    
     bool compile(const String& source_code);
     bool run();
     void step();
@@ -38,9 +42,19 @@ class XenoLanguage {
     void dumpState();
     void disassemble();
     void printCompiledCode();
-    void setMaxInstructions(uint32_t max_instr);
-
-    // Information about language
+    
+    bool setMaxInstructions(uint32_t max_instr);
+    
+    XenoSecurityConfig& getSecurityConfig();
+    bool updateSecurityConfig(const XenoSecurityConfig& new_config);
+    
+    bool setStringLimit(size_t length);
+    bool setVariableNameLimit(size_t length);
+    bool setStackSize(size_t size);
+    bool setAllowedPins(const std::vector<uint8_t>& pins);
+    bool addAllowedPin(uint8_t pin);
+    bool removeAllowedPin(uint8_t pin);
+    
     static constexpr const char* getLanguageVersion() noexcept {
         return xeno_language_version;
     }
