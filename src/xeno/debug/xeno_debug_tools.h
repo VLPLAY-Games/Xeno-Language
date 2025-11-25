@@ -22,8 +22,10 @@
 #include "../common/xeno_common.h"
 
 class Debugger {
-public:
-   static void disassemble(const std::vector<XenoInstruction>& instructions, 
+protected:
+    friend class XenoCompiler;
+    friend class XenoVM;
+    static void disassemble(const std::vector<XenoInstruction>& instructions, 
                           const std::vector<String>& string_table,
                           const String& title = "Disassembly",
                           bool show_string_table = false);

@@ -633,8 +633,6 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             int str_id = addString(text);
             emitInstruction(OP_PRINT, str_id);
         }
-    } else if (command == "printnum") {
-        emitInstruction(OP_PRINT_NUM);
     } else if (command == "led") {
         int spaceIndex = args.indexOf(' ');
         if (spaceIndex > 0) {
