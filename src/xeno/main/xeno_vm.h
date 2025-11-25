@@ -114,6 +114,8 @@ class XenoVM {
 
     void handleBinaryOp(const XenoInstruction& instr, uint8_t op);
     void handleUnaryOp(const XenoInstruction& instr, uint8_t op);
+    void handleComparisonOp(const XenoInstruction& instr, uint8_t op);
+    void handlePushOp(const XenoInstruction& instr, XenoDataType type);
 
  protected:
     XenoVM();

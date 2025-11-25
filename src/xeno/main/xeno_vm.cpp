@@ -572,23 +572,36 @@ void XenoVM::handleDELAY(const XenoInstruction& instr) {
     delay(instr.arg1);
 }
 
-void XenoVM::handlePUSH(const XenoInstruction& instr) {
-    if (!Push(XenoValue::makeInt(instr.arg1))) return;
+void XenoVM::handlePushOp(const XenoInstruction& instr, XenoDataType type) {
+    XenoValue value;
+    
+    switch (type) {
+        case TYPE_INT:
+            value = XenoValue::makeInt(instr.arg1);
+            break;
+        case TYPE_FLOAT: {
+            float fval;
+            memcpy(&fval, &instr.arg1, sizeof(float));
+            value = XenoValue::makeFloat(fval);
+            break;
+        }
+        case TYPE_STRING:
+            value = XenoValue::makeString(instr.arg1);
+            break;
+        case TYPE_BOOL:
+            value = XenoValue::makeBool(instr.arg1);
+            break;
+        default:
+            return;
+    }
+    
+    if (!Push(value)) return;
 }
 
-void XenoVM::handlePUSH_FLOAT(const XenoInstruction& instr) {
-    float fval;
-    memcpy(&fval, &instr.arg1, sizeof(float));
-    if (!Push(XenoValue::makeFloat(fval))) return;
-}
-
-void XenoVM::handlePUSH_BOOL(const XenoInstruction& instr) {
-    if (!Push(XenoValue::makeBool(instr.arg1))) return;
-}
-
-void XenoVM::handlePUSH_STRING(const XenoInstruction& instr) {
-    if (!Push(XenoValue::makeString(instr.arg1))) return;
-}
+void XenoVM::handlePUSH(const XenoInstruction& instr) { handlePushOp(instr, TYPE_INT); }
+void XenoVM::handlePUSH_FLOAT(const XenoInstruction& instr) { handlePushOp(instr, TYPE_FLOAT); }
+void XenoVM::handlePUSH_STRING(const XenoInstruction& instr) { handlePushOp(instr, TYPE_STRING); }
+void XenoVM::handlePUSH_BOOL(const XenoInstruction& instr) { handlePushOp(instr, TYPE_BOOL); }
 
 void XenoVM::handlePOP(const XenoInstruction& instr) {
     XenoValue temp;
@@ -693,41 +706,20 @@ void XenoVM::handleINPUT(const XenoInstruction& instr) {
     Serial.println(input_str);
 }
 
-void XenoVM::handleEQ(const XenoInstruction& instr) {
+void XenoVM::handleComparisonOp(const XenoInstruction& instr, uint8_t op) {
     XenoValue a, b;
     if (!PopTwo(a, b)) return;
-    if (!Push(XenoValue::makeInt(performComparison(a, b, OP_EQ) ? 0 : 1))) return;
+    
+    bool result = performComparison(a, b, op);
+    if (!Push(XenoValue::makeInt(result ? 0 : 1))) return;
 }
 
-void XenoVM::handleNEQ(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(XenoValue::makeInt(performComparison(a, b, OP_NEQ) ? 0 : 1))) return;
-}
-
-void XenoVM::handleLT(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(XenoValue::makeInt(performComparison(a, b, OP_LT) ? 0 : 1))) return;
-}
-
-void XenoVM::handleGT(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(XenoValue::makeInt(performComparison(a, b, OP_GT) ? 0 : 1))) return;
-}
-
-void XenoVM::handleLTE(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(XenoValue::makeInt(performComparison(a, b, OP_LTE) ? 0 : 1))) return;
-}
-
-void XenoVM::handleGTE(const XenoInstruction& instr) {
-    XenoValue a, b;
-    if (!PopTwo(a, b)) return;
-    if (!Push(XenoValue::makeInt(performComparison(a, b, OP_GTE) ? 0 : 1))) return;
-}
+void XenoVM::handleEQ(const XenoInstruction& instr) { handleComparisonOp(instr, OP_EQ); }
+void XenoVM::handleNEQ(const XenoInstruction& instr) { handleComparisonOp(instr, OP_NEQ); }
+void XenoVM::handleLT(const XenoInstruction& instr) { handleComparisonOp(instr, OP_LT); }
+void XenoVM::handleGT(const XenoInstruction& instr) { handleComparisonOp(instr, OP_GT); }
+void XenoVM::handleLTE(const XenoInstruction& instr) { handleComparisonOp(instr, OP_LTE); }
+void XenoVM::handleGTE(const XenoInstruction& instr) { handleComparisonOp(instr, OP_GTE); }
 
 void XenoVM::handlePRINT_NUM(const XenoInstruction& instr) {
     XenoValue val;
