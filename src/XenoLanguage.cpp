@@ -25,15 +25,15 @@ bool XenoLanguage::compile(const String& source_code) {
 }
 
 bool XenoLanguage::run(bool less_output) {
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
-    vm.run();
+    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable(), less_output);
+    vm.run(less_output);
     return true;
 }
 
 bool XenoLanguage::compile_and_run(const String& source_code, bool less_output) {
     compiler.compile(source_code);
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
-    vm.run();
+    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable(), less_output);
+    vm.run(less_output);
     return true;
 }
 
