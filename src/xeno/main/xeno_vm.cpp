@@ -70,7 +70,6 @@ void XenoVM::resetState() {
     instruction_count = 0;
     iteration_count = 0;
     max_instructions = security_config.getCurrentMaxInstructions();
-    memset(stack.data(), 0, sizeof(XenoValue) * stack.size());
     variables.clear();
     string_lookup.clear();
 }
@@ -95,7 +94,7 @@ float XenoVM::toFloat(const XenoValue& v) {
 }
 
 bool XenoVM::Push(const XenoValue& value) {
-    if (stack_pointer >= stack.size()) {
+    if (stack_pointer >= max_stack_size) {
         Serial.println("CRITICAL ERROR: Stack overflow - terminating execution");
         running = false;
         return false;
@@ -793,12 +792,22 @@ void XenoVM::handleHALT(const XenoInstruction& instr) {
 }
 
 XenoVM::XenoVM(XenoSecurityConfig& config) 
-    : security_config(config), security(config) {
+    : security_config(config), 
+      security(config),
+      max_stack_size(config.getMaxStackSize())
+{
     initializeDispatchTable();
+
+    stack = new XenoValue[max_stack_size];
+    
     resetState();
     program.reserve(128);
     string_table.reserve(32);
-    stack.resize(security_config.getMaxStackSize());
+}
+
+// Деструктор
+XenoVM::~XenoVM() {
+    delete[] stack;
 }
 
 
@@ -908,9 +917,12 @@ void XenoVM::dumpState() {
     Serial.print("Stack Pointer: ");
     Serial.println(stack_pointer);
 
+    Serial.print("Max Stack Size: ");
+    Serial.println(max_stack_size);
+
     Serial.println("Stack: [");
 
-    for (int i = 0; i < stack_pointer && i < 10; ++i) {
+    for (uint32_t i = 0; i < stack_pointer && i < 10; ++i) {
         String type_str;
         String value_str;
         switch (stack[i].type) {

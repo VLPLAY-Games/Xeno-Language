@@ -30,8 +30,11 @@ class XenoVM {
     std::vector<String> string_table;
     std::map<String, uint16_t> string_lookup;
     uint32_t program_counter;
-    std::vector<XenoValue> stack;
+
+    XenoValue* stack;  // Указатель на массив
     uint32_t stack_pointer;
+    const uint32_t max_stack_size;  // Константный размер
+
     std::map<String, XenoValue> variables;
     bool running;
     uint32_t instruction_count;
@@ -120,7 +123,8 @@ class XenoVM {
     void handlePushOp(const XenoInstruction& instr, XenoDataType type);
 
  protected:
-    XenoVM(XenoSecurityConfig& config);  // Обновить конструктор
+    XenoVM(XenoSecurityConfig& config);
+    ~XenoVM();
     void setMaxInstructions(uint32_t max_instr);
     void loadProgram(const std::vector<XenoInstruction>& bytecode,
                     const std::vector<String>& strings, bool less_output=true);
