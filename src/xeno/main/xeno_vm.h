@@ -123,9 +123,9 @@ class XenoVM {
     XenoVM(XenoSecurityConfig& config);  // Обновить конструктор
     void setMaxInstructions(uint32_t max_instr);
     void loadProgram(const std::vector<XenoInstruction>& bytecode,
-                    const std::vector<String>& strings);
+                    const std::vector<String>& strings, bool less_output=true);
     bool step();
-    void run();
+    void run(bool less_output=true);
     void stop();
     bool isRunning() const;
     uint32_t getPC() const;

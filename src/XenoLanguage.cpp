@@ -24,7 +24,14 @@ bool XenoLanguage::compile(const String& source_code) {
     return true;
 }
 
-bool XenoLanguage::run() {
+bool XenoLanguage::run(bool less_output) {
+    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
+    vm.run();
+    return true;
+}
+
+bool XenoLanguage::compile_and_run(const String& source_code, bool less_output) {
+    compiler.compile(source_code);
     vm.loadProgram(compiler.getBytecode(), compiler.getStringTable());
     vm.run();
     return true;

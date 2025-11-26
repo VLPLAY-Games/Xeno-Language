@@ -817,7 +817,7 @@ void XenoVM::setMaxInstructions(uint32_t max_instr) {
 }
 
 void XenoVM::loadProgram(const std::vector<XenoInstruction>& bytecode,
-                        const std::vector<String>& strings) {
+                        const std::vector<String>& strings, bool less_output) {
     resetState();
 
     std::vector<String> sanitized_strings;
@@ -840,7 +840,7 @@ void XenoVM::loadProgram(const std::vector<XenoInstruction>& bytecode,
     }
 
     running = true;
-    Serial.println("Program loaded and verified successfully");
+    if (!less_output) Serial.println("\nProgram loaded and verified successfully");
 }
 
 bool XenoVM::step() {
@@ -876,14 +876,15 @@ bool XenoVM::step() {
     return running;
 }
 
-void XenoVM::run() {
-    Serial.println("Starting Xeno VM...");
+void XenoVM::run(bool less_output) {
+    if (!less_output) Serial.println("\nStarting Xeno VM...");
+    Serial.println();
 
     while (step()) {
         // Continue execution
     }
-
-    Serial.println("Xeno VM finished");
+    Serial.println();
+    if (!less_output) Serial.println("Xeno VM finished");
 }
 
 void XenoVM::stop() {
@@ -899,7 +900,7 @@ uint32_t XenoVM::getInstructionCount() const { return instruction_count; }
 uint32_t XenoVM::getIterationCount() const { return iteration_count; }
 
 void XenoVM::dumpState() {
-    Serial.println("=== VM State ===");
+    Serial.println("\n=== VM State ===");
 
     Serial.print("Program Counter: ");
     Serial.println(program_counter);
@@ -968,8 +969,10 @@ void XenoVM::dumpState() {
         Serial.print(type_str);
         Serial.print(" ");
         Serial.println(value_str);
+        
     }
     Serial.println("}");
+    Serial.println();
 }
 
 void XenoVM::disassemble() {

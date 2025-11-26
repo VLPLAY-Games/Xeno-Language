@@ -35,13 +35,15 @@ public:
     XenoLanguage();
     
     bool compile(const String& source_code);
-    bool run();
+    bool run(bool less_output=true);
     void step();
     void stop();
     bool isRunning() const;
     void dumpState();
     void disassemble();
     void printCompiledCode();
+
+    bool compile_and_run(const String& source_code, bool less_output=true);
 
     bool setMaxInstructions(uint32_t max_instr);
     
