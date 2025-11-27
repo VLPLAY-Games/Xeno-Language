@@ -17,49 +17,60 @@
 #include <vector>
 #include "XenoLanguage.h"
 
-XenoLanguage::XenoLanguage() : compiler(security_config), vm(security_config) {
+XenoLanguage::XenoLanguage() {
+    recreateObjects();
 }
 
+void XenoLanguage::recreateObjects() {
+    if (compiler) delete compiler;
+    if (vm) delete vm;
+    compiler = new XenoCompiler(security_config);
+    vm = new XenoVM(security_config);
+}
+
+
 bool XenoLanguage::compile(const String& source_code) {
-    compiler.compile(source_code);
+    recreateObjects();
+    compiler->compile(source_code);
     return true;
 }
 
 bool XenoLanguage::run(bool less_output) {
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable(), less_output);
-    vm.run(less_output);
+    vm->loadProgram(compiler->getBytecode(), compiler->getStringTable(), less_output);
+    vm->run(less_output);
     return true;
 }
 
 bool XenoLanguage::compile_and_run(const String& source_code, bool less_output) {
-    compiler.compile(source_code);
-    vm.loadProgram(compiler.getBytecode(), compiler.getStringTable(), less_output);
-    vm.run(less_output);
+    recreateObjects();
+    compiler->compile(source_code);
+    vm->loadProgram(compiler->getBytecode(), compiler->getStringTable(), less_output);
+    vm->run(less_output);
     return true;
 }
 
 void XenoLanguage::step() {
-    vm.step();
+    vm->step();
 }
 
 void XenoLanguage::stop() {
-    vm.stop();
+    vm->stop();
 }
 
 bool XenoLanguage::isRunning() const {
-    return vm.isRunning();
+    return vm->isRunning();
 }
 
 void XenoLanguage::dumpState() {
-    vm.dumpState();
+    vm->dumpState();
 }
 
 void XenoLanguage::disassemble() {
-    vm.disassemble();
+    vm->disassemble();
 }
 
 void XenoLanguage::printCompiledCode() {
-    compiler.printCompiledCode();
+    compiler->printCompiledCode();
 }
 
 bool XenoLanguage::setMaxInstructions(uint32_t max_instr) {

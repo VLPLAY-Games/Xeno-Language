@@ -29,8 +29,11 @@ class XenoLanguage {
     static constexpr const char* xeno_language_name = "Xeno Language";
 
     XenoSecurityConfig security_config;
-    XenoCompiler compiler;
-    XenoVM vm;
+
+    XenoCompiler* compiler = new XenoCompiler(security_config);
+    XenoVM* vm = new XenoVM(security_config);
+    
+    void recreateObjects();
 
  public:
     XenoLanguage();
