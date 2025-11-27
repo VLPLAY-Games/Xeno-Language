@@ -59,7 +59,11 @@ private:
 
     bool validateSizeLimit(size_t value, size_t min_val, size_t max_val, const char* param_name);
 
-public:
+protected:
+    friend class XenoLanguage;
+    friend class XenoCompiler;
+    friend class XenoVM;
+    friend class XenoSecurity;
     XenoSecurityConfig() = default;
 
     size_t getMaxStringLength() const { return max_string_length; }
