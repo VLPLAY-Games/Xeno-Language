@@ -31,9 +31,9 @@ class XenoVM {
     std::map<String, uint16_t> string_lookup;
     uint32_t program_counter;
 
-    XenoValue* stack;  // Указатель на массив
+    XenoValue* stack;
     uint32_t stack_pointer;
-    const uint32_t max_stack_size;  // Константный размер
+    const uint32_t max_stack_size;
 
     std::map<String, XenoValue> variables;
     bool running;
@@ -95,11 +95,11 @@ class XenoVM {
     void handleMUL(const XenoInstruction& instr);
     void handleDIV(const XenoInstruction& instr);
     void handleMOD(const XenoInstruction& instr);
-    void handleABS(const XenoInstruction& instr);
+   //  void handleABS(const XenoInstruction& instr);
     void handlePOW(const XenoInstruction& instr);
     void handleMAX(const XenoInstruction& instr);
     void handleMIN(const XenoInstruction& instr);
-    void handleSQRT(const XenoInstruction& instr);
+   //  void handleSQRT(const XenoInstruction& instr);
     void handleINPUT(const XenoInstruction& instr);
     void handleEQ(const XenoInstruction& instr);
     void handleNEQ(const XenoInstruction& instr);
@@ -112,13 +112,12 @@ class XenoVM {
     void handleLOAD(const XenoInstruction& instr);
     void handleJUMP(const XenoInstruction& instr);
     void handleJUMP_IF(const XenoInstruction& instr);
-    void handleSIN(const XenoInstruction& instr);
-    void handleCOS(const XenoInstruction& instr);
-    void handleTAN(const XenoInstruction& instr);
+   //  void handleTRIG(const XenoInstruction& instr);
+    void handleUNARY_MATH(const XenoInstruction& instr);
     void handleHALT(const XenoInstruction& instr);
 
     void handleBinaryOp(const XenoInstruction& instr, uint8_t op);
-    void handleUnaryOp(const XenoInstruction& instr, uint8_t op);
+   //  void handleUnaryOp(const XenoInstruction& instr, uint8_t op);
     void handleComparisonOp(const XenoInstruction& instr, uint8_t op);
     void handlePushOp(const XenoInstruction& instr, XenoDataType type);
 

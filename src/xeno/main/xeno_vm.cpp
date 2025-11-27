@@ -42,14 +42,14 @@ void XenoVM::initializeDispatchTable() {
     dispatch_table[OP_STORE] = &XenoVM::handleSTORE;
     dispatch_table[OP_LOAD] = &XenoVM::handleLOAD;
     dispatch_table[OP_MOD] = &XenoVM::handleMOD;
-    dispatch_table[OP_ABS] = &XenoVM::handleABS;
+    dispatch_table[OP_ABS] = &XenoVM::handleUNARY_MATH;
+    dispatch_table[OP_SQRT] = &XenoVM::handleUNARY_MATH;
+    dispatch_table[OP_SIN] = &XenoVM::handleUNARY_MATH;
+    dispatch_table[OP_COS] = &XenoVM::handleUNARY_MATH;
+    dispatch_table[OP_TAN] = &XenoVM::handleUNARY_MATH;
     dispatch_table[OP_POW] = &XenoVM::handlePOW;
     dispatch_table[OP_MAX] = &XenoVM::handleMAX;
     dispatch_table[OP_MIN] = &XenoVM::handleMIN;
-    dispatch_table[OP_SQRT] = &XenoVM::handleSQRT;
-    dispatch_table[OP_SIN] = &XenoVM::handleSIN;
-    dispatch_table[OP_COS] = &XenoVM::handleCOS;
-    dispatch_table[OP_TAN] = &XenoVM::handleTAN;
     dispatch_table[OP_INPUT] = &XenoVM::handleINPUT;
     dispatch_table[OP_EQ] = &XenoVM::handleEQ;
     dispatch_table[OP_NEQ] = &XenoVM::handleNEQ;
@@ -627,23 +627,6 @@ void XenoVM::handleBinaryOp(const XenoInstruction& instr, uint8_t op) {
     if (!Push(result)) return;
 }
 
-void XenoVM::handleUnaryOp(const XenoInstruction& instr, uint8_t op) {
-    XenoValue a;
-    if (!Peek(a)) return;
-    
-    XenoValue result;
-    switch (op) {
-        case OP_ABS: result = performAbs(a); break;
-        case OP_SQRT: result = Sqrt(a); break;
-        case OP_SIN: result = XenoValue::makeFloat(sin(toFloat(a))); break;
-        case OP_COS: result = XenoValue::makeFloat(cos(toFloat(a))); break;
-        case OP_TAN: result = XenoValue::makeFloat(tan(toFloat(a))); break;
-        default: return;
-    }
-    
-    stack[stack_pointer - 1] = result;
-}
-
 void XenoVM::handleADD(const XenoInstruction& instr) { handleBinaryOp(instr, OP_ADD); }
 void XenoVM::handleSUB(const XenoInstruction& instr) { handleBinaryOp(instr, OP_SUB); }
 void XenoVM::handleMUL(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MUL); }
@@ -653,11 +636,34 @@ void XenoVM::handlePOW(const XenoInstruction& instr) { handleBinaryOp(instr, OP_
 void XenoVM::handleMAX(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MAX); }
 void XenoVM::handleMIN(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MIN); }
 
-void XenoVM::handleABS(const XenoInstruction& instr) { handleUnaryOp(instr, OP_ABS); }
-void XenoVM::handleSQRT(const XenoInstruction& instr) { handleUnaryOp(instr, OP_SQRT); }
-void XenoVM::handleSIN(const XenoInstruction& instr) { handleUnaryOp(instr, OP_SIN); }
-void XenoVM::handleCOS(const XenoInstruction& instr) { handleUnaryOp(instr, OP_COS); }
-void XenoVM::handleTAN(const XenoInstruction& instr) { handleUnaryOp(instr, OP_TAN); }
+void XenoVM::handleUNARY_MATH(const XenoInstruction& instr) {
+    XenoValue a;
+    if (!Peek(a)) return;
+    
+    XenoValue result;
+    
+    switch (instr.opcode) {
+        case OP_ABS:
+            result = performAbs(a);
+            break;
+        case OP_SQRT:
+            result = Sqrt(a);
+            break;
+        case OP_SIN:
+            result = XenoValue::makeFloat(sin(toFloat(a)));
+            break;
+        case OP_COS:
+            result = XenoValue::makeFloat(cos(toFloat(a)));
+            break;
+        case OP_TAN:
+            result = XenoValue::makeFloat(tan(toFloat(a)));
+            break;
+        default:
+            return;
+    }
+    
+    stack[stack_pointer - 1] = result;
+}
 
 void XenoVM::handleINPUT(const XenoInstruction& instr) {
     if (instr.arg1 >= string_table.size()) {
