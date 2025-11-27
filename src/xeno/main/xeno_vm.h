@@ -79,7 +79,6 @@ class XenoVM {
     bool isInteger(const String& str);
     bool isFloat(const String& str);
     bool isBool(const String& str);
-
     void handleNOP(const XenoInstruction& instr);
     void handlePRINT(const XenoInstruction& instr);
     void handleLED_ON(const XenoInstruction& instr);
@@ -90,16 +89,6 @@ class XenoVM {
     void handlePUSH_BOOL(const XenoInstruction& instr);
     void handlePUSH_STRING(const XenoInstruction& instr);
     void handlePOP(const XenoInstruction& instr);
-    void handleADD(const XenoInstruction& instr);
-    void handleSUB(const XenoInstruction& instr);
-    void handleMUL(const XenoInstruction& instr);
-    void handleDIV(const XenoInstruction& instr);
-    void handleMOD(const XenoInstruction& instr);
-   //  void handleABS(const XenoInstruction& instr);
-    void handlePOW(const XenoInstruction& instr);
-    void handleMAX(const XenoInstruction& instr);
-    void handleMIN(const XenoInstruction& instr);
-   //  void handleSQRT(const XenoInstruction& instr);
     void handleINPUT(const XenoInstruction& instr);
     void handleEQ(const XenoInstruction& instr);
     void handleNEQ(const XenoInstruction& instr);
@@ -112,12 +101,9 @@ class XenoVM {
     void handleLOAD(const XenoInstruction& instr);
     void handleJUMP(const XenoInstruction& instr);
     void handleJUMP_IF(const XenoInstruction& instr);
-   //  void handleTRIG(const XenoInstruction& instr);
     void handleUNARY_MATH(const XenoInstruction& instr);
     void handleHALT(const XenoInstruction& instr);
-
-    void handleBinaryOp(const XenoInstruction& instr, uint8_t op);
-   //  void handleUnaryOp(const XenoInstruction& instr, uint8_t op);
+    void handleBINARY_OP(const XenoInstruction& instr);
     void handleComparisonOp(const XenoInstruction& instr, uint8_t op);
     void handlePushOp(const XenoInstruction& instr, XenoDataType type);
 

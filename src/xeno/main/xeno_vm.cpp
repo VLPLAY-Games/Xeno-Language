@@ -32,24 +32,24 @@ void XenoVM::initializeDispatchTable() {
     dispatch_table[OP_DELAY] = &XenoVM::handleDELAY;
     dispatch_table[OP_PUSH] = &XenoVM::handlePUSH;
     dispatch_table[OP_POP] = &XenoVM::handlePOP;
-    dispatch_table[OP_ADD] = &XenoVM::handleADD;
-    dispatch_table[OP_SUB] = &XenoVM::handleSUB;
-    dispatch_table[OP_MUL] = &XenoVM::handleMUL;
-    dispatch_table[OP_DIV] = &XenoVM::handleDIV;
+    dispatch_table[OP_ADD] = &XenoVM::handleBINARY_OP;
+    dispatch_table[OP_SUB] = &XenoVM::handleBINARY_OP;
+    dispatch_table[OP_MUL] = &XenoVM::handleBINARY_OP;
+    dispatch_table[OP_DIV] = &XenoVM::handleBINARY_OP;
+    dispatch_table[OP_MOD] = &XenoVM::handleBINARY_OP;
+    dispatch_table[OP_POW] = &XenoVM::handleBINARY_OP;
+    dispatch_table[OP_MAX] = &XenoVM::handleBINARY_OP;
+    dispatch_table[OP_MIN] = &XenoVM::handleBINARY_OP;
     dispatch_table[OP_JUMP] = &XenoVM::handleJUMP;
     dispatch_table[OP_JUMP_IF] = &XenoVM::handleJUMP_IF;
     dispatch_table[OP_PRINT_NUM] = &XenoVM::handlePRINT_NUM;
     dispatch_table[OP_STORE] = &XenoVM::handleSTORE;
     dispatch_table[OP_LOAD] = &XenoVM::handleLOAD;
-    dispatch_table[OP_MOD] = &XenoVM::handleMOD;
     dispatch_table[OP_ABS] = &XenoVM::handleUNARY_MATH;
     dispatch_table[OP_SQRT] = &XenoVM::handleUNARY_MATH;
     dispatch_table[OP_SIN] = &XenoVM::handleUNARY_MATH;
     dispatch_table[OP_COS] = &XenoVM::handleUNARY_MATH;
     dispatch_table[OP_TAN] = &XenoVM::handleUNARY_MATH;
-    dispatch_table[OP_POW] = &XenoVM::handlePOW;
-    dispatch_table[OP_MAX] = &XenoVM::handleMAX;
-    dispatch_table[OP_MIN] = &XenoVM::handleMIN;
     dispatch_table[OP_INPUT] = &XenoVM::handleINPUT;
     dispatch_table[OP_EQ] = &XenoVM::handleEQ;
     dispatch_table[OP_NEQ] = &XenoVM::handleNEQ;
@@ -607,34 +607,43 @@ void XenoVM::handlePOP(const XenoInstruction& instr) {
     if (!Pop(temp)) return;
 }
 
-void XenoVM::handleBinaryOp(const XenoInstruction& instr, uint8_t op) {
+void XenoVM::handleBINARY_OP(const XenoInstruction& instr) {
     XenoValue a, b;
     if (!PopTwo(a, b)) return;
     
     XenoValue result;
-    switch (op) {
-        case OP_ADD: result = performAddition(a, b); break;
-        case OP_SUB: result = performSubtraction(a, b); break;
-        case OP_MUL: result = performMultiplication(a, b); break;
-        case OP_DIV: result = performDivision(a, b); break;
-        case OP_MOD: result = performModulo(a, b); break;
-        case OP_POW: result = performPower(a, b); break;
-        case OP_MAX: result = Max(a, b); break;
-        case OP_MIN: result = Min(a, b); break;
-        default: return;
+    
+    switch (instr.opcode) {
+        case OP_ADD:
+            result = performAddition(a, b);
+            break;
+        case OP_SUB:
+            result = performSubtraction(a, b);
+            break;
+        case OP_MUL:
+            result = performMultiplication(a, b);
+            break;
+        case OP_DIV:
+            result = performDivision(a, b);
+            break;
+        case OP_MOD:
+            result = performModulo(a, b);
+            break;
+        case OP_POW:
+            result = performPower(a, b);
+            break;
+        case OP_MAX:
+            result = Max(a, b);
+            break;
+        case OP_MIN:
+            result = Min(a, b);
+            break;
+        default:
+            return;
     }
     
     if (!Push(result)) return;
 }
-
-void XenoVM::handleADD(const XenoInstruction& instr) { handleBinaryOp(instr, OP_ADD); }
-void XenoVM::handleSUB(const XenoInstruction& instr) { handleBinaryOp(instr, OP_SUB); }
-void XenoVM::handleMUL(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MUL); }
-void XenoVM::handleDIV(const XenoInstruction& instr) { handleBinaryOp(instr, OP_DIV); }
-void XenoVM::handleMOD(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MOD); }
-void XenoVM::handlePOW(const XenoInstruction& instr) { handleBinaryOp(instr, OP_POW); }
-void XenoVM::handleMAX(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MAX); }
-void XenoVM::handleMIN(const XenoInstruction& instr) { handleBinaryOp(instr, OP_MIN); }
 
 void XenoVM::handleUNARY_MATH(const XenoInstruction& instr) {
     XenoValue a;
