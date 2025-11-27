@@ -26,7 +26,11 @@ class XenoSecurity {
  private:
     XenoSecurityConfig& config;
 
- public:
+ protected:
+    friend class XenoSecurity;
+    friend class XenoLanguage;
+    friend class XenoCompiler;
+    friend class XenoVM;
     explicit XenoSecurity(XenoSecurityConfig& cfg) : config(cfg) {}
 
     bool isPinAllowed(uint8_t pin);

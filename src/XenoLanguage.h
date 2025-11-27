@@ -25,7 +25,7 @@
 class XenoLanguage {
  private:
     static constexpr const char* xeno_language_version = "v0.1.4";
-    static constexpr const char* xeno_language_date = "08.11.2025";
+    static constexpr const char* xeno_language_date = "27.11.2025";
     static constexpr const char* xeno_language_name = "Xeno Language";
 
     XenoSecurityConfig security_config;
