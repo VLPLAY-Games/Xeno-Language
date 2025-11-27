@@ -410,69 +410,81 @@ bool XenoVM::performComparison(const XenoValue& a, const XenoValue& b, uint8_t o
         if (bothNumeric(a, b)) {
             float a_val = toFloat(a);
             float b_val = toFloat(b);
-
+            
             switch (op) {
-                case OP_EQ: return a_val == b_val;
+                case OP_EQ:  return a_val == b_val;
                 case OP_NEQ: return a_val != b_val;
-                case OP_LT: return a_val < b_val;
-                case OP_GT: return a_val > b_val;
+                case OP_LT:  return a_val < b_val;
+                case OP_GT:  return a_val > b_val;
                 case OP_LTE: return a_val <= b_val;
                 case OP_GTE: return a_val >= b_val;
+                default:     return false;
             }
         }
-        return false;
+        switch (op) {
+            case OP_EQ:  return false;
+            case OP_NEQ: return true;
+            default:     return false;
+        }
     }
 
     switch (a.type) {
         case TYPE_INT:
             switch (op) {
-                case OP_EQ: return a.int_val == b.int_val;
+                case OP_EQ:  return a.int_val == b.int_val;
                 case OP_NEQ: return a.int_val != b.int_val;
-                case OP_LT: return a.int_val < b.int_val;
-                case OP_GT: return a.int_val > b.int_val;
+                case OP_LT:  return a.int_val < b.int_val;
+                case OP_GT:  return a.int_val > b.int_val;
                 case OP_LTE: return a.int_val <= b.int_val;
                 case OP_GTE: return a.int_val >= b.int_val;
+                default:     return false;
             }
             break;
 
         case TYPE_FLOAT:
             switch (op) {
-                case OP_EQ: return a.float_val == b.float_val;
-                case OP_NEQ: return a.float_val != b.float_val;
-                case OP_LT: return a.float_val < b.float_val;
-                case OP_GT: return a.float_val > b.float_val;
+                case OP_EQ:  return fabs(a.float_val - b.float_val) < 0.0001f;
+                case OP_NEQ: return fabs(a.float_val - b.float_val) >= 0.0001f;
+                case OP_LT:  return a.float_val < b.float_val;
+                case OP_GT:  return a.float_val > b.float_val;
                 case OP_LTE: return a.float_val <= b.float_val;
                 case OP_GTE: return a.float_val >= b.float_val;
+                default:     return false;
             }
             break;
 
-        case TYPE_STRING:
-            {
-                const String& str_a = string_table[a.string_index];
-                const String& str_b = string_table[b.string_index];
-                switch (op) {
-                    case OP_EQ: return str_a == str_b;
-                    case OP_NEQ: return str_a != str_b;
-                    case OP_LT: return str_a < str_b;
-                    case OP_GT: return str_a > str_b;
-                    case OP_LTE: return str_a <= str_b;
-                    case OP_GTE: return str_a >= str_b;
-                }
+        case TYPE_STRING: {
+            const String& str_a = string_table[a.string_index];
+            const String& str_b = string_table[b.string_index];
+            int comparison = str_a.compareTo(str_b);
+            
+            switch (op) {
+                case OP_EQ:  return comparison == 0;
+                case OP_NEQ: return comparison != 0;
+                case OP_LT:  return comparison < 0;
+                case OP_GT:  return comparison > 0;
+                case OP_LTE: return comparison <= 0;
+                case OP_GTE: return comparison >= 0;
+                default:     return false;
             }
             break;
+        }
 
         case TYPE_BOOL:
             switch (op) {
-                case OP_EQ: return a.bool_val == b.bool_val;
+                case OP_EQ:  return a.bool_val == b.bool_val;
                 case OP_NEQ: return a.bool_val != b.bool_val;
-                case OP_LT: return a.bool_val < b.bool_val;
-                case OP_GT: return a.bool_val > b.bool_val;
+                case OP_LT:  return a.bool_val < b.bool_val;
+                case OP_GT:  return a.bool_val > b.bool_val;
                 case OP_LTE: return a.bool_val <= b.bool_val;
                 case OP_GTE: return a.bool_val >= b.bool_val;
+                default:     return false;
             }
             break;
+
+        default:
+            return false;
     }
-    return false;
 }
 
 uint16_t XenoVM::addString(const String& str) {
