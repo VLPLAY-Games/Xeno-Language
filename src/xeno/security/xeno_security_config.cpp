@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <vector>
 #include "xeno_security_config.h"
 
 bool XenoSecurityConfig::validateSizeLimit(uint16_t value, uint16_t min_val, uint16_t max_val, const char* param_name) {

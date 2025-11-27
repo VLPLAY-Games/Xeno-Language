@@ -410,7 +410,7 @@ bool XenoVM::performComparison(const XenoValue& a, const XenoValue& b, uint8_t o
         if (bothNumeric(a, b)) {
             float a_val = toFloat(a);
             float b_val = toFloat(b);
-            
+
             switch (op) {
                 case OP_EQ:  return a_val == b_val;
                 case OP_NEQ: return a_val != b_val;
@@ -457,7 +457,7 @@ bool XenoVM::performComparison(const XenoValue& a, const XenoValue& b, uint8_t o
             const String& str_a = string_table[a.string_index];
             const String& str_b = string_table[b.string_index];
             int comparison = str_a.compareTo(str_b);
-            
+
             switch (op) {
                 case OP_EQ:  return comparison == 0;
                 case OP_NEQ: return comparison != 0;
@@ -585,7 +585,7 @@ void XenoVM::handleDELAY(const XenoInstruction& instr) {
 
 void XenoVM::handlePushOp(const XenoInstruction& instr, XenoDataType type) {
     XenoValue value;
-    
+
     switch (type) {
         case TYPE_INT:
             value = XenoValue::makeInt(instr.arg1);
@@ -605,7 +605,7 @@ void XenoVM::handlePushOp(const XenoInstruction& instr, XenoDataType type) {
         default:
             return;
     }
-    
+
     if (!Push(value)) return;
 }
 
@@ -622,9 +622,9 @@ void XenoVM::handlePOP(const XenoInstruction& instr) {
 void XenoVM::handleBINARY_OP(const XenoInstruction& instr) {
     XenoValue a, b;
     if (!PopTwo(a, b)) return;
-    
+
     XenoValue result;
-    
+
     switch (instr.opcode) {
         case OP_ADD:
             result = performAddition(a, b);
@@ -653,16 +653,16 @@ void XenoVM::handleBINARY_OP(const XenoInstruction& instr) {
         default:
             return;
     }
-    
+
     if (!Push(result)) return;
 }
 
 void XenoVM::handleUNARY_MATH(const XenoInstruction& instr) {
     XenoValue a;
     if (!Peek(a)) return;
-    
+
     XenoValue result;
-    
+
     switch (instr.opcode) {
         case OP_ABS:
             result = performAbs(a);
@@ -682,7 +682,7 @@ void XenoVM::handleUNARY_MATH(const XenoInstruction& instr) {
         default:
             return;
     }
-    
+
     stack[stack_pointer - 1] = result;
 }
 
@@ -735,7 +735,7 @@ void XenoVM::handleINPUT(const XenoInstruction& instr) {
 void XenoVM::handleComparisonOp(const XenoInstruction& instr, uint8_t op) {
     XenoValue a, b;
     if (!PopTwo(a, b)) return;
-    
+
     bool result = performComparison(a, b, op);
     if (!Push(XenoValue::makeInt(result ? 0 : 1))) return;
 }
@@ -818,15 +818,15 @@ void XenoVM::handleHALT(const XenoInstruction& instr) {
     running = false;
 }
 
-XenoVM::XenoVM(XenoSecurityConfig& config) 
-    : security_config(config), 
+XenoVM::XenoVM(XenoSecurityConfig& config)
+    : security_config(config),
       security(config),
       max_stack_size(config.getMaxStackSize())
 {
     initializeDispatchTable();
 
     stack = new XenoValue[max_stack_size];
-    
+
     resetState();
     program.reserve(128);
     string_table.reserve(32);
@@ -1008,7 +1008,7 @@ void XenoVM::dumpState() {
         Serial.print(type_str);
         Serial.print(" ");
         Serial.println(value_str);
-        
+
     }
     Serial.println("}");
     Serial.println();

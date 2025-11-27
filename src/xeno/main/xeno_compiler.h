@@ -48,7 +48,7 @@ class XenoCompiler {
         uint8_t opcode;
         int num_args;
     };
-    
+
     static const FunctionInfo math_functions[];
     static const size_t math_functions_count;
 
@@ -59,7 +59,7 @@ class XenoCompiler {
         const char* name;
         uint8_t opcode;
     };
-    
+
     static const SimpleCommand simple_commands[];
     static const size_t simple_commands_count;
 
@@ -93,7 +93,7 @@ class XenoCompiler {
     void processConstants(String& expr);
 
  protected:
-    XenoCompiler(XenoSecurityConfig& config);
+    explicit XenoCompiler(XenoSecurityConfig& config);
     void compile(const String& source_code);
     const std::vector<XenoInstruction>& getBytecode() const;
     const std::vector<String>& getStringTable() const;

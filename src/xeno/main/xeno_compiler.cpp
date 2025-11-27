@@ -111,7 +111,7 @@ void XenoCompiler::processConstants(String& expr) {
 
 void XenoCompiler::compileMathFunction(const String& token, const FunctionInfo& func) {
     String innerExpr = token.substring(1, token.length() - 1);
-    
+
     if (func.num_args == 1) {
         compileExpression(innerExpr);
         emitInstruction(func.opcode);
@@ -275,7 +275,7 @@ String XenoCompiler::processFunctions(const String& expr) {
     for (size_t i = 0; i < math_functions_count && depth < security_config.getMaxExpressionDepth(); i++) {
         const FunctionInfo& func = math_functions[i];
         int pos = result.indexOf(func.name);
-        
+
         while (pos >= 0 && depth < security_config.getMaxExpressionDepth()) {
             int endPos = findMatchingParenthesis(result, pos + strlen(func.name) - 1);
             if (endPos > pos) {
@@ -494,14 +494,14 @@ void XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
             bool function_processed = false;
             for (size_t i = 0; i < math_functions_count; i++) {
                 const FunctionInfo& func = math_functions[i];
-                if (token.startsWith(String(func.open_bracket)) && 
+                if (token.startsWith(String(func.open_bracket)) &&
                     token.endsWith(String(func.close_bracket))) {
                     compileMathFunction(token, func);
                     function_processed = true;
                     break;
                 }
             }
-            
+
             if (!function_processed) {
                 if (token == "+") emitInstruction(OP_ADD);
                 else if (token == "-") emitInstruction(OP_SUB);
@@ -606,7 +606,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             break;
         }
     }
-    
+
     if (simple_command_found) {
         return;
     }
@@ -854,7 +854,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
     }
 }
 
-XenoCompiler::XenoCompiler(XenoSecurityConfig& config) 
+XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     : security_config(config), security(config) {
     bytecode.reserve(128);
     string_table.reserve(32);

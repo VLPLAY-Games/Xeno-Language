@@ -108,13 +108,13 @@ class XenoVM {
     void handlePushOp(const XenoInstruction& instr, XenoDataType type);
 
  protected:
-    XenoVM(XenoSecurityConfig& config);
+    explicit XenoVM(XenoSecurityConfig& config);
     ~XenoVM();
     void setMaxInstructions(uint32_t max_instr);
     void loadProgram(const std::vector<XenoInstruction>& bytecode,
-                    const std::vector<String>& strings, bool less_output=true);
+                    const std::vector<String>& strings, bool less_output = true);
     bool step();
-    void run(bool less_output=true);
+    void run(bool less_output = true);
     void stop();
     bool isRunning() const;
     uint32_t getPC() const;

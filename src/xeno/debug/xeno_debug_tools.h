@@ -22,7 +22,7 @@
 #include "../xeno_common.h"
 
 class Debugger {
-protected:
+ protected:
     friend class XenoCompiler;
     friend class XenoVM;
     static void disassemble(const std::vector<XenoInstruction>& instructions, 
@@ -30,7 +30,7 @@ protected:
                           const String& title = "Disassembly",
                           bool show_string_table = false);
 
-private:
+ private:
     static void printInstruction(size_t index, const XenoInstruction& instr, 
                                const std::vector<String>& string_table);
 

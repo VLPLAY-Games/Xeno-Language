@@ -15,14 +15,15 @@
  */
 
 
+#include <vector>
 #include "xeno_debug_tools.h"
 
-void Debugger::disassemble(const std::vector<XenoInstruction>& instructions, 
+void Debugger::disassemble(const std::vector<XenoInstruction>& instructions,
                         const std::vector<String>& string_table,
                         const String& title,
                         bool show_string_table) {
     Serial.println("=== " + title + " ===");
-    
+
     if (show_string_table) {
         Serial.println("String table:");
         for (size_t i = 0; i < string_table.size(); ++i) {
@@ -33,22 +34,22 @@ void Debugger::disassemble(const std::vector<XenoInstruction>& instructions,
             Serial.println("\"");
         }
     }
-    
+
     Serial.println(show_string_table ? "Bytecode:" : "Instructions:");
-    
+
     for (size_t i = 0; i < instructions.size(); ++i) {
         printInstruction(i, instructions[i], string_table);
     }
 }
 
-void Debugger::printInstruction(size_t index, const XenoInstruction& instr, 
+void Debugger::printInstruction(size_t index, const XenoInstruction& instr,
                             const std::vector<String>& string_table) {
     Serial.print(index);
     Serial.print(": ");
-    
+
     bool hasArg = false;
     const char* mnemonic = nullptr;
-    
+
     switch (instr.opcode) {
         case OP_NOP: mnemonic = "NOP"; break;
         case OP_POP: mnemonic = "POP"; break;
@@ -79,32 +80,32 @@ void Debugger::printInstruction(size_t index, const XenoInstruction& instr,
             printStringArg(instr.arg1, string_table, false);
             hasArg = true;
             break;
-            
+
         case OP_LED_ON:
             Serial.print("LED_ON pin=");
             Serial.print(instr.arg1);
             hasArg = true;
             break;
-            
+
         case OP_LED_OFF:
             Serial.print("LED_OFF pin=");
             Serial.print(instr.arg1);
             hasArg = true;
             break;
-            
+
         case OP_DELAY:
             Serial.print("DELAY ");
             Serial.print(instr.arg1);
             Serial.print("ms");
             hasArg = true;
             break;
-            
+
         case OP_PUSH:
             Serial.print("PUSH ");
             Serial.print(instr.arg1);
             hasArg = true;
             break;
-            
+
         case OP_PUSH_FLOAT: {
             float fval;
             memcpy(&fval, &instr.arg1, sizeof(float));
@@ -113,56 +114,56 @@ void Debugger::printInstruction(size_t index, const XenoInstruction& instr,
             hasArg = true;
             break;
         }
-        
+
         case OP_PUSH_BOOL:
             Serial.print("PUSH_BOOL ");
             Serial.print(instr.arg1 ? "true" : "false");
             hasArg = true;
             break;
-            
+
         case OP_PUSH_STRING:
             Serial.print("PUSH_STRING ");
             printStringArg(instr.arg1, string_table, true);
             hasArg = true;
             break;
-            
+
         case OP_INPUT:
             Serial.print("INPUT ");
             printStringArg(instr.arg1, string_table, false);
             hasArg = true;
             break;
-            
+
         case OP_STORE:
             Serial.print("STORE ");
             printStringArg(instr.arg1, string_table, false);
             hasArg = true;
             break;
-            
+
         case OP_LOAD:
             Serial.print("LOAD ");
             printStringArg(instr.arg1, string_table, false);
             hasArg = true;
             break;
-            
+
         case OP_JUMP:
             Serial.print("JUMP ");
             Serial.print(instr.arg1);
             hasArg = true;
             break;
-            
+
         case OP_JUMP_IF:
             Serial.print("JUMP_IF ");
             Serial.print(instr.arg1);
             hasArg = true;
             break;
-            
+
         default:
             Serial.print("UNKNOWN ");
             Serial.print(instr.opcode);
             hasArg = true;
             break;
     }
-    
+
     if (!hasArg && mnemonic != nullptr) {
         Serial.println(mnemonic);
     } else if (hasArg) {

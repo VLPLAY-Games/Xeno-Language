@@ -17,12 +17,13 @@
 #ifndef SRC_XENOLANGUAGE_H_
 #define SRC_XENOLANGUAGE_H_
 
+#include <vector>
 #include "xeno/main/xeno_compiler.h"
 #include "xeno/main/xeno_vm.h"
 #include "xeno/security/xeno_security_config.h"
 
 class XenoLanguage {
-private:
+ private:
     static constexpr const char* xeno_language_version = "v0.1.4";
     static constexpr const char* xeno_language_date = "08.11.2025";
     static constexpr const char* xeno_language_name = "Xeno Language";
@@ -31,11 +32,11 @@ private:
     XenoCompiler compiler;
     XenoVM vm;
 
-public:
+ public:
     XenoLanguage();
-    
+
     bool compile(const String& source_code);
-    bool run(bool less_output=true);
+    bool run(bool less_output = true);
     void step();
     void stop();
     bool isRunning() const;
@@ -43,12 +44,12 @@ public:
     void disassemble();
     void printCompiledCode();
 
-    bool compile_and_run(const String& source_code, bool less_output=true);
+    bool compile_and_run(const String& source_code, bool less_output = true);
 
     bool setMaxInstructions(uint32_t max_instr);
-    
+
     const XenoSecurityConfig& getSecurityConfig() const;
-    
+
     bool setStringLimit(uint16_t length);
     bool setVariableNameLimit(uint16_t length);
     bool setExpressionDepth(uint16_t depth);
@@ -58,9 +59,9 @@ public:
     bool setAllowedPins(const std::vector<uint8_t>& pins);
     bool addAllowedPin(uint8_t pin);
     bool removeAllowedPin(uint8_t pin);
-    
+
     bool validateSecurityConfig() const;
-    
+
     String getSecurityLimitsInfo() const;
 
     uint16_t getMaxStringLength() const { return security_config.getMaxStringLength(); }

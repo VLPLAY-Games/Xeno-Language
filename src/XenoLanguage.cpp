@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <vector>
 #include "XenoLanguage.h"
 
 XenoLanguage::XenoLanguage() : compiler(security_config), vm(security_config) {
@@ -112,7 +113,7 @@ bool XenoLanguage::addAllowedPin(uint8_t pin) {
 
 bool XenoLanguage::removeAllowedPin(uint8_t pin) {
     std::vector<uint8_t> current_pins = security_config.getAllowedPins();
-    
+
     for (auto it = current_pins.begin(); it != current_pins.end(); ++it) {
         if (*it == pin) {
             current_pins.erase(it);

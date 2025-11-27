@@ -23,12 +23,12 @@
 #include "xeno_security_config.h"
 
 class XenoSecurity {
-private:
+ private:
     XenoSecurityConfig& config;
 
-public:
-    XenoSecurity(XenoSecurityConfig& cfg) : config(cfg) {}
-    
+ public:
+    explicit XenoSecurity(XenoSecurityConfig& cfg) : config(cfg) {}
+
     bool isPinAllowed(uint8_t pin);
     String sanitizeString(const String& input);
     bool verifyBytecode(const std::vector<XenoInstruction>& bytecode,
