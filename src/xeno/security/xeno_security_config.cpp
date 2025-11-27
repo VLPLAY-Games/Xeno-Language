@@ -127,14 +127,42 @@ bool XenoSecurityConfig::validateConfig() const {
 }
 
 String XenoSecurityConfig::getSecurityLimitsInfo() const {
-    String info = "Security Limits:\n";
-    info += "String Length: " + String(MIN_STRING_LENGTH) + " - " + String(MAX_STRING_LENGTH_LIMIT) + "\n";
-    info += "Variable Name: " + String(MIN_VARIABLE_NAME_LENGTH) + " - " + String(MAX_VARIABLE_NAME_LENGTH_LIMIT) + "\n";
-    info += "Expression Depth: " + String(MIN_EXPRESSION_DEPTH) + " - " + String(MAX_EXPRESSION_DEPTH_LIMIT) + "\n";
-    info += "Loop Depth: " + String(MIN_LOOP_DEPTH) + " - " + String(MAX_LOOP_DEPTH_LIMIT) + "\n";
-    info += "If Depth: " + String(MIN_IF_DEPTH) + " - " + String(MAX_IF_DEPTH_LIMIT) + "\n";
-    info += "Stack Size: " + String(MIN_STACK_SIZE) + " - " + String(MAX_STACK_SIZE_LIMIT) + "\n";
-    info += "Instructions: " + String(MIN_INSTRUCTIONS_LIMIT) + " - " + String(MAX_INSTRUCTIONS_LIMIT) + "\n";
-    info += "Pin Numbers: " + String(MIN_PIN_NUMBER) + " - " + String(MAX_PIN_NUMBER);
+    String info;
+    info.reserve(256);
+
+    info = "Security Limits:\n";
+    info += "String Length: ";
+    info += MIN_STRING_LENGTH;
+    info += " - ";
+    info += MAX_STRING_LENGTH_LIMIT;
+    info += "\nVariable Name: ";
+    info += MIN_VARIABLE_NAME_LENGTH;
+    info += " - ";
+    info += MAX_VARIABLE_NAME_LENGTH_LIMIT;
+    info += "\nExpression Depth: ";
+    info += MIN_EXPRESSION_DEPTH;
+    info += " - ";
+    info += MAX_EXPRESSION_DEPTH_LIMIT;
+    info += "\nLoop Depth: ";
+    info += MIN_LOOP_DEPTH;
+    info += " - ";
+    info += MAX_LOOP_DEPTH_LIMIT;
+    info += "\nIf Depth: ";
+    info += MIN_IF_DEPTH;
+    info += " - ";
+    info += MAX_IF_DEPTH_LIMIT;
+    info += "\nStack Size: ";
+    info += MIN_STACK_SIZE;
+    info += " - ";
+    info += MAX_STACK_SIZE_LIMIT;
+    info += "\nInstructions: ";
+    info += MIN_INSTRUCTIONS_LIMIT;
+    info += " - ";
+    info += MAX_INSTRUCTIONS_LIMIT;
+    info += "\nPin Numbers: ";
+    info += MIN_PIN_NUMBER;
+    info += " - ";
+    info += MAX_PIN_NUMBER;
+
     return info;
 }
