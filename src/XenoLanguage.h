@@ -63,6 +63,32 @@ public:
     
     String getSecurityLimitsInfo() const;
 
+    uint16_t getMaxStringLength() const { return security_config.getMaxStringLength(); }
+    uint16_t getMaxVariableNameLength() const { return security_config.getMaxVariableNameLength(); }
+    uint16_t getMaxExpressionDepth() const { return security_config.getMaxExpressionDepth(); }
+    uint16_t getMaxLoopDepth() const { return security_config.getMaxLoopDepth(); }
+    uint16_t getMaxIfDepth() const { return security_config.getMaxIfDepth(); }
+    uint16_t getMaxStackSize() const { return security_config.getMaxStackSize(); }
+    uint32_t getCurrentMaxInstructions() const { return security_config.getCurrentMaxInstructions(); }
+    const std::vector<uint8_t>& getAllowedPins() const { return security_config.getAllowedPins(); }
+
+    static constexpr uint16_t getMinStringLength() { return XenoSecurityConfig::getMinStringLength(); }
+    static constexpr uint16_t getMaxStringLengthLimit() { return XenoSecurityConfig::getMaxStringLengthLimit(); }
+    static constexpr uint16_t getMinVariableNameLength() { return XenoSecurityConfig::getMinVariableNameLength(); }
+    static constexpr uint16_t getMaxVariableNameLengthLimit() { return XenoSecurityConfig::getMaxVariableNameLengthLimit(); }
+    static constexpr uint16_t getMinExpressionDepth() { return XenoSecurityConfig::getMinExpressionDepth(); }
+    static constexpr uint16_t getMaxExpressionDepthLimit() { return XenoSecurityConfig::getMaxExpressionDepthLimit(); }
+    static constexpr uint16_t getMinLoopDepth() { return XenoSecurityConfig::getMinLoopDepth(); }
+    static constexpr uint16_t getMaxLoopDepthLimit() { return XenoSecurityConfig::getMaxLoopDepthLimit(); }
+    static constexpr uint16_t getMinIfDepth() { return XenoSecurityConfig::getMinIfDepth(); }
+    static constexpr uint16_t getMaxIfDepthLimit() { return XenoSecurityConfig::getMaxIfDepthLimit(); }
+    static constexpr uint16_t getMinStackSize() { return XenoSecurityConfig::getMinStackSize(); }
+    static constexpr uint16_t getMaxStackSizeLimit() { return XenoSecurityConfig::getMaxStackSizeLimit(); }
+    static constexpr uint32_t getMinInstructionsLimit() { return XenoSecurityConfig::getMinInstructionsLimit(); }
+    static constexpr uint32_t getMaxInstructionsLimitValue() { return XenoSecurityConfig::getMaxInstructionsLimitValue(); }
+    static constexpr uint8_t getMinPinNumber() { return XenoSecurityConfig::getMinPinNumber(); }
+    static constexpr uint8_t getMaxPinNumber() { return XenoSecurityConfig::getMaxPinNumber(); }
+
     static constexpr const char* getLanguageVersion() noexcept {
         return xeno_language_version;
     }
