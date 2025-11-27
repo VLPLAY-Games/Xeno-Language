@@ -69,27 +69,27 @@ const XenoSecurityConfig& XenoLanguage::getSecurityConfig() const {
     return security_config;
 }
 
-bool XenoLanguage::setStringLimit(size_t length) {
+bool XenoLanguage::setStringLimit(uint16_t length) {
     return security_config.setMaxStringLength(length);
 }
 
-bool XenoLanguage::setVariableNameLimit(size_t length) {
+bool XenoLanguage::setVariableNameLimit(uint16_t length) {
     return security_config.setMaxVariableNameLength(length);
 }
 
-bool XenoLanguage::setExpressionDepth(size_t depth) {
+bool XenoLanguage::setExpressionDepth(uint16_t depth) {
     return security_config.setMaxExpressionDepth(depth);
 }
 
-bool XenoLanguage::setLoopDepth(size_t depth) {
+bool XenoLanguage::setLoopDepth(uint16_t depth) {
     return security_config.setMaxLoopDepth(depth);
 }
 
-bool XenoLanguage::setIfDepth(size_t depth) {
+bool XenoLanguage::setIfDepth(uint16_t depth) {
     return security_config.setMaxIfDepth(depth);
 }
 
-bool XenoLanguage::setStackSize(size_t size) {
+bool XenoLanguage::setStackSize(uint16_t size) {
     return security_config.setMaxStackSize(size);
 }
 
@@ -105,8 +105,7 @@ bool XenoLanguage::addAllowedPin(uint8_t pin) {
             return true;
         }
     }
-    
-    // Добавляем новый пин
+
     current_pins.push_back(pin);
     return security_config.setAllowedPins(current_pins);
 }

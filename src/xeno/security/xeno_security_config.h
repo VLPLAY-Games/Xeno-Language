@@ -19,37 +19,38 @@
 
 #include <Arduino.h>
 #include <vector>
+#include <cstdint>
 
 class XenoSecurityConfig {
 private:
-    size_t max_string_length = 256;
-    size_t max_variable_name_length = 32;
-    size_t max_expression_depth = 32;
-    size_t max_loop_depth = 16;
-    size_t max_if_depth = 16;
-    size_t max_stack_size = 256;
+    uint16_t max_string_length = 256;
+    uint16_t max_variable_name_length = 32;
+    uint16_t max_expression_depth = 32;
+    uint16_t max_loop_depth = 16;
+    uint16_t max_if_depth = 16;
+    uint16_t max_stack_size = 256;
     
     uint32_t current_max_instructions = 10000;
     
     std::vector<uint8_t> allowed_pins = { LED_BUILTIN };
 
-    static constexpr size_t MIN_STRING_LENGTH = 1;
-    static constexpr size_t MAX_STRING_LENGTH_LIMIT = 4096;
+    static constexpr uint16_t MIN_STRING_LENGTH = 1;
+    static constexpr uint16_t MAX_STRING_LENGTH_LIMIT = 4096;
     
-    static constexpr size_t MIN_VARIABLE_NAME_LENGTH = 1;
-    static constexpr size_t MAX_VARIABLE_NAME_LENGTH_LIMIT = 256;
+    static constexpr uint16_t MIN_VARIABLE_NAME_LENGTH = 1;
+    static constexpr uint16_t MAX_VARIABLE_NAME_LENGTH_LIMIT = 256;
     
-    static constexpr size_t MIN_EXPRESSION_DEPTH = 1;
-    static constexpr size_t MAX_EXPRESSION_DEPTH_LIMIT = 256;
+    static constexpr uint16_t MIN_EXPRESSION_DEPTH = 1;
+    static constexpr uint16_t MAX_EXPRESSION_DEPTH_LIMIT = 256;
     
-    static constexpr size_t MIN_LOOP_DEPTH = 1;
-    static constexpr size_t MAX_LOOP_DEPTH_LIMIT = 64;
+    static constexpr uint16_t MIN_LOOP_DEPTH = 1;
+    static constexpr uint16_t MAX_LOOP_DEPTH_LIMIT = 64;
     
-    static constexpr size_t MIN_IF_DEPTH = 1;
-    static constexpr size_t MAX_IF_DEPTH_LIMIT = 64;
+    static constexpr uint16_t MIN_IF_DEPTH = 1;
+    static constexpr uint16_t MAX_IF_DEPTH_LIMIT = 64;
     
-    static constexpr size_t MIN_STACK_SIZE = 16;
-    static constexpr size_t MAX_STACK_SIZE_LIMIT = 2048;
+    static constexpr uint16_t MIN_STACK_SIZE = 16;
+    static constexpr uint16_t MAX_STACK_SIZE_LIMIT = 2048;
     
     static constexpr uint32_t MIN_INSTRUCTIONS_LIMIT = 1000;
     static constexpr uint32_t MAX_INSTRUCTIONS_LIMIT = 1000000;
@@ -57,7 +58,7 @@ private:
     static constexpr uint8_t MIN_PIN_NUMBER = 0;
     static constexpr uint8_t MAX_PIN_NUMBER = 255;
 
-    bool validateSizeLimit(size_t value, size_t min_val, size_t max_val, const char* param_name);
+    bool validateSizeLimit(uint16_t value, uint16_t min_val, uint16_t max_val, const char* param_name);
 
 protected:
     friend class XenoLanguage;
@@ -66,38 +67,38 @@ protected:
     friend class XenoSecurity;
     XenoSecurityConfig() = default;
 
-    size_t getMaxStringLength() const { return max_string_length; }
-    size_t getMaxVariableNameLength() const { return max_variable_name_length; }
-    size_t getMaxExpressionDepth() const { return max_expression_depth; }
-    size_t getMaxLoopDepth() const { return max_loop_depth; }
-    size_t getMaxIfDepth() const { return max_if_depth; }
-    size_t getMaxStackSize() const { return max_stack_size; }
+    uint16_t getMaxStringLength() const { return max_string_length; }
+    uint16_t getMaxVariableNameLength() const { return max_variable_name_length; }
+    uint16_t getMaxExpressionDepth() const { return max_expression_depth; }
+    uint16_t getMaxLoopDepth() const { return max_loop_depth; }
+    uint16_t getMaxIfDepth() const { return max_if_depth; }
+    uint16_t getMaxStackSize() const { return max_stack_size; }
     uint32_t getCurrentMaxInstructions() const { return current_max_instructions; }
     const std::vector<uint8_t>& getAllowedPins() const { return allowed_pins; }
 
-    static constexpr size_t getMinStringLength() { return MIN_STRING_LENGTH; }
-    static constexpr size_t getMaxStringLengthLimit() { return MAX_STRING_LENGTH_LIMIT; }
-    static constexpr size_t getMinVariableNameLength() { return MIN_VARIABLE_NAME_LENGTH; }
-    static constexpr size_t getMaxVariableNameLengthLimit() { return MAX_VARIABLE_NAME_LENGTH_LIMIT; }
-    static constexpr size_t getMinExpressionDepth() { return MIN_EXPRESSION_DEPTH; }
-    static constexpr size_t getMaxExpressionDepthLimit() { return MAX_EXPRESSION_DEPTH_LIMIT; }
-    static constexpr size_t getMinLoopDepth() { return MIN_LOOP_DEPTH; }
-    static constexpr size_t getMaxLoopDepthLimit() { return MAX_LOOP_DEPTH_LIMIT; }
-    static constexpr size_t getMinIfDepth() { return MIN_IF_DEPTH; }
-    static constexpr size_t getMaxIfDepthLimit() { return MAX_IF_DEPTH_LIMIT; }
-    static constexpr size_t getMinStackSize() { return MIN_STACK_SIZE; }
-    static constexpr size_t getMaxStackSizeLimit() { return MAX_STACK_SIZE_LIMIT; }
+    static constexpr uint16_t getMinStringLength() { return MIN_STRING_LENGTH; }
+    static constexpr uint16_t getMaxStringLengthLimit() { return MAX_STRING_LENGTH_LIMIT; }
+    static constexpr uint16_t getMinVariableNameLength() { return MIN_VARIABLE_NAME_LENGTH; }
+    static constexpr uint16_t getMaxVariableNameLengthLimit() { return MAX_VARIABLE_NAME_LENGTH_LIMIT; }
+    static constexpr uint16_t getMinExpressionDepth() { return MIN_EXPRESSION_DEPTH; }
+    static constexpr uint16_t getMaxExpressionDepthLimit() { return MAX_EXPRESSION_DEPTH_LIMIT; }
+    static constexpr uint16_t getMinLoopDepth() { return MIN_LOOP_DEPTH; }
+    static constexpr uint16_t getMaxLoopDepthLimit() { return MAX_LOOP_DEPTH_LIMIT; }
+    static constexpr uint16_t getMinIfDepth() { return MIN_IF_DEPTH; }
+    static constexpr uint16_t getMaxIfDepthLimit() { return MAX_IF_DEPTH_LIMIT; }
+    static constexpr uint16_t getMinStackSize() { return MIN_STACK_SIZE; }
+    static constexpr uint16_t getMaxStackSizeLimit() { return MAX_STACK_SIZE_LIMIT; }
     static constexpr uint32_t getMinInstructionsLimit() { return MIN_INSTRUCTIONS_LIMIT; }
     static constexpr uint32_t getMaxInstructionsLimitValue() { return MAX_INSTRUCTIONS_LIMIT; }
     static constexpr uint8_t getMinPinNumber() { return MIN_PIN_NUMBER; }
     static constexpr uint8_t getMaxPinNumber() { return MAX_PIN_NUMBER; }
 
-    bool setMaxStringLength(size_t length);
-    bool setMaxVariableNameLength(size_t length);
-    bool setMaxExpressionDepth(size_t depth);
-    bool setMaxLoopDepth(size_t depth);
-    bool setMaxIfDepth(size_t depth);
-    bool setMaxStackSize(size_t size);
+    bool setMaxStringLength(uint16_t length);
+    bool setMaxVariableNameLength(uint16_t length);
+    bool setMaxExpressionDepth(uint16_t depth);
+    bool setMaxLoopDepth(uint16_t depth);
+    bool setMaxIfDepth(uint16_t depth);
+    bool setMaxStackSize(uint16_t size);
     bool setCurrentMaxInstructions(uint32_t max_instr);
     bool setAllowedPins(const std::vector<uint8_t>& pins);
 

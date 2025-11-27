@@ -16,7 +16,7 @@
 
 #include "xeno_security_config.h"
 
-bool XenoSecurityConfig::validateSizeLimit(size_t value, size_t min_val, size_t max_val, const char* param_name) {
+bool XenoSecurityConfig::validateSizeLimit(uint16_t value, uint16_t min_val, uint16_t max_val, const char* param_name) {
     if (value < min_val || value > max_val) {
         Serial.print("SECURITY: ");
         Serial.print(param_name);
@@ -29,7 +29,7 @@ bool XenoSecurityConfig::validateSizeLimit(size_t value, size_t min_val, size_t 
     return true;
 }
 
-bool XenoSecurityConfig::setMaxStringLength(size_t length) {
+bool XenoSecurityConfig::setMaxStringLength(uint16_t length) {
     if (!validateSizeLimit(length, MIN_STRING_LENGTH, MAX_STRING_LENGTH_LIMIT, "MAX_STRING_LENGTH")) {
         return false;
     }
@@ -37,7 +37,7 @@ bool XenoSecurityConfig::setMaxStringLength(size_t length) {
     return true;
 }
 
-bool XenoSecurityConfig::setMaxVariableNameLength(size_t length) {
+bool XenoSecurityConfig::setMaxVariableNameLength(uint16_t length) {
     if (!validateSizeLimit(length, MIN_VARIABLE_NAME_LENGTH, MAX_VARIABLE_NAME_LENGTH_LIMIT, "MAX_VARIABLE_NAME_LENGTH")) {
         return false;
     }
@@ -45,7 +45,7 @@ bool XenoSecurityConfig::setMaxVariableNameLength(size_t length) {
     return true;
 }
 
-bool XenoSecurityConfig::setMaxExpressionDepth(size_t depth) {
+bool XenoSecurityConfig::setMaxExpressionDepth(uint16_t depth) {
     if (!validateSizeLimit(depth, MIN_EXPRESSION_DEPTH, MAX_EXPRESSION_DEPTH_LIMIT, "MAX_EXPRESSION_DEPTH")) {
         return false;
     }
@@ -53,7 +53,7 @@ bool XenoSecurityConfig::setMaxExpressionDepth(size_t depth) {
     return true;
 }
 
-bool XenoSecurityConfig::setMaxLoopDepth(size_t depth) {
+bool XenoSecurityConfig::setMaxLoopDepth(uint16_t depth) {
     if (!validateSizeLimit(depth, MIN_LOOP_DEPTH, MAX_LOOP_DEPTH_LIMIT, "MAX_LOOP_DEPTH")) {
         return false;
     }
@@ -61,7 +61,7 @@ bool XenoSecurityConfig::setMaxLoopDepth(size_t depth) {
     return true;
 }
 
-bool XenoSecurityConfig::setMaxIfDepth(size_t depth) {
+bool XenoSecurityConfig::setMaxIfDepth(uint16_t depth) {
     if (!validateSizeLimit(depth, MIN_IF_DEPTH, MAX_IF_DEPTH_LIMIT, "MAX_IF_DEPTH")) {
         return false;
     }
@@ -69,7 +69,7 @@ bool XenoSecurityConfig::setMaxIfDepth(size_t depth) {
     return true;
 }
 
-bool XenoSecurityConfig::setMaxStackSize(size_t size) {
+bool XenoSecurityConfig::setMaxStackSize(uint16_t size) {
     if (!validateSizeLimit(size, MIN_STACK_SIZE, MAX_STACK_SIZE_LIMIT, "MAX_STACK_SIZE")) {
         return false;
     }

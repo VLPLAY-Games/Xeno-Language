@@ -49,12 +49,12 @@ public:
     
     const XenoSecurityConfig& getSecurityConfig() const;
     
-    bool setStringLimit(size_t length);
-    bool setVariableNameLimit(size_t length);
-    bool setExpressionDepth(size_t depth);
-    bool setLoopDepth(size_t depth);
-    bool setIfDepth(size_t depth);
-    bool setStackSize(size_t size);
+    bool setStringLimit(uint16_t length);
+    bool setVariableNameLimit(uint16_t length);
+    bool setExpressionDepth(uint16_t depth);
+    bool setLoopDepth(uint16_t depth);
+    bool setIfDepth(uint16_t depth);
+    bool setStackSize(uint16_t size);
     bool setAllowedPins(const std::vector<uint8_t>& pins);
     bool addAllowedPin(uint8_t pin);
     bool removeAllowedPin(uint8_t pin);
