@@ -90,17 +90,9 @@ class XenoLanguage {
     static constexpr uint8_t getMinPinNumber() { return XenoSecurityConfig::getMinPinNumber(); }
     static constexpr uint8_t getMaxPinNumber() { return XenoSecurityConfig::getMaxPinNumber(); }
 
-    static constexpr const char* getLanguageVersion() noexcept {
-        return xeno_language_version;
-    }
-
-    static constexpr const char* getLanguageDate() noexcept {
-        return xeno_language_date;
-    }
-
-    static constexpr const char* getLanguageName() noexcept {
-        return xeno_language_name;
-    }
+    static constexpr const char* getLanguageVersion() noexcept { return xeno_language_version; }
+    static constexpr const char* getLanguageDate() noexcept { return xeno_language_date; }
+    static constexpr const char* getLanguageName() noexcept { return xeno_language_name; }
 };
 
 #endif  // SRC_XENOLANGUAGE_H_

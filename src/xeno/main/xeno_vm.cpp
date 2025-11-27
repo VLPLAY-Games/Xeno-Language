@@ -821,8 +821,7 @@ void XenoVM::handleHALT(const XenoInstruction& instr) {
 XenoVM::XenoVM(XenoSecurityConfig& config)
     : security_config(config),
       security(config),
-      max_stack_size(config.getMaxStackSize())
-{
+      max_stack_size(config.getMaxStackSize()) {
     initializeDispatchTable();
 
     stack = new XenoValue[max_stack_size];
@@ -1008,7 +1007,6 @@ void XenoVM::dumpState() {
         Serial.print(type_str);
         Serial.print(" ");
         Serial.println(value_str);
-
     }
     Serial.println("}");
     Serial.println();

@@ -39,7 +39,8 @@ bool XenoSecurityConfig::setMaxStringLength(uint16_t length) {
 }
 
 bool XenoSecurityConfig::setMaxVariableNameLength(uint16_t length) {
-    if (!validateSizeLimit(length, MIN_VARIABLE_NAME_LENGTH, MAX_VARIABLE_NAME_LENGTH_LIMIT, "MAX_VARIABLE_NAME_LENGTH")) {
+    if (!validateSizeLimit(length, MIN_VARIABLE_NAME_LENGTH, 
+                            MAX_VARIABLE_NAME_LENGTH_LIMIT, "MAX_VARIABLE_NAME_LENGTH")) {
         return false;
     }
     max_variable_name_length = length;

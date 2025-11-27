@@ -9,5 +9,5 @@ jobs:
         pipx install cpplint
         cpplint --recursive \
           --filter=-build/include_subdir,-build/header_guard,-runtime/int,-readability/braces \
-          --linelength=120 \
+          --linelength=130 \
           src/

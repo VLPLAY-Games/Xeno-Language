@@ -25,13 +25,13 @@ class Debugger {
  protected:
     friend class XenoCompiler;
     friend class XenoVM;
-    static void disassemble(const std::vector<XenoInstruction>& instructions, 
+    static void disassemble(const std::vector<XenoInstruction>& instructions,
                           const std::vector<String>& string_table,
                           const String& title = "Disassembly",
                           bool show_string_table = false);
 
  private:
-    static void printInstruction(size_t index, const XenoInstruction& instr, 
+    static void printInstruction(size_t index, const XenoInstruction& instr,
                                const std::vector<String>& string_table);
 
     static void printStringArg(uint32_t arg, const std::vector<String>& string_table, bool quoted = true);

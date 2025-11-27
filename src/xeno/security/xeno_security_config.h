@@ -39,7 +39,7 @@ class XenoSecurityConfig {
 
     static constexpr uint16_t MIN_VARIABLE_NAME_LENGTH = 1;
     static constexpr uint16_t MAX_VARIABLE_NAME_LENGTH_LIMIT = 256;
-    
+
     static constexpr uint16_t MIN_EXPRESSION_DEPTH = 1;
     static constexpr uint16_t MAX_EXPRESSION_DEPTH_LIMIT = 256;
 
