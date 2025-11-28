@@ -32,7 +32,7 @@ class XenoLanguage {
 
     XenoCompiler* compiler = new XenoCompiler(security_config);
     XenoVM* vm = new XenoVM(security_config);
-    
+
     void recreateObjects();
 
  public:
