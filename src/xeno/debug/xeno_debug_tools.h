@@ -15,8 +15,8 @@
  */
 
 
-#ifndef SRC_XENO_DEBUG_H_
-#define SRC_XENO_DEBUG_H_
+#ifndef SRC_XENO_DEBUG_XENO_DEBUG_TOOLS_H_
+#define SRC_XENO_DEBUG_XENO_DEBUG_TOOLS_H_
 
 #include <vector>
 #include "../xeno_common.h"

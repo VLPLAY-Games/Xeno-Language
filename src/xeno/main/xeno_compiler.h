@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SRC_XENO_XENO_COMPILER_H_
-#define SRC_XENO_XENO_COMPILER_H_
+#ifndef SRC_XENO_MAIN_XENO_COMPILER_H_
+#define SRC_XENO_MAIN_XENO_COMPILER_H_
 
 #include <vector>
 #include <map>

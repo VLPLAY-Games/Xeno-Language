@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SRC_XENO_XENO_SECURITY_CONFIG_H_
-#define SRC_XENO_XENO_SECURITY_CONFIG_H_
+#ifndef SRC_XENO_SECURITY_XENO_SECURITY_CONFIG_H_
+#define SRC_XENO_SECURITY_XENO_SECURITY_CONFIG_H_
 
 #include <Arduino.h>
 #include <vector>
