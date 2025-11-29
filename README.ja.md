@@ -174,17 +174,61 @@ endif
 
 ## 仮想マシン（VM）
 
-- コンパイル済みバイトコードをランタイムスタック、変数テーブル、文字列テーブルを使って実行します。  
-- スタックオーバーフロー、無効オペコード、ゼロ除算、境界チェックなどの組み込み安全チェックを備えています。  
-- APIの主な機能（クラス `Xeno`）:
-  - `bool compile(const String& source)` — ソースをバイトコードにコンパイル。  
-  - `bool run()` — コンパイル済みバイトコードを実行。  
-  - `void step()` — 単一VM命令を実行。  
-  - `void stop()` — 実行を停止。  
-  - `bool isRunning() const` — 実行中かどうかをチェック。  
-  - `void printCompiledCode()` — バイトコード＋文字列テーブル／デバッグ情報を出力。  
-  - `void setMaxInstructions(uint32_t max_instr)` - VM命令上限を引き上げる  
-  - バージョン／情報取得子: `getLanguageVersion()`, `getCompilerVersion()`, `getVMVersion()`.
+* コンパイル済みバイトコードをランタイムスタック、変数テーブル、文字列テーブルを使って実行。
+* 組み込み安全チェック：スタックオーバーフロー、無効オペコード、ゼロ除算、境界チェック。
+* API（`class XenoLanguage`）:
+
+  * `bool compile(const String& source)` — ソースをバイトコードにコンパイル。
+  * `bool run()` — コンパイル済みバイトコードを実行。
+  * `void step()` — 単一のVM命令を実行。
+  * `void stop()` — 実行を停止。
+  * `bool isRunning() const` — 実行中か確認。
+  * `void printCompiledCode()` — バイトコード＋文字列テーブル／デバッグ情報を出力。
+  * `void setMaxInstructions(uint32_t max_instr)` — 命令上限を設定。
+
+  * `setStringLimit(256)`           // 最大文字列長  
+  * `setVariableNameLimit(32)`      // 変数名の最大長  
+  * `setExpressionDepth(32)`        // 式ネストの最大深さ  
+  * `setLoopDepth(16)`              // ループネストの最大深さ  
+  * `setIfDepth(16)`                // if/else ネストの最大深さ  
+  * `setStackSize(256)`             // スタックメモリサイズ  
+
+  * `setAllowedPins({2,3,13})`      // 許可ピン設定  
+  * `addAllowedPin(5)`              // ピン追加  
+  * `removeAllowedPin(13)`          // ピン削除  
+
+  * `compile_and_run("print 'Hello World'")` — コンパイル+即実行のラッパー。
+
+  * バージョン取得:  
+    `getLanguageVersion()`。
+
+---
+
+## セキュリティ & 制限
+
+### デフォルト設定
+
+* `max_string_length = 256`
+* `max_variable_name_length = 32`
+* `max_expression_depth = 32`
+* `max_loop_depth = 16`
+* `max_if_depth = 16`
+* `max_stack_size = 256`
+* `current_max_instructions = 10000`
+* `allowed_pins = { LED_BUILTIN }`
+
+### 最小／最大境界
+
+* `MIN_STRING_LENGTH = 1`, `MAX_STRING_LENGTH_LIMIT = 4096`
+* `MIN_VARIABLE_NAME_LENGTH = 1`, `MAX_VARIABLE_NAME_LENGTH_LIMIT = 256`
+* `MIN_EXPRESSION_DEPTH = 1`, `MAX_EXPRESSION_DEPTH_LIMIT = 256`
+* `MIN_LOOP_DEPTH = 1`, `MAX_LOOP_DEPTH_LIMIT = 64`
+* `MIN_IF_DEPTH = 1`, `MAX_IF_DEPTH_LIMIT = 64`
+* `MIN_STACK_SIZE = 16`, `MAX_STACK_SIZE_LIMIT = 2048`
+* `MIN_INSTRUCTIONS_LIMIT = 1000`, `MAX_INSTRUCTIONS_LIMIT = 1000000`
+* `MIN_PIN_NUMBER = 0`, `MAX_PIN_NUMBER = 255`
+
+> setterは境界外の値を拒否します。
 
 ---
 
@@ -204,19 +248,6 @@ OP_EQ, OP_NEQ, OP_LT, OP_GT, OP_LTE, OP_GTE,
 OP_HALT
 ```
 
-
----
-
-## セキュリティ & 制限
-
-ESP32を保護し実行時障害を避けるため、Xenoは保守的な制限を課しています:
-- `MAX_STRING_LENGTH` (256)  
-- `MAX_VARIABLE_NAME_LENGTH` (32)  
-- `MAX_EXPRESSION_DEPTH` (32)  
-- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (16)  
-- `MAX_STACK_SIZE` (256)  
-- 許可されるGPIOピンは `xeno_security.h` 内で制限されており、許可されていないピンの制御はブロックされます。  
-- バイトコードの検証はコンパイル／ロード時に行われます。
 
 ---
 

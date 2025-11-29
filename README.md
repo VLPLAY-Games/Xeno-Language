@@ -172,17 +172,61 @@ endif
 
 ## Virtual Machine (VM)
 
-- Executes compiled bytecode with a runtime stack, variable table, and string table.  
-- Built-in safety checks (stack overflow, invalid opcode, divide by zero, bounds checking).  
-- API highlights (class `Xeno`):
-  - `bool compile(const String& source)` — compile source to bytecode.  
-  - `bool run()` — execute compiled bytecode.  
-  - `void step()` — execute a single VM instruction.  
-  - `void stop()` — stop execution.  
-  - `bool isRunning() const` — check running state.  
-  - `void printCompiledCode()` — print bytecode + string table / debug info.  
-  - `void setMaxInstructions(uint32_t max_instr)` - raises the VM instruction limit
-  - Version/info getters: `getLanguageVersion()`, `getCompilerVersion()`, `getVMVersion()`.
+* Executes compiled bytecode using a runtime stack, variable table, and string table.
+* Built-in safety checks: stack overflow, invalid opcode, divide-by-zero, bounds checking.
+* API highlights (`class XenoLanguage`):
+
+  * `bool compile(const String& source)` — compile source to bytecode.
+  * `bool run()` — execute compiled bytecode.
+  * `void step()` — execute a single VM instruction.
+  * `void stop()` — stop execution.
+  * `bool isRunning() const` — check running state.
+  * `void printCompiledCode()` — print bytecode + string table / debug info.
+  * `void setMaxInstructions(uint32_t max_instr)` — raise instruction limit.
+
+  * `setStringLimit(256)`           // Max string length  
+  * `setVariableNameLimit(32)`      // Max variable name length  
+  * `setExpressionDepth(32)`        // Max expression nesting  
+  * `setLoopDepth(16)`              // Max loop nesting  
+  * `setIfDepth(16)`                // Max if/else nesting  
+  * `setStackSize(256)`             // Stack memory size  
+
+  * `setAllowedPins({2,3,13})`      // Configure allowed pins  
+  * `addAllowedPin(5)`              // Add pin  
+  * `removeAllowedPin(13)`          // Remove pin  
+
+  * `compile_and_run("print 'Hello World'")` — convenience wrapper.
+
+  * Version getters:  
+    `getLanguageVersion()`.
+
+---
+
+## Security & Limits
+
+### Default runtime settings
+
+* `max_string_length = 256`
+* `max_variable_name_length = 32`
+* `max_expression_depth = 32`
+* `max_loop_depth = 16`
+* `max_if_depth = 16`
+* `max_stack_size = 256`
+* `current_max_instructions = 10000`
+* `allowed_pins = { LED_BUILTIN }`
+
+### Bounds (minimum / maximum limits)
+
+* `MIN_STRING_LENGTH = 1`, `MAX_STRING_LENGTH_LIMIT = 4096`
+* `MIN_VARIABLE_NAME_LENGTH = 1`, `MAX_VARIABLE_NAME_LENGTH_LIMIT = 256`
+* `MIN_EXPRESSION_DEPTH = 1`, `MAX_EXPRESSION_DEPTH_LIMIT = 256`
+* `MIN_LOOP_DEPTH = 1`, `MAX_LOOP_DEPTH_LIMIT = 64`
+* `MIN_IF_DEPTH = 1`, `MAX_IF_DEPTH_LIMIT = 64`
+* `MIN_STACK_SIZE = 16`, `MAX_STACK_SIZE_LIMIT = 2048`
+* `MIN_INSTRUCTIONS_LIMIT = 1000`, `MAX_INSTRUCTIONS_LIMIT = 1000000`
+* `MIN_PIN_NUMBER = 0`, `MAX_PIN_NUMBER = 255`
+
+> All setters validate values; out-of-range values are rejected.
 
 ---
 
@@ -201,19 +245,6 @@ OP_PUSH_FLOAT, OP_PUSH_STRING, OP_PUSH_BOOL,
 OP_EQ, OP_NEQ, OP_LT, OP_GT, OP_LTE, OP_GTE,
 OP_HALT
 ```
-
----
-
-## Security & Limits
-
-To protect the ESP32 and avoid runtime faults, Xeno enforces conservative limits:
-- `MAX_STRING_LENGTH` (256)  
-- `MAX_VARIABLE_NAME_LENGTH` (32)  
-- `MAX_EXPRESSION_DEPTH` (32)  
-- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (16)  
-- `MAX_STACK_SIZE` (256)  
-- Allowed GPIO pins are restricted and defined in `xeno_security.h` — attempts to control unauthorized pins are blocked.  
-- Bytecode validation is performed at compile/load time.
 
 ---
 

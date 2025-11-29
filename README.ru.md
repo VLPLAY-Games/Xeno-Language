@@ -172,19 +172,63 @@ endif
 
 ## Виртуальная машина (VM)
 
-- Выполняет скомпилированный байткод с использованием runtime-стека, таблицы переменных и таблицы строк.  
-- Встроенные проверки безопасности (переполнение стека, неверная операция, деление на ноль, проверка границ).  
-- Основные API (класс `Xeno`):
-  - `bool compile(const String& source)` — компиляция исходника в байткод.  
-  - `bool run()` — выполнение скомпилированного байткода.  
-  - `void step()` — выполнение одной инструкции VM.  
-  - `void stop()` — останов выполнения.  
-  - `bool isRunning() const` — проверка состояния выполнения.  
-  - `void printCompiledCode()` — вывод байткода и таблицы строк / отладочной информации.  
-  - `void setMaxInstructions(uint32_t max_instr)` - увеличение лимита инструкций VM
-  - Получение информации/версий: `getLanguageVersion()`, `getCompilerVersion()`, `getVMVersion()`.
+* Выполняет скомпилированный байткод с runtime-стеком, таблицей переменных и таблицей строк.
+* Встроенные проверки: переполнение стека, неверная операция, деление на ноль, проверка границ.
+* API (`class XenoLanguage`):
+
+  * `bool compile(const String& source)` — компилирует исходник в байткод.
+  * `bool run()` — выполняет байткод.
+  * `void step()` — выполняет одну инструкцию.
+  * `void stop()` — останавливает выполнение.
+  * `bool isRunning() const` — проверяет состояние выполнения.
+  * `void printCompiledCode()` — печать байткода и таблицы строк.
+  * `void setMaxInstructions(uint32_t max_instr)` — устанавливает предел инструкций.
+
+  * `setStringLimit(256)`           // Макс. длина строки  
+  * `setVariableNameLimit(32)`      // Макс. длина имени переменной  
+  * `setExpressionDepth(32)`        // Макс. глубина выражений  
+  * `setLoopDepth(16)`              // Макс. глубина циклов  
+  * `setIfDepth(16)`                // Макс. глубина if/else  
+  * `setStackSize(256)`             // Размер стека  
+
+  * `setAllowedPins({2,3,13})`      // Настройка разрешённых пинов  
+  * `addAllowedPin(5)`              // Добавить пин  
+  * `removeAllowedPin(13)`          // Удалить пин  
+
+  * `compile_and_run("print 'Hello World'")` — обёртка для компиляции и немедленного запуска.
+
+  * Получение версий:  
+    `getLanguageVersion()`.
 
 ---
+
+## Безопасность и ограничения
+
+### Значения по умолчанию
+
+* `max_string_length = 256`
+* `max_variable_name_length = 32`
+* `max_expression_depth = 32`
+* `max_loop_depth = 16`
+* `max_if_depth = 16`
+* `max_stack_size = 256`
+* `current_max_instructions = 10000`
+* `allowed_pins = { LED_BUILTIN }`
+
+### Минимальные / максимальные пределы
+
+* `MIN_STRING_LENGTH = 1`, `MAX_STRING_LENGTH_LIMIT = 4096`
+* `MIN_VARIABLE_NAME_LENGTH = 1`, `MAX_VARIABLE_NAME_LENGTH_LIMIT = 256`
+* `MIN_EXPRESSION_DEPTH = 1`, `MAX_EXPRESSION_DEPTH_LIMIT = 256`
+* `MIN_LOOP_DEPTH = 1`, `MAX_LOOP_DEPTH_LIMIT = 64`
+* `MIN_IF_DEPTH = 1`, `MAX_IF_DEPTH_LIMIT = 64`
+* `MIN_STACK_SIZE = 16`, `MAX_STACK_SIZE_LIMIT = 2048`
+* `MIN_INSTRUCTIONS_LIMIT = 1000`, `MAX_INSTRUCTIONS_LIMIT = 1000000`
+* `MIN_PIN_NUMBER = 0`, `MAX_PIN_NUMBER = 255`
+
+> Все setter-ы проверяют диапазоны и отклоняют неверные значения.
+
+--- 
 
 ## Байткод / Операнды (кратко)
 
@@ -201,19 +245,6 @@ OP_PUSH_FLOAT, OP_PUSH_STRING, OP_PUSH_BOOL,
 OP_EQ, OP_NEQ, OP_LT, OP_GT, OP_LTE, OP_GTE,
 OP_HALT
 ```
-
----
-
-## Безопасность и ограничения
-
-Чтобы защитить ESP32 и избежать сбоев во время выполнения, Xeno накладывает консервативные ограничения:
-- `MAX_STRING_LENGTH` (256)  
-- `MAX_VARIABLE_NAME_LENGTH` (32)  
-- `MAX_EXPRESSION_DEPTH` (32)  
-- `MAX_LOOP_DEPTH`, `MAX_IF_DEPTH` (16)  
-- `MAX_STACK_SIZE` (256)  
-- Разрешённые GPIO-пины ограничены и определены в `xeno_security.h` — попытки управления неразрешёнными пинами блокируются.  
-- Проверка байткода выполняется на этапе компиляции/загрузки.
 
 ---
 
