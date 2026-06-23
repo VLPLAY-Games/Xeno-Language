@@ -20,7 +20,6 @@
 #include "xeno_compiler.h"
 #include "../debug/xeno_debug_tools.h"
 
-
 const XenoCompiler::Constant XenoCompiler::constants[] = {
     {"M_PI", "3.141592653589793"},
     {"M_E", "2.718281828459045"},
@@ -254,6 +253,10 @@ int XenoCompiler::getPrecedence(const String& op) {
     if (op == "*" || op == "/" || op == "%") return 3;
     if (op == "+" || op == "-") return 2;
     if (isComparisonOperator(op)) return 1;
+    // Логические операторы
+    if (op == "&&") return 2;  // чуть выше сравнений
+    if (op == "||") return 1;
+    // Унарные операторы обрабатываются отдельно
     return 0;
 }
 
@@ -277,6 +280,19 @@ String XenoCompiler::processFunctions(const String& expr) {
         int pos = result.indexOf(func.name);
 
         while (pos >= 0 && depth < security_config.getMaxExpressionDepth()) {
+            // Проверяем изоляцию имени функции
+            bool isolated = true;
+            if (pos > 0) {
+                char prev = result[pos - 1];
+                if (isalnum(prev) || prev == '_') {
+                    isolated = false;
+                }
+            }
+            if (!isolated) {
+                pos = result.indexOf(func.name, pos + 1);
+                continue;
+            }
+
             int endPos = findMatchingParenthesis(result, pos + strlen(func.name) - 1);
             if (endPos > pos) {
                 String inner = result.substring(pos + strlen(func.name), endPos);
@@ -320,6 +336,8 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
         return output;
     }
 
+    bool expect_operand = true;
+
     for (const String& token : tokens) {
         if (isInteger(token) || isFloat(token) || isBool(token) || isQuotedString(token) ||
             isValidVariable(token) ||
@@ -328,15 +346,38 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
             (token.startsWith("|") && token.endsWith("|")) ||
             (token.startsWith("~") && token.endsWith("~"))) {
             output.push_back(token);
-        } else if (token == "(") {
+            expect_operand = false;
+        }
+        else if (token == "(") {
             operators.push(token);
-        } else if (token == ")") {
+            expect_operand = true;
+        }
+        else if (token == ")") {
             while (!operators.empty() && operators.top() != "(") {
                 output.push_back(operators.top());
                 operators.pop();
             }
             if (!operators.empty()) operators.pop();
-        } else {
+            expect_operand = false;
+        }
+        else if (token == "!" || token == "-") {
+            if (expect_operand) {
+                operators.push(token == "!" ? "UNARY_NOT" : "UNARY_NEG");
+            } else {
+                int token_precedence = getPrecedence(token);
+                while (!operators.empty() &&
+                        operators.top() != "(" &&
+                        (getPrecedence(operators.top()) > token_precedence ||
+                        (getPrecedence(operators.top()) == token_precedence &&
+                        !isRightAssociative(token))))  {
+                    output.push_back(operators.top());
+                    operators.pop();
+                }
+                operators.push(token);
+                expect_operand = true;
+            }
+        }
+        else {
             int token_precedence = getPrecedence(token);
             while (!operators.empty() &&
                     operators.top() != "(" &&
@@ -347,6 +388,7 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
                 operators.pop();
             }
             operators.push(token);
+            expect_operand = true;
         }
     }
 
@@ -433,7 +475,8 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
         if (i + 1 < expr.length()) {
             String twoChar = expr.substring(i, i + 2);
             if (twoChar == "==" || twoChar == "!=" ||
-                twoChar == "<=" || twoChar == ">=")  {
+                twoChar == "<=" || twoChar == ">=" ||
+                twoChar == "&&" || twoChar == "||") {
                 if (!currentToken.isEmpty()) {
                     tokens.push_back(currentToken);
                     currentToken = "";
@@ -446,7 +489,7 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
 
         if (c == '+' || c == '-' || c == '*' || c == '/' ||
             c == '%' || c == '^' || c == '<' || c == '>' ||
-            c == '(' || c == ')') {
+            c == '(' || c == ')' || c == '!' || c == '[' || c == ']') {
             if (!currentToken.isEmpty()) {
                 tokens.push_back(currentToken);
                 currentToken = "";
@@ -464,6 +507,7 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
     return tokens;
 }
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ compilePostfix
 void XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
     if (postfix.size() > 100) {
         Serial.println("ERROR: Postfix expression too complex");
@@ -471,26 +515,54 @@ void XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
     }
 
     for (const String& token : postfix) {
+        // ---- ОПЕРАНДЫ ----
         if (isInteger(token)) {
             int32_t value = token.toInt();
             emitInstruction(OP_PUSH, static_cast<uint32_t>(value));
-        } else if (isFloat(token)) {
+        }
+        else if (isFloat(token)) {
             float fval = token.toFloat();
             uint32_t fbits;
             memcpy(&fbits, &fval, sizeof(float));
             emitInstruction(OP_PUSH_FLOAT, fbits);
-        } else if (isBool(token)) {
+        }
+        else if (isBool(token)) {
             bool bval = (token == "true");
             emitInstruction(OP_PUSH_BOOL, bval);
-        } else if (isQuotedString(token)) {
+        }
+        else if (isQuotedString(token)) {
             String str = token.substring(1, token.length() - 1);
             if (!validateString(str)) str = "";
             int str_id = addString(str);
             emitInstruction(OP_PUSH_STRING, str_id);
-        } else if (isValidVariable(token)) {
+        }
+        else if (token == "UNARY_NOT") {
+            emitInstruction(OP_NOT);
+        }
+        else if (token == "UNARY_NEG") {
+            emitInstruction(OP_NEG);
+        }
+        else if (isValidVariable(token)) {
             int var_index = getVariableIndex(token);
             emitInstruction(OP_LOAD, var_index);
-        } else {
+        }
+        // ---- ОПЕРАТОРЫ (бинарные и унарные) ----
+        else if (token == "+") emitInstruction(OP_ADD);
+        else if (token == "-") emitInstruction(OP_SUB);
+        else if (token == "*") emitInstruction(OP_MUL);
+        else if (token == "/") emitInstruction(OP_DIV);
+        else if (token == "%") emitInstruction(OP_MOD);
+        else if (token == "^") emitInstruction(OP_POW);
+        else if (token == "==") emitInstruction(OP_EQ);
+        else if (token == "!=") emitInstruction(OP_NEQ);
+        else if (token == "<") emitInstruction(OP_LT);
+        else if (token == ">") emitInstruction(OP_GT);
+        else if (token == "<=") emitInstruction(OP_LTE);
+        else if (token == ">=") emitInstruction(OP_GTE);
+        else if (token == "&&") emitInstruction(OP_AND);
+        else if (token == "||") emitInstruction(OP_OR);
+        // ---- МАТЕМАТИЧЕСКИЕ ФУНКЦИИ (специальные скобки) ----
+        else {
             bool function_processed = false;
             for (size_t i = 0; i < math_functions_count; i++) {
                 const FunctionInfo& func = math_functions[i];
@@ -501,20 +573,9 @@ void XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
                     break;
                 }
             }
-
             if (!function_processed) {
-                if (token == "+") emitInstruction(OP_ADD);
-                else if (token == "-") emitInstruction(OP_SUB);
-                else if (token == "*") emitInstruction(OP_MUL);
-                else if (token == "/") emitInstruction(OP_DIV);
-                else if (token == "%") emitInstruction(OP_MOD);
-                else if (token == "^") emitInstruction(OP_POW);
-                else if (token == "==") emitInstruction(OP_EQ);
-                else if (token == "!=") emitInstruction(OP_NEQ);
-                else if (token == "<") emitInstruction(OP_LT);
-                else if (token == ">") emitInstruction(OP_GT);
-                else if (token == "<=") emitInstruction(OP_LTE);
-                else if (token == ">=") emitInstruction(OP_GTE);
+                Serial.print("ERROR: Unknown operator in expression: ");
+                Serial.println(token);
             }
         }
     }
@@ -543,7 +604,13 @@ XenoDataType XenoCompiler::determineValueType(const String& value) {
     if (isBool(value)) return TYPE_BOOL;
     if (isValidVariable(value)) {
         auto it = variable_map.find(value);
-        return it != variable_map.end() ? it->second.type : TYPE_INT;
+        if (it != variable_map.end()) {
+            return it->second.type;
+        }
+        if (is_array.find(value) != is_array.end()) {
+            return TYPE_ARRAY;
+        }
+        return TYPE_INT;
     }
     return TYPE_INT;
 }
@@ -566,6 +633,8 @@ XenoValue XenoCompiler::createValueFromString(const String& str, XenoDataType ty
         case TYPE_BOOL:
             value.bool_val = (str == "true");
             break;
+        case TYPE_ARRAY:
+            break;
     }
     return value;
 }
@@ -581,6 +650,251 @@ void XenoCompiler::emitInstruction(uint8_t opcode, uint32_t arg1, uint16_t arg2)
 int XenoCompiler::getCurrentAddress() {
     return bytecode.size();
 }
+
+// ---- НОВЫЕ ОБРАБОТЧИКИ КОМАНД ----
+
+void XenoCompiler::handleArrayCommand(const String& args, int line_number) {
+    // Синтаксис: array new <name> <size>   или   array set <name> <index> <value>   или   array get <name> <index>   или   array len <name>
+    int firstSpace = args.indexOf(' ');
+    if (firstSpace < 0) {
+        Serial.print("ERROR: Invalid array command at line ");
+        Serial.println(line_number);
+        return;
+    }
+    String subCmd = args.substring(0, firstSpace);
+    subCmd.toLowerCase();
+    String rest = args.substring(firstSpace + 1);
+    rest.trim();
+
+    if (subCmd == "new") {
+        // array new <name> <size>
+        int secondSpace = rest.indexOf(' ');
+        if (secondSpace < 0) {
+            Serial.print("ERROR: array new requires name and size at line ");
+            Serial.println(line_number);
+            return;
+        }
+        String var_name = rest.substring(0, secondSpace);
+        String sizeStr = rest.substring(secondSpace + 1);
+        var_name.trim();
+        sizeStr.trim();
+        if (!validateVariableName(var_name)) {
+            Serial.print("ERROR: Invalid array name at line ");
+            Serial.println(line_number);
+            return;
+        }
+        if (!isInteger(sizeStr)) {
+            Serial.print("ERROR: Array size must be integer at line ");
+            Serial.println(line_number);
+            return;
+        }
+        int size = sizeStr.toInt();
+        if (size < 0 || size > 1024) {
+            Serial.print("ERROR: Array size out of range at line ");
+            Serial.println(line_number);
+            return;
+        }
+        // Генерируем код: PUSH size, ARRAY_NEW, STORE var_name
+        emitInstruction(OP_PUSH, static_cast<uint32_t>(size));
+        emitInstruction(OP_ARRAY_NEW);
+        int var_index = getVariableIndex(var_name);
+        emitInstruction(OP_STORE, var_index);
+        // Помечаем переменную как массив
+        is_array[var_name] = true;
+    }
+    else if (subCmd == "set") {
+        // array set <name> <index> <value>
+        int first = rest.indexOf(' ');
+        if (first < 0) {
+            Serial.print("ERROR: array set requires name, index and value at line ");
+            Serial.println(line_number);
+            return;
+        }
+        String var_name = rest.substring(0, first);
+        String rest2 = rest.substring(first + 1);
+        rest2.trim();
+        int second = rest2.indexOf(' ');
+        if (second < 0) {
+            Serial.print("ERROR: array set requires index and value at line ");
+            Serial.println(line_number);
+            return;
+        }
+        String indexStr = rest2.substring(0, second);
+        String valueStr = rest2.substring(second + 1);
+        indexStr.trim();
+        valueStr.trim();
+        if (!validateVariableName(var_name)) {
+            Serial.print("ERROR: Invalid array name at line ");
+            Serial.println(line_number);
+            return;
+        }
+        if (!isInteger(indexStr)) {
+            Serial.print("ERROR: Array index must be integer at line ");
+            Serial.println(line_number);
+            return;
+        }
+        int index = indexStr.toInt();
+        // Загружаем массив
+        int var_index = getVariableIndex(var_name);
+        emitInstruction(OP_LOAD, var_index);
+        // Индекс
+        emitInstruction(OP_PUSH, static_cast<uint32_t>(index));
+        // Значение (выражение)
+        compileExpression(valueStr);
+        emitInstruction(OP_ARRAY_SET);
+    }
+    else if (subCmd == "get") {
+        // array get <name> <index>
+        int space = rest.indexOf(' ');
+        if (space < 0) {
+            Serial.print("ERROR: array get requires name and index at line ");
+            Serial.println(line_number);
+            return;
+        }
+        String var_name = rest.substring(0, space);
+        String indexStr = rest.substring(space + 1);
+        var_name.trim();
+        indexStr.trim();
+        if (!validateVariableName(var_name)) {
+            Serial.print("ERROR: Invalid array name at line ");
+            Serial.println(line_number);
+            return;
+        }
+        if (!isInteger(indexStr)) {
+            Serial.print("ERROR: Array index must be integer at line ");
+            Serial.println(line_number);
+            return;
+        }
+        int index = indexStr.toInt();
+        int var_index = getVariableIndex(var_name);
+        emitInstruction(OP_LOAD, var_index);
+        emitInstruction(OP_PUSH, static_cast<uint32_t>(index));
+        emitInstruction(OP_ARRAY_GET);
+    }
+    else if (subCmd == "len") {
+        // array len <name>
+        String var_name = rest;
+        var_name.trim();
+        if (!validateVariableName(var_name)) {
+            Serial.print("ERROR: Invalid array name at line ");
+            Serial.println(line_number);
+            return;
+        }
+        int var_index = getVariableIndex(var_name);
+        emitInstruction(OP_LOAD, var_index);
+        emitInstruction(OP_ARRAY_LEN);
+    }
+    else {
+        Serial.print("ERROR: Unknown array subcommand at line ");
+        Serial.println(line_number);
+    }
+}
+
+void XenoCompiler::handleAnalogRead(const String& args, int line_number) {
+    // analogRead <pin>
+    String pinStr = args;
+    pinStr.trim();
+    if (!isInteger(pinStr)) {
+        Serial.print("ERROR: analogRead requires pin number at line ");
+        Serial.println(line_number);
+        return;
+    }
+    uint8_t pin = pinStr.toInt();
+    if (!security.isPinAllowed(pin)) {
+        Serial.print("ERROR: Pin not allowed at line ");
+        Serial.println(line_number);
+        return;
+    }
+    emitInstruction(OP_ANALOG_READ, pin);
+}
+
+void XenoCompiler::handleAnalogWrite(const String& args, int line_number) {
+    // analogWrite <pin> <value>
+    int space = args.indexOf(' ');
+    if (space < 0) {
+        Serial.print("ERROR: analogWrite requires pin and value at line ");
+        Serial.println(line_number);
+        return;
+    }
+    String pinStr = args.substring(0, space);
+    String valStr = args.substring(space + 1);
+    pinStr.trim();
+    valStr.trim();
+    if (!isInteger(pinStr)) {
+        Serial.print("ERROR: analogWrite pin must be integer at line ");
+        Serial.println(line_number);
+        return;
+    }
+    uint8_t pin = pinStr.toInt();
+    if (!security.isPinAllowed(pin)) {
+        Serial.print("ERROR: Pin not allowed at line ");
+        Serial.println(line_number);
+        return;
+    }
+    // Значение может быть числом или выражением
+    compileExpression(valStr);
+    emitInstruction(OP_ANALOG_WRITE, pin);
+}
+
+void XenoCompiler::handleDigitalRead(const String& args, int line_number) {
+    // digitalRead <pin>
+    String pinStr = args;
+    pinStr.trim();
+    if (!isInteger(pinStr)) {
+        Serial.print("ERROR: digitalRead requires pin number at line ");
+        Serial.println(line_number);
+        return;
+    }
+    uint8_t pin = pinStr.toInt();
+    if (!security.isPinAllowed(pin)) {
+        Serial.print("ERROR: Pin not allowed at line ");
+        Serial.println(line_number);
+        return;
+    }
+    emitInstruction(OP_DIGITAL_READ, pin);
+}
+
+void XenoCompiler::handleSetCommand(const String& args, int line_number) {
+    // set <var> <expression>   или   set <array> [ <index> ] <expression>   (пока не реализовано)
+    // Пока поддерживается только set var expr
+    int space = args.indexOf(' ');
+    if (space < 0) {
+        Serial.print("ERROR: Invalid SET command at line ");
+        Serial.println(line_number);
+        return;
+    }
+    String var_name = args.substring(0, space);
+    String expression = args.substring(space + 1);
+    var_name.trim();
+    expression.trim();
+
+    if (!validateVariableName(var_name)) {
+        Serial.print("ERROR: Invalid variable name '");
+        Serial.print(var_name);
+        Serial.print("' at line ");
+        Serial.print(line_number);
+        return;
+    }
+
+    // Проверяем, не является ли переменная массивом (тогда используем array set)
+    if (is_array.find(var_name) != is_array.end()) {
+        // Если это массив, то синтаксис должен быть: set <array> <index> <value>
+        // Но мы не поддерживаем это в set, используем array set
+        Serial.print("ERROR: Use 'array set' for array elements at line ");
+        Serial.println(line_number);
+        return;
+    }
+
+    XenoDataType value_type = determineValueType(expression);
+    if (isInteger(expression) || isFloat(expression) || isQuotedString(expression) || isBool(expression)) {
+        variable_map[var_name] = createValueFromString(expression, value_type);
+    }
+
+    compileExpression(expression);
+    emitInstruction(OP_STORE, getVariableIndex(var_name));
+}
+
+// ---- КОНЕЦ НОВЫХ ОБРАБОТЧИКОВ ----
 
 void XenoCompiler::compileLine(const String& line, int line_number) {
     String cleanedLine = cleanLine(line);
@@ -608,6 +922,24 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
     }
 
     if (simple_command_found) {
+        return;
+    }
+
+    // Обработка новых команд
+    if (command == "array") {
+        handleArrayCommand(args, line_number);
+        return;
+    }
+    if (command == "analogread") {
+        handleAnalogRead(args, line_number);
+        return;
+    }
+    if (command == "analogwrite") {
+        handleAnalogWrite(args, line_number);
+        return;
+    }
+    if (command == "digitalread") {
+        handleDigitalRead(args, line_number);
         return;
     }
 
@@ -701,32 +1033,9 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
         int var_index = getVariableIndex(var_name);
         emitInstruction(OP_INPUT, var_index);
     } else if (command == "set") {
-        int space1 = args.indexOf(' ');
-        if (space1 > 0) {
-            String var_name = args.substring(0, space1);
-            String expression = args.substring(space1 + 1);
-
-            if (!validateVariableName(var_name)) {
-                Serial.print("ERROR: Invalid variable name '");
-                Serial.print(var_name);
-                Serial.print("' at line ");
-                Serial.print(line_number);
-                return;
-            }
-
-            XenoDataType value_type = determineValueType(expression);
-            if (isInteger(expression) || isFloat(expression) || isQuotedString(expression) || isBool(expression)) {
-                variable_map[var_name] = createValueFromString(expression, value_type);
-            }
-
-            compileExpression(expression);
-            emitInstruction(OP_STORE, getVariableIndex(var_name));
-        } else {
-            Serial.print("ERROR: Invalid SET command at line ");
-            Serial.println(line_number);
-        }
+        handleSetCommand(args, line_number);
     } else if (command == "if") {
-        if (if_stack.size() >= security_config.getMaxIfDepth()) {
+        if (if_chain_stack.size() >= security_config.getMaxIfDepth()) {
             Serial.print("ERROR: IF nesting too deep at line ");
             Serial.println(line_number);
             return;
@@ -739,37 +1048,92 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
 
             int jump_addr = getCurrentAddress();
             emitInstruction(OP_JUMP_IF, 0);
-            if_stack.push_back(jump_addr);
+            // Создаём новый контекст if
+            IfContext ctx;
+            ctx.if_jumps.push_back(jump_addr);
+            if_chain_stack.push_back(ctx);
         } else {
             Serial.print("ERROR: Invalid IF command at line ");
             Serial.println(line_number);
         }
     } else if (command == "else") {
-        if (!if_stack.empty()) {
-            int else_jump_addr = getCurrentAddress();
-            emitInstruction(OP_JUMP, 0);
-
-            int if_jump_addr = if_stack.back();
-            if (if_jump_addr < bytecode.size()) {
-                bytecode[if_jump_addr].arg1 = getCurrentAddress();
-            }
-
-            if_stack.pop_back();
-            if_stack.push_back(else_jump_addr);
-        } else {
+        if (if_chain_stack.empty()) {
             Serial.print("ERROR: ELSE without IF at line ");
             Serial.println(line_number);
+            return;
+        }
+
+        // Проверяем, не является ли это "else if"
+        String trimmedArgs = args;
+        trimmedArgs.trim();
+        if (trimmedArgs.startsWith("if")) {
+            // else if
+            // Генерируем безусловный переход на конец всей конструкции (пока неизвестно)
+            int jump_else = getCurrentAddress();
+            emitInstruction(OP_JUMP, 0);
+            // Исправляем последний условный переход текущего контекста на текущий адрес (начало else if)
+            IfContext& ctx = if_chain_stack.back();
+            if (!ctx.if_jumps.empty()) {
+                int last_if = ctx.if_jumps.back();
+                bytecode[last_if].arg1 = getCurrentAddress();
+            } else {
+                Serial.print("ERROR: No if jump to fix at line ");
+                Serial.println(line_number);
+                return;
+            }
+            // Сохраняем безусловный переход для исправления позже
+            ctx.else_jumps.push_back(jump_else);
+            // Теперь обрабатываем новый if (условие else if)
+            // Извлекаем условие из args: после "if" должно быть " ... then"
+            String rest = trimmedArgs.substring(2); // после "if"
+            rest.trim();
+            int thenPos = rest.indexOf(" then");
+            if (thenPos > 0) {
+                String condition = rest.substring(0, thenPos);
+                compileExpression(condition);
+                int jump_addr = getCurrentAddress();
+                emitInstruction(OP_JUMP_IF, 0);
+                ctx.if_jumps.push_back(jump_addr);
+            } else {
+                Serial.print("ERROR: Invalid ELSE IF command at line ");
+                Serial.println(line_number);
+            }
+        } else {
+            // Обычный else
+            // Генерируем безусловный переход
+            int jump_else = getCurrentAddress();
+            emitInstruction(OP_JUMP, 0);
+            // Исправляем последний условный переход текущего контекста на текущий адрес (начало else)
+            IfContext& ctx = if_chain_stack.back();
+            if (!ctx.if_jumps.empty()) {
+                int last_if = ctx.if_jumps.back();
+                bytecode[last_if].arg1 = getCurrentAddress();
+            } else {
+                Serial.print("ERROR: No if jump to fix at line ");
+                Serial.println(line_number);
+                return;
+            }
+            ctx.else_jumps.push_back(jump_else);
         }
     } else if (command == "endif") {
-        if (!if_stack.empty()) {
-            int jump_addr = if_stack.back();
-            if (jump_addr < bytecode.size()) {
-                bytecode[jump_addr].arg1 = getCurrentAddress();
-            }
-            if_stack.pop_back();
-        } else {
+        if (if_chain_stack.empty()) {
             Serial.print("ERROR: ENDIF without IF at line ");
             Serial.println(line_number);
+            return;
+        }
+        IfContext ctx = if_chain_stack.back();
+        if_chain_stack.pop_back();
+        // Исправляем все условные и безусловные переходы на текущий адрес
+        int end_addr = getCurrentAddress();
+        for (int addr : ctx.if_jumps) {
+            if (addr < bytecode.size()) {
+                bytecode[addr].arg1 = end_addr;
+            }
+        }
+        for (int addr : ctx.else_jumps) {
+            if (addr < bytecode.size()) {
+                bytecode[addr].arg1 = end_addr;
+            }
         }
     } else if (command == "for") {
         if (loop_stack.size() >= security_config.getMaxLoopDepth()) {
@@ -858,7 +1222,7 @@ XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     : security_config(config), security(config) {
     bytecode.reserve(128);
     string_table.reserve(32);
-    if_stack.reserve(security_config.getMaxIfDepth());
+    if_chain_stack.reserve(security_config.getMaxIfDepth());
     loop_stack.reserve(security_config.getMaxLoopDepth());
 }
 
@@ -866,7 +1230,8 @@ void XenoCompiler::compile(const String& source_code) {
     bytecode.clear();
     string_table.clear();
     variable_map.clear();
-    if_stack.clear();
+    is_array.clear();
+    if_chain_stack.clear();
     loop_stack.clear();
 
     int line_number = 0;

@@ -46,5 +46,12 @@ XenoValue XenoValue::makeBool(bool val) {
     return v;
 }
 
+XenoValue XenoValue::makeArray(uint16_t arr_idx) {
+    XenoValue v;
+    v.type = TYPE_ARRAY;
+    v.array_index = arr_idx;
+    return v;
+}
+
 XenoInstruction::XenoInstruction(uint8_t op, uint32_t a1, uint16_t a2)
     : opcode(op), arg1(a1), arg2(a2) {}

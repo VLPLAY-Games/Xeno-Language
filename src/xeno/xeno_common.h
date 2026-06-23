@@ -56,6 +56,20 @@ enum XenoOpcodes {
     OP_SIN = 32,
     OP_COS = 33,
     OP_TAN = 34,
+
+    // Новые опкоды
+    OP_AND = 35,
+    OP_OR  = 36,
+    OP_NOT = 37,
+    OP_NEG = 38,               // унарный минус
+    OP_ARRAY_NEW = 39,
+    OP_ARRAY_GET = 40,
+    OP_ARRAY_SET = 41,
+    OP_ARRAY_LEN = 42,
+    OP_ANALOG_READ  = 43,
+    OP_ANALOG_WRITE = 44,
+    OP_DIGITAL_READ = 45,
+
     OP_HALT = 255
 };
 
@@ -64,7 +78,8 @@ enum XenoDataType {
     TYPE_INT = 0,
     TYPE_FLOAT = 1,
     TYPE_STRING = 2,
-    TYPE_BOOL = 3
+    TYPE_BOOL = 3,
+    TYPE_ARRAY = 4      // новый тип для массива
 };
 
 // Value structure that can hold different data types
@@ -75,6 +90,7 @@ struct XenoValue {
         float float_val;
         uint16_t string_index;
         bool bool_val;
+        uint16_t array_index;   // индекс массива в глобальной таблице
     };
 
     XenoValue();
@@ -83,6 +99,7 @@ struct XenoValue {
     static XenoValue makeFloat(float val);
     static XenoValue makeString(uint16_t str_idx);
     static XenoValue makeBool(bool val);
+    static XenoValue makeArray(uint16_t arr_idx);
 };
 
 // Bytecode instruction structure
@@ -102,6 +119,12 @@ struct LoopInfo {
     int start_address;
     int condition_address;
     int end_jump_address;
+};
+
+// Структура для хранения контекста цепочки if-else if-else
+struct IfContext {
+    std::vector<int> if_jumps;    // адреса JUMP_IF для каждого условия
+    std::vector<int> else_jumps;  // адреса JUMP (безусловных) для пропуска
 };
 
 #endif  // SRC_XENO_XENO_COMMON_H_

@@ -69,7 +69,8 @@ bool XenoSecurity::verifyBytecode(const std::vector<XenoInstruction>& bytecode,
     for (size_t i = 0; i < bytecode.size(); i++) {
         const XenoInstruction& instr = bytecode[i];
 
-        if (instr.opcode > 34 && instr.opcode != 255) {
+        // Разрешаем все опкоды от 0 до 45, а также HALT (255)
+        if (instr.opcode > 45 && instr.opcode != 255) {
             Serial.print("SECURITY: Invalid opcode at instruction ");
             Serial.println(i);
             return false;
@@ -93,7 +94,9 @@ bool XenoSecurity::verifyBytecode(const std::vector<XenoInstruction>& bytecode,
             }
         }
 
-        if (instr.opcode == OP_LED_ON || instr.opcode == OP_LED_OFF) {
+        if (instr.opcode == OP_LED_ON || instr.opcode == OP_LED_OFF ||
+            instr.opcode == OP_ANALOG_READ || instr.opcode == OP_ANALOG_WRITE ||
+            instr.opcode == OP_DIGITAL_READ) {
             if (!isPinAllowed(instr.arg1)) {
                 Serial.print("SECURITY: Unauthorized pin access at instruction ");
                 Serial.println(i);

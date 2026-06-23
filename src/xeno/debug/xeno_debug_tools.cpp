@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 #include <vector>
 #include "xeno_debug_tools.h"
 
@@ -74,6 +73,25 @@ void Debugger::printInstruction(size_t index, const XenoInstruction& instr,
         case OP_COS: mnemonic = "COS"; break;
         case OP_TAN: mnemonic = "TAN"; break;
         case OP_HALT: mnemonic = "HALT"; break;
+        case OP_AND: mnemonic = "AND"; break;
+        case OP_OR:  mnemonic = "OR"; break;
+        case OP_NOT: mnemonic = "NOT"; break;
+        case OP_NEG: mnemonic = "NEG"; break;
+        case OP_ARRAY_NEW: mnemonic = "ARRAY_NEW"; break;
+        case OP_ARRAY_GET: mnemonic = "ARRAY_GET"; break;
+        case OP_ARRAY_SET: mnemonic = "ARRAY_SET"; break;
+        case OP_ARRAY_LEN: mnemonic = "ARRAY_LEN"; break;
+        case OP_ANALOG_READ: mnemonic = "ANALOG_READ"; break;
+        case OP_DIGITAL_READ: mnemonic = "DIGITAL_READ"; break;
+
+        // OP_ANALOG_WRITE имеет аргументы, поэтому обрабатываем отдельно
+        case OP_ANALOG_WRITE:
+            Serial.print("ANALOG_WRITE pin=");
+            Serial.print(instr.arg1);
+            Serial.print(" val=");
+            Serial.print(instr.arg2);
+            hasArg = true;
+            break;
 
         case OP_PRINT:
             Serial.print("PRINT ");

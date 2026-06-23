@@ -32,7 +32,7 @@ class XenoSecurityConfig {
 
     uint32_t current_max_instructions = 10000;
 
-    std::vector<uint8_t> allowed_pins = { LED_BUILTIN };
+    std::vector<uint8_t> allowed_pins = { };
 
     static constexpr uint16_t MIN_STRING_LENGTH = 1;
     static constexpr uint16_t MAX_STRING_LENGTH_LIMIT = 4096;

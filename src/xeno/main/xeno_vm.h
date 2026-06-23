@@ -36,6 +36,7 @@ class XenoVM {
     const uint32_t max_stack_size;
 
     std::map<String, XenoValue> variables;
+    std::vector<std::vector<XenoValue>> arrays;   // глобальная таблица массивов
     bool running;
     uint32_t instruction_count;
     uint32_t max_instructions;
@@ -106,6 +107,19 @@ class XenoVM {
     void handleBINARY_OP(const XenoInstruction& instr);
     void handleComparisonOp(const XenoInstruction& instr, uint8_t op);
     void handlePushOp(const XenoInstruction& instr, XenoDataType type);
+
+    // Новые обработчики
+    void handleAND(const XenoInstruction& instr);
+    void handleOR(const XenoInstruction& instr);
+    void handleNOT(const XenoInstruction& instr);
+    void handleNEG(const XenoInstruction& instr);
+    void handleARRAY_NEW(const XenoInstruction& instr);
+    void handleARRAY_GET(const XenoInstruction& instr);
+    void handleARRAY_SET(const XenoInstruction& instr);
+    void handleARRAY_LEN(const XenoInstruction& instr);
+    void handleANALOG_READ(const XenoInstruction& instr);
+    void handleANALOG_WRITE(const XenoInstruction& instr);
+    void handleDIGITAL_READ(const XenoInstruction& instr);
 
  protected:
     explicit XenoVM(XenoSecurityConfig& config);

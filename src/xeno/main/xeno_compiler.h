@@ -29,7 +29,8 @@ class XenoCompiler {
     std::vector<XenoInstruction> bytecode;
     std::vector<String> string_table;
     std::map<String, XenoValue> variable_map;
-    std::vector<int> if_stack;
+    std::map<String, bool> is_array;          // для отслеживания переменных-массивов
+    std::vector<IfContext> if_chain_stack;    // стек цепочек if-else if-else
     std::vector<LoopInfo> loop_stack;
     XenoSecurityConfig& security_config;
     XenoSecurity security;
@@ -91,6 +92,13 @@ class XenoCompiler {
     int getCurrentAddress();
     void compileLine(const String& line, int line_number);
     void processConstants(String& expr);
+
+    // Новые вспомогательные методы
+    void handleArrayCommand(const String& args, int line_number);
+    void handleAnalogRead(const String& args, int line_number);
+    void handleAnalogWrite(const String& args, int line_number);
+    void handleDigitalRead(const String& args, int line_number);
+    void handleSetCommand(const String& args, int line_number); // переработано для поддержки массивов
 
  protected:
     explicit XenoCompiler(XenoSecurityConfig& config);

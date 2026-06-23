@@ -61,6 +61,19 @@ void XenoVM::initializeDispatchTable() {
     dispatch_table[OP_PUSH_STRING] = &XenoVM::handlePUSH_STRING;
     dispatch_table[OP_PUSH_BOOL] = &XenoVM::handlePUSH_BOOL;
     dispatch_table[OP_HALT] = &XenoVM::handleHALT;
+
+    // Новые
+    dispatch_table[OP_AND] = &XenoVM::handleAND;
+    dispatch_table[OP_OR]  = &XenoVM::handleOR;
+    dispatch_table[OP_NOT] = &XenoVM::handleNOT;
+    dispatch_table[OP_NEG] = &XenoVM::handleNEG;
+    dispatch_table[OP_ARRAY_NEW] = &XenoVM::handleARRAY_NEW;
+    dispatch_table[OP_ARRAY_GET] = &XenoVM::handleARRAY_GET;
+    dispatch_table[OP_ARRAY_SET] = &XenoVM::handleARRAY_SET;
+    dispatch_table[OP_ARRAY_LEN] = &XenoVM::handleARRAY_LEN;
+    dispatch_table[OP_ANALOG_READ] = &XenoVM::handleANALOG_READ;
+    dispatch_table[OP_ANALOG_WRITE] = &XenoVM::handleANALOG_WRITE;
+    dispatch_table[OP_DIGITAL_READ] = &XenoVM::handleDIGITAL_READ;
 }
 
 void XenoVM::resetState() {
@@ -72,6 +85,7 @@ void XenoVM::resetState() {
     max_instructions = security_config.getCurrentMaxInstructions();
     variables.clear();
     string_lookup.clear();
+    arrays.clear();
 }
 
 String XenoVM::convertToString(const XenoValue& val) {
@@ -84,6 +98,8 @@ String XenoVM::convertToString(const XenoValue& val) {
             return string_table[val.string_index];
         case TYPE_BOOL:
             return val.bool_val ? "true" : "false";
+        case TYPE_ARRAY:
+            return "[array]";
         default:
             return String();
     }
@@ -755,6 +771,7 @@ void XenoVM::handlePRINT_NUM(const XenoInstruction& instr) {
         case TYPE_FLOAT: Serial.println(val.float_val, 2); break;
         case TYPE_STRING: Serial.println(string_table[val.string_index]); break;
         case TYPE_BOOL: Serial.println(val.bool_val ? "true" : "false"); break;
+        case TYPE_ARRAY: Serial.println("[array]"); break;
     }
 }
 
@@ -768,6 +785,7 @@ void XenoVM::handleSTORE(const XenoInstruction& instr) {
     if (!Pop(value)) return;
     String var_name = string_table[instr.arg1];
     variables[var_name] = value;
+    // Если сохраняется массив, обновляем флаг? В переменной хранится индекс массива, это нормально.
 }
 
 void XenoVM::handleLOAD(const XenoInstruction& instr) {
@@ -807,6 +825,7 @@ void XenoVM::handleJUMP_IF(const XenoInstruction& instr) {
         case TYPE_FLOAT: condition = (condition_val.float_val != 0.0f); break;
         case TYPE_STRING: condition = !string_table[condition_val.string_index].isEmpty(); break;
         case TYPE_BOOL: condition = condition_val.bool_val; break;
+        case TYPE_ARRAY: condition = (condition_val.array_index != 0); break;
     }
 
     if (condition && instr.arg1 < program.size()) {
@@ -817,6 +836,234 @@ void XenoVM::handleJUMP_IF(const XenoInstruction& instr) {
 void XenoVM::handleHALT(const XenoInstruction& instr) {
     running = false;
 }
+
+// ---- НОВЫЕ ОБРАБОТЧИКИ ----
+
+void XenoVM::handleAND(const XenoInstruction& instr) {
+    XenoValue a, b;
+    if (!PopTwo(a, b)) return;
+    bool ba = false, bb = false;
+    // преобразуем в булевы
+    switch (a.type) {
+        case TYPE_INT: ba = (a.int_val != 0); break;
+        case TYPE_FLOAT: ba = (a.float_val != 0.0f); break;
+        case TYPE_BOOL: ba = a.bool_val; break;
+        case TYPE_STRING: ba = !string_table[a.string_index].isEmpty(); break;
+        case TYPE_ARRAY: ba = true; break; // непустой массив
+    }
+    switch (b.type) {
+        case TYPE_INT: bb = (b.int_val != 0); break;
+        case TYPE_FLOAT: bb = (b.float_val != 0.0f); break;
+        case TYPE_BOOL: bb = b.bool_val; break;
+        case TYPE_STRING: bb = !string_table[b.string_index].isEmpty(); break;
+        case TYPE_ARRAY: bb = true; break;
+    }
+    bool result = ba && bb;
+    if (!Push(XenoValue::makeBool(result))) return;
+}
+
+void XenoVM::handleOR(const XenoInstruction& instr) {
+    XenoValue a, b;
+    if (!PopTwo(a, b)) return;
+    bool ba = false, bb = false;
+    switch (a.type) {
+        case TYPE_INT: ba = (a.int_val != 0); break;
+        case TYPE_FLOAT: ba = (a.float_val != 0.0f); break;
+        case TYPE_BOOL: ba = a.bool_val; break;
+        case TYPE_STRING: ba = !string_table[a.string_index].isEmpty(); break;
+        case TYPE_ARRAY: ba = true; break;
+    }
+    switch (b.type) {
+        case TYPE_INT: bb = (b.int_val != 0); break;
+        case TYPE_FLOAT: bb = (b.float_val != 0.0f); break;
+        case TYPE_BOOL: bb = b.bool_val; break;
+        case TYPE_STRING: bb = !string_table[b.string_index].isEmpty(); break;
+        case TYPE_ARRAY: bb = true; break;
+    }
+    bool result = ba || bb;
+    if (!Push(XenoValue::makeBool(result))) return;
+}
+
+void XenoVM::handleNOT(const XenoInstruction& instr) {
+    XenoValue a;
+    if (!Peek(a)) return;
+    bool ba = false;
+    switch (a.type) {
+        case TYPE_INT: ba = (a.int_val != 0); break;
+        case TYPE_FLOAT: ba = (a.float_val != 0.0f); break;
+        case TYPE_BOOL: ba = a.bool_val; break;
+        case TYPE_STRING: ba = !string_table[a.string_index].isEmpty(); break;
+        case TYPE_ARRAY: ba = true; break;
+    }
+    stack[stack_pointer - 1] = XenoValue::makeBool(!ba);
+}
+
+void XenoVM::handleNEG(const XenoInstruction& instr) {
+    XenoValue a;
+    if (!Peek(a)) return;
+    if (a.type == TYPE_INT) {
+        if (a.int_val == std::numeric_limits<int32_t>::min()) {
+            Serial.println("ERROR: Integer overflow in negation");
+            stack[stack_pointer - 1] = XenoValue::makeInt(0);
+            return;
+        }
+        stack[stack_pointer - 1] = XenoValue::makeInt(-a.int_val);
+    } else if (a.type == TYPE_FLOAT) {
+        stack[stack_pointer - 1] = XenoValue::makeFloat(-a.float_val);
+    } else {
+        Serial.println("ERROR: Negation requires numeric operand");
+        stack[stack_pointer - 1] = XenoValue::makeInt(0);
+    }
+}
+
+void XenoVM::handleARRAY_NEW(const XenoInstruction& instr) {
+    // Ожидаем размер на стеке
+    XenoValue sizeVal;
+    if (!Pop(sizeVal)) return;
+    if (sizeVal.type != TYPE_INT) {
+        Serial.println("ERROR: Array size must be integer");
+        running = false;
+        return;
+    }
+    int size = sizeVal.int_val;
+    if (size < 0 || size > 1024) {
+        Serial.println("ERROR: Invalid array size");
+        running = false;
+        return;
+    }
+    // Создаём массив заданного размера, заполненный нулями
+    std::vector<XenoValue> arr(size, XenoValue::makeInt(0));
+    uint16_t idx = arrays.size();
+    arrays.push_back(arr);
+    XenoValue arrVal = XenoValue::makeArray(idx);
+    if (!Push(arrVal)) return;
+}
+
+void XenoVM::handleARRAY_GET(const XenoInstruction& instr) {
+    // Ожидаем: [массив, индекс] на стеке (индекс сверху)
+    XenoValue idxVal, arrVal;
+    if (!Pop(idxVal)) return;
+    if (!Pop(arrVal)) return;
+    if (arrVal.type != TYPE_ARRAY) {
+        Serial.println("ERROR: ARRAY_GET on non-array");
+        running = false;
+        return;
+    }
+    if (idxVal.type != TYPE_INT) {
+        Serial.println("ERROR: Array index must be integer");
+        running = false;
+        return;
+    }
+    uint16_t arrIdx = arrVal.array_index;
+    if (arrIdx >= arrays.size()) {
+        Serial.println("ERROR: Invalid array reference");
+        running = false;
+        return;
+    }
+    int index = idxVal.int_val;
+    if (index < 0 || index >= (int)arrays[arrIdx].size()) {
+        Serial.println("ERROR: Array index out of bounds");
+        running = false;
+        return;
+    }
+    XenoValue elem = arrays[arrIdx][index];
+    if (!Push(elem)) return;
+}
+
+void XenoVM::handleARRAY_SET(const XenoInstruction& instr) {
+    // Ожидаем: [массив, индекс, значение] на стеке (значение сверху)
+    XenoValue val, idxVal, arrVal;
+    if (!Pop(val)) return;
+    if (!Pop(idxVal)) return;
+    if (!Pop(arrVal)) return;
+    if (arrVal.type != TYPE_ARRAY) {
+        Serial.println("ERROR: ARRAY_SET on non-array");
+        running = false;
+        return;
+    }
+    if (idxVal.type != TYPE_INT) {
+        Serial.println("ERROR: Array index must be integer");
+        running = false;
+        return;
+    }
+    uint16_t arrIdx = arrVal.array_index;
+    if (arrIdx >= arrays.size()) {
+        Serial.println("ERROR: Invalid array reference");
+        running = false;
+        return;
+    }
+    int index = idxVal.int_val;
+    if (index < 0 || index >= (int)arrays[arrIdx].size()) {
+        Serial.println("ERROR: Array index out of bounds");
+        running = false;
+        return;
+    }
+    arrays[arrIdx][index] = val;
+}
+
+void XenoVM::handleARRAY_LEN(const XenoInstruction& instr) {
+    XenoValue arrVal;
+    if (!Peek(arrVal)) return;
+    if (arrVal.type != TYPE_ARRAY) {
+        Serial.println("ERROR: ARRAY_LEN on non-array");
+        running = false;
+        return;
+    }
+    uint16_t arrIdx = arrVal.array_index;
+    if (arrIdx >= arrays.size()) {
+        Serial.println("ERROR: Invalid array reference");
+        running = false;
+        return;
+    }
+    int len = arrays[arrIdx].size();
+    stack[stack_pointer - 1] = XenoValue::makeInt(len);
+}
+
+void XenoVM::handleANALOG_READ(const XenoInstruction& instr) {
+    if (!security.isPinAllowed(instr.arg1)) {
+        Serial.print("ERROR: Pin not allowed: ");
+        Serial.println(instr.arg1);
+        return;
+    }
+    int val = analogRead(instr.arg1);
+    if (!Push(XenoValue::makeInt(val))) return;
+}
+
+void XenoVM::handleANALOG_WRITE(const XenoInstruction& instr) {
+    if (!security.isPinAllowed(instr.arg1)) {
+        Serial.print("ERROR: Pin not allowed: ");
+        Serial.println(instr.arg1);
+        return;
+    }
+    XenoValue val;
+    if (!Pop(val)) return;
+    int analogVal = 0;
+    if (val.type == TYPE_INT) {
+        analogVal = val.int_val;
+    } else if (val.type == TYPE_FLOAT) {
+        analogVal = (int)val.float_val;
+    } else {
+        Serial.println("ERROR: analogWrite value must be numeric");
+        return;
+    }
+    if (analogVal < 0 || analogVal > 255) {
+        Serial.println("ERROR: analogWrite value out of range (0-255)");
+        return;
+    }
+    analogWrite(instr.arg1, analogVal);
+}
+
+void XenoVM::handleDIGITAL_READ(const XenoInstruction& instr) {
+    if (!security.isPinAllowed(instr.arg1)) {
+        Serial.print("ERROR: Pin not allowed: ");
+        Serial.println(instr.arg1);
+        return;
+    }
+    int val = digitalRead(instr.arg1);
+    if (!Push(XenoValue::makeInt(val))) return;
+}
+
+// ---- КОНЕЦ НОВЫХ ОБРАБОТЧИКОВ ----
 
 XenoVM::XenoVM(XenoSecurityConfig& config)
     : security_config(config),
@@ -831,11 +1078,9 @@ XenoVM::XenoVM(XenoSecurityConfig& config)
     string_table.reserve(32);
 }
 
-// Деструктор
 XenoVM::~XenoVM() {
     delete[] stack;
 }
-
 
 void XenoVM::setMaxInstructions(uint32_t max_instr) {
     if (max_instr < security_config.getMinInstructionsLimit()) {
@@ -968,6 +1213,10 @@ void XenoVM::dumpState() {
                 type_str = "BOOL";
                 value_str = stack[i].bool_val ? "true" : "false";
                 break;
+            case TYPE_ARRAY:
+                type_str = "ARRAY";
+                value_str = "idx=" + String(stack[i].array_index) + " len=" + String(arrays[stack[i].array_index].size());
+                break;
         }
         Serial.print("  ");
         Serial.print(i);
@@ -999,6 +1248,10 @@ void XenoVM::dumpState() {
             case TYPE_BOOL:
                 type_str = "BOOL";
                 value_str = var.second.bool_val ? "true" : "false";
+                break;
+            case TYPE_ARRAY:
+                type_str = "ARRAY";
+                value_str = "idx=" + String(var.second.array_index) + " len=" + String(arrays[var.second.array_index].size());
                 break;
         }
         Serial.print("  ");
