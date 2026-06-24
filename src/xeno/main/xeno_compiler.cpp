@@ -31,7 +31,6 @@ const XenoCompiler::Constant XenoCompiler::constants[] = {
 
 const size_t XenoCompiler::constants_count = std::size(constants);
 
-// ---- Используем MathFunctionInfo вместо FunctionInfo ----
 const XenoCompiler::MathFunctionInfo XenoCompiler::math_functions[] = {
     {"abs(", '[', ']', OP_ABS, 1},
     {"max(", '{', '}', OP_MAX, 2},
@@ -171,7 +170,6 @@ XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     if_chain_stack.reserve(security_config.getMaxIfDepth());
     loop_stack.reserve(security_config.getMaxLoopDepth());
     while_stack.reserve(security_config.getMaxLoopDepth());
-    // Инициализация состояния функций (этап 2)
     inside_function_declaration = false;
 }
 
@@ -183,8 +181,8 @@ void XenoCompiler::compile(const String& source_code) {
     if_chain_stack.clear();
     loop_stack.clear();
     while_stack.clear();
-    functions.clear();           // очищаем таблицу функций (этап 1)
-    inside_function_declaration = false; // (этап 2)
+    functions.clear();
+    inside_function_declaration = false;
     compile_error = false;
 
     int line_number = 0;
@@ -222,7 +220,7 @@ void XenoCompiler::compile(const String& source_code) {
 }
 
 // ------------------------------------------------------------------
-// Компиляция выражений с проверкой типов (без изменений)
+// Компиляция выражений с проверкой типов
 // ------------------------------------------------------------------
 
 void XenoCompiler::compileExpression(const String& expr) {
@@ -242,6 +240,7 @@ XenoDataType XenoCompiler::compileExpressionWithType(const String& expr) {
     return compilePostfix(postfix);
 }
 
+// ----- НОВАЯ ВЕРСИЯ compilePostfix с поддержкой CALL -----
 XenoDataType XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
     if (postfix.size() > 100) {
         Serial.println("ERROR: Postfix expression too complex");
@@ -424,7 +423,45 @@ XenoDataType XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
                     break;
                 }
             }
-            if (!function_processed) {
+            // ---- НОВОЕ: обработка вызова пользовательской функции ----
+            if (!function_processed && token.startsWith("CALL:")) {
+                String funcName = token.substring(5); // после "CALL:"
+                auto it = functions.find(funcName);
+                if (it == functions.end()) {
+                    Serial.print("ERROR: Function '");
+                    Serial.print(funcName);
+                    Serial.println("' not defined");
+                    compile_error = true;
+                    return TYPE_ANY;
+                }
+                const FunctionInfo& funcInfo = it->second;
+                // Проверка количества аргументов
+                if (typeStack.size() < (size_t)funcInfo.arity) {
+                    Serial.print("ERROR: Not enough arguments for function '");
+                    Serial.print(funcName);
+                    Serial.print("' (expected ");
+                    Serial.print(funcInfo.arity);
+                    Serial.print(", got ");
+                    Serial.print(typeStack.size());
+                    Serial.println(")");
+                    compile_error = true;
+                    return TYPE_ANY;
+                }
+                // Проверка типов аргументов (пока только количество, типы позже)
+                // Для простоты убираем со стека типы аргументов (они нам не нужны для проверки)
+                // Однако мы должны убедиться, что аргументы совместимы (пока пропускаем)
+                // Тип результата считаем ANY (позже будем выводить)
+                // Удаляем аргументы из стека типов (они уже скомпилированы)
+                for (int i = 0; i < funcInfo.arity; ++i) {
+                    typeStack.pop();
+                }
+                // Добавляем имя функции в строковую таблицу и получаем индекс
+                int funcNameIndex = addString(funcName);
+                emitInstruction(OP_CALL, funcNameIndex);
+                // Результат функции - пока ANY
+                typeStack.push(TYPE_ANY);
+            }
+            else if (!function_processed) {
                 Serial.print("ERROR: Unknown operator in expression: ");
                 Serial.println(token);
                 compile_error = true;
@@ -442,7 +479,6 @@ XenoDataType XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
     return typeStack.top();
 }
 
-// ---- Изменена сигнатура, использует MathFunctionInfo ----
 void XenoCompiler::compileMathFunction(const String& token, const MathFunctionInfo& func) {
     String innerExpr = token.substring(1, token.length() - 1);
 
@@ -469,7 +505,7 @@ void XenoCompiler::compileSimpleCommand(const String& command, uint8_t opcode) {
 }
 
 // ------------------------------------------------------------------
-// Обработчики команд с проверкой типов (без изменений)
+// Обработчики команд (без изменений)
 // ------------------------------------------------------------------
 
 void XenoCompiler::handleSetCommand(const String& args, int line_number) {
@@ -746,7 +782,7 @@ void XenoCompiler::handleDigitalRead(const String& args, int line_number) {
 }
 
 // ------------------------------------------------------------------
-// Остальные методы (без изменений, кроме processFunctions где использовался FunctionInfo)
+// Остальные методы (validateString, etc.) без изменений
 // ------------------------------------------------------------------
 
 bool XenoCompiler::validateString(const String& str) {
@@ -872,6 +908,8 @@ int XenoCompiler::getPrecedence(const String& op) {
     if (isComparisonOperator(op)) return 1;
     if (op == "&&") return 2;
     if (op == "||") return 1;
+    // Запятая имеет самый низкий приоритет
+    if (op == ",") return 0;
     return 0;
 }
 
@@ -879,7 +917,6 @@ bool XenoCompiler::isRightAssociative(const String& op) {
     return op == "^";
 }
 
-// ---- Изменено использование MathFunctionInfo в processFunctions ----
 String XenoCompiler::processFunctions(const String& expr) {
     if (expr.length() > 1024) {
         Serial.println("ERROR: Expression too long");
@@ -941,6 +978,7 @@ int XenoCompiler::findMatchingParenthesis(const String& expr, int start) {
     return -1;
 }
 
+// ---- НОВАЯ ВЕРСИЯ infixToPostfix с поддержкой вызовов функций ----
 std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& tokens) {
     std::vector<String> output;
     std::stack<String> operators;
@@ -953,28 +991,80 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
 
     bool expect_operand = true;
 
-    for (const String& token : tokens) {
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        const String& token = tokens[i];
+
+        // ---- ОПЕРАНДЫ ----
         if (isInteger(token) || isFloat(token) || isBool(token) || isQuotedString(token) ||
             isValidVariable(token) ||
             (token.startsWith("[") && token.endsWith("]")) ||
             (token.startsWith("{") && token.endsWith("}")) ||
             (token.startsWith("|") && token.endsWith("|")) ||
             (token.startsWith("~") && token.endsWith("~"))) {
+            // Проверяем, не является ли это именем функции, за которым следует '('
+            if (isValidVariable(token) && functions.find(token) != functions.end() &&
+                i + 1 < tokens.size() && tokens[i + 1] == "(") {
+                // Это вызов функции: помещаем маркер в стек операторов
+                operators.push("FUNC:" + token);
+                // Пропускаем '(' (она не нужна, так как маркер выполняет её роль)
+                ++i;
+                // После маркера ожидаем аргументы
+                expect_operand = true;
+                continue;
+            }
+            // Обычный операнд
             output.push_back(token);
             expect_operand = false;
         }
+        // ---- ОТКРЫВАЮЩАЯ СКОБКА (не связанная с функцией) ----
         else if (token == "(") {
             operators.push(token);
             expect_operand = true;
         }
+        // ---- ЗАКРЫВАЮЩАЯ СКОБКА ----
         else if (token == ")") {
-            while (!operators.empty() && operators.top() != "(") {
+            // Выталкиваем операторы до маркера функции или до '('
+            while (!operators.empty() && operators.top() != "(" &&
+                   !operators.top().startsWith("FUNC:")) {
                 output.push_back(operators.top());
                 operators.pop();
             }
-            if (!operators.empty()) operators.pop();
-            expect_operand = false;
+            if (operators.empty()) {
+                Serial.println("ERROR: Mismatched parentheses");
+                compile_error = true;
+                return output;
+            }
+            if (operators.top().startsWith("FUNC:")) {
+                // Это закрытие вызова функции
+                String funcMarker = operators.top();
+                operators.pop();
+                String funcName = funcMarker.substring(5); // после "FUNC:"
+                // Генерируем CALL токен
+                output.push_back("CALL:" + funcName);
+                expect_operand = false;
+            } else {
+                // Обычная скобка
+                operators.pop();
+                expect_operand = false;
+            }
         }
+        // ---- ЗАПЯТАЯ (разделитель аргументов) ----
+        else if (token == ",") {
+            // Выталкиваем операторы до ближайшего маркера функции или '('
+            while (!operators.empty() && operators.top() != "(" &&
+                   !operators.top().startsWith("FUNC:")) {
+                output.push_back(operators.top());
+                operators.pop();
+            }
+            if (operators.empty() ||
+                (operators.top() != "(" && !operators.top().startsWith("FUNC:"))) {
+                Serial.println("ERROR: Comma outside function call");
+                compile_error = true;
+                return output;
+            }
+            expect_operand = true;
+        }
+        // ---- УНАРНЫЕ ОПЕРАТОРЫ ----
         else if (token == "!" || token == "-") {
             if (expect_operand) {
                 operators.push(token == "!" ? "UNARY_NOT" : "UNARY_NEG");
@@ -982,6 +1072,7 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
                 int token_precedence = getPrecedence(token);
                 while (!operators.empty() &&
                         operators.top() != "(" &&
+                        !operators.top().startsWith("FUNC:") &&
                         (getPrecedence(operators.top()) > token_precedence ||
                         (getPrecedence(operators.top()) == token_precedence &&
                         !isRightAssociative(token))))  {
@@ -992,10 +1083,12 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
                 expect_operand = true;
             }
         }
+        // ---- БИНАРНЫЕ ОПЕРАТОРЫ ----
         else {
             int token_precedence = getPrecedence(token);
             while (!operators.empty() &&
                     operators.top() != "(" &&
+                    !operators.top().startsWith("FUNC:") &&
                     (getPrecedence(operators.top()) > token_precedence ||
                     (getPrecedence(operators.top()) == token_precedence &&
                     !isRightAssociative(token))))  {
@@ -1007,7 +1100,13 @@ std::vector<String> XenoCompiler::infixToPostfix(const std::vector<String>& toke
         }
     }
 
+    // Выталкиваем оставшиеся операторы
     while (!operators.empty()) {
+        if (operators.top() == "(" || operators.top().startsWith("FUNC:")) {
+            Serial.println("ERROR: Mismatched parentheses or function call");
+            compile_error = true;
+            return output;
+        }
         output.push_back(operators.top());
         operators.pop();
     }
@@ -1102,9 +1201,11 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
             }
         }
 
+        // Добавляем запятую как отдельный токен
         if (c == '+' || c == '-' || c == '*' || c == '/' ||
             c == '%' || c == '^' || c == '<' || c == '>' ||
-            c == '(' || c == ')' || c == '!' || c == '[' || c == ']') {
+            c == '(' || c == ')' || c == '!' || c == '[' || c == ']' ||
+            c == ',') {
             if (!currentToken.isEmpty()) {
                 tokens.push_back(currentToken);
                 currentToken = "";
@@ -1123,11 +1224,10 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
 }
 
 // ------------------------------------------------------------------
-// НОВАЯ ЛОГИКА ПАРСИНГА ФУНКЦИЙ (этап 2) - исправлено использование глобальной FunctionInfo
+// Парсинг функций (без изменений)
 // ------------------------------------------------------------------
 
 void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number) {
-    // Ожидается формат: name(arg1, arg2, ...)
     int openParen = args.indexOf('(');
     int closeParen = args.lastIndexOf(')');
     if (openParen <= 0 || closeParen <= openParen) {
@@ -1148,7 +1248,6 @@ void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number)
         return;
     }
 
-    // Проверка на дубликат имени
     if (functions.find(funcName) != functions.end()) {
         Serial.print("ERROR: Function '");
         Serial.print(funcName);
@@ -1158,7 +1257,6 @@ void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number)
         return;
     }
 
-    // Извлекаем аргументы
     String paramsStr = args.substring(openParen + 1, closeParen);
     paramsStr.trim();
     std::vector<String> parameters;
@@ -1184,7 +1282,6 @@ void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number)
                     compile_error = true;
                     return;
                 }
-                // Проверка на дубликат параметра
                 for (const String& p : parameters) {
                     if (p == param) {
                         Serial.print("ERROR: Duplicate parameter name '");
@@ -1200,26 +1297,20 @@ void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number)
         }
     }
 
-    // Создаём информацию о функции (глобальная структура)
     FunctionInfo funcInfo;
     funcInfo.name = funcName;
     funcInfo.parameters = parameters;
     funcInfo.arity = parameters.size();
-    funcInfo.address = getCurrentAddress();  // Адрес начала функции (пока байткод пуст)
+    funcInfo.address = getCurrentAddress();
 
-    // Сохраняем в таблицу
     functions[funcName] = funcInfo;
 
-    // Устанавливаем флаг, что мы внутри объявления функции
     inside_function_declaration = true;
-    pending_function = funcInfo;  // сохраняем для возможного использования (например, для endfunc)
-
-    // Никаких инструкций не генерируем, просто запоминаем адрес.
-    // Тело будет пропущено до endfunc.
+    pending_function = funcInfo;
 }
 
 // ------------------------------------------------------------------
-// Главный метод компиляции строки (без изменений)
+// Главный метод компиляции строки (без изменений, кроме обработки func)
 // ------------------------------------------------------------------
 
 void XenoCompiler::compileLine(const String& line, int line_number) {
@@ -1237,18 +1328,15 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
     if (inside_function_declaration) {
         if (cleanedLine.equalsIgnoreCase("endfunc")) {
             inside_function_declaration = false;
-            // Можно добавить проверку, что функция имеет тело, но пока пропускаем
-            // В будущем здесь будет генерация OP_FUNC_END
             return;
         } else {
-            // Пропускаем все остальные строки внутри функции
             return;
         }
     }
 
     // ---- Обработка команды func ----
     if (cleanedLine.startsWith("func ")) {
-        String args = cleanedLine.substring(5); // после "func "
+        String args = cleanedLine.substring(5);
         args.trim();
         parseFunctionDeclaration(args, line_number);
         return;

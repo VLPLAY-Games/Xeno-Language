@@ -131,6 +131,8 @@ class XenoVM {
     void handleDIGITAL_READ(const XenoInstruction& instr);
     void handleCONVERT_TO_FLOAT(const XenoInstruction& instr);
 
+    void handleCALL(const XenoInstruction& instr);
+
  protected:
     explicit XenoVM(XenoSecurityConfig& config);
     ~XenoVM();

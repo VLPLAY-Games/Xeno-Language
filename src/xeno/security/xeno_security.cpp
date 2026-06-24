@@ -69,8 +69,8 @@ bool XenoSecurity::verifyBytecode(const std::vector<XenoInstruction>& bytecode,
     for (size_t i = 0; i < bytecode.size(); i++) {
         const XenoInstruction& instr = bytecode[i];
 
-        // Разрешаем все опкоды от 0 до 45, а также HALT (255)
-        if (instr.opcode > 45 && instr.opcode != 255) {
+        // Разрешаем все опкоды до 50 (включая OP_CALL = 49, OP_RETURN = 50) и HALT (255)
+        if (instr.opcode > 50 && instr.opcode != 255) {
             Serial.print("SECURITY: Invalid opcode at instruction ");
             Serial.println(i);
             return false;
@@ -86,7 +86,7 @@ bool XenoSecurity::verifyBytecode(const std::vector<XenoInstruction>& bytecode,
 
         if (instr.opcode == OP_PRINT || instr.opcode == OP_STORE ||
             instr.opcode == OP_LOAD || instr.opcode == OP_PUSH_STRING ||
-            instr.opcode == OP_INPUT) {
+            instr.opcode == OP_INPUT || instr.opcode == OP_CALL) {
             if (instr.arg1 >= strings.size()) {
                 Serial.print("SECURITY: Invalid string index at instruction ");
                 Serial.println(i);

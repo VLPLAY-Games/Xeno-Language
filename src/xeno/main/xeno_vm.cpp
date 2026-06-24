@@ -75,7 +75,12 @@ void XenoVM::initializeDispatchTable() {
     dispatch_table[OP_ANALOG_WRITE] = &XenoVM::handleANALOG_WRITE;
     dispatch_table[OP_DIGITAL_READ] = &XenoVM::handleDIGITAL_READ;
     dispatch_table[OP_CONVERT_TO_FLOAT] = &XenoVM::handleCONVERT_TO_FLOAT;
+
+    // ---- Добавлено для функций (этап 3) ----
+    dispatch_table[OP_CALL] = &XenoVM::handleCALL;
+    // OP_RETURN, OP_FUNC_START, OP_FUNC_END пока не используются
 }
+
 
 void XenoVM::resetState() {
     program_counter = 0;
@@ -1277,4 +1282,11 @@ void XenoVM::dumpState() {
 
 void XenoVM::disassemble() {
     Debugger::disassemble(program, string_table, "Disassembly");
+}
+
+void XenoVM::handleCALL(const XenoInstruction& instr) {
+    // Пока не реализовано — просто выведем сообщение
+    Serial.print("CALL function index: ");
+    Serial.println(instr.arg1);
+    // В будущем здесь будет логика вызова
 }
