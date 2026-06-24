@@ -120,6 +120,7 @@ class XenoVM {
     void handleANALOG_READ(const XenoInstruction& instr);
     void handleANALOG_WRITE(const XenoInstruction& instr);
     void handleDIGITAL_READ(const XenoInstruction& instr);
+    void handleCONVERT_TO_FLOAT(const XenoInstruction& instr);
 
  protected:
     explicit XenoVM(XenoSecurityConfig& config);

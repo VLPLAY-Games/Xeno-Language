@@ -28,12 +28,14 @@ class XenoCompiler {
  private:
     std::vector<XenoInstruction> bytecode;
     std::vector<String> string_table;
-    std::map<String, XenoValue> variable_map;
+    std::map<String, XenoValue> variable_map;  // хранит тип и значение по умолчанию (для определения типа)
     std::map<String, bool> is_array;          // для отслеживания переменных-массивов
     std::vector<IfContext> if_chain_stack;    // стек цепочек if-else if-else
     std::vector<LoopInfo> loop_stack;
     XenoSecurityConfig& security_config;
     XenoSecurity security;
+
+    bool compile_error;   // флаг ошибки компиляции
 
     struct Constant {
         const char* name;
@@ -83,8 +85,12 @@ class XenoCompiler {
     int findMatchingParenthesis(const String& expr, int start);
     std::vector<String> infixToPostfix(const std::vector<String>& tokens);
     std::vector<String> tokenizeExpression(const String& expr);
-    void compilePostfix(const std::vector<String>& postfix);
+    // Новая версия compilePostfix с проверкой типов и возвратом типа результата
+    XenoDataType compilePostfix(const std::vector<String>& postfix);
+    // compileExpression теперь обёртка, вызывает compileExpressionWithType и игнорирует тип
     void compileExpression(const String& expr);
+    // Основной метод компиляции выражения с проверкой типов
+    XenoDataType compileExpressionWithType(const String& expr);
     String extractVariableName(const String& text);
     XenoDataType determineValueType(const String& value);
     XenoValue createValueFromString(const String& str, XenoDataType type);

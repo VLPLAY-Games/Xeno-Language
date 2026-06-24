@@ -74,6 +74,7 @@ void XenoVM::initializeDispatchTable() {
     dispatch_table[OP_ANALOG_READ] = &XenoVM::handleANALOG_READ;
     dispatch_table[OP_ANALOG_WRITE] = &XenoVM::handleANALOG_WRITE;
     dispatch_table[OP_DIGITAL_READ] = &XenoVM::handleDIGITAL_READ;
+    dispatch_table[OP_CONVERT_TO_FLOAT] = &XenoVM::handleCONVERT_TO_FLOAT;
 }
 
 void XenoVM::resetState() {
@@ -785,7 +786,6 @@ void XenoVM::handleSTORE(const XenoInstruction& instr) {
     if (!Pop(value)) return;
     String var_name = string_table[instr.arg1];
     variables[var_name] = value;
-    // Если сохраняется массив, обновляем флаг? В переменной хранится индекс массива, это нормально.
 }
 
 void XenoVM::handleLOAD(const XenoInstruction& instr) {
@@ -843,13 +843,12 @@ void XenoVM::handleAND(const XenoInstruction& instr) {
     XenoValue a, b;
     if (!PopTwo(a, b)) return;
     bool ba = false, bb = false;
-    // преобразуем в булевы
     switch (a.type) {
         case TYPE_INT: ba = (a.int_val != 0); break;
         case TYPE_FLOAT: ba = (a.float_val != 0.0f); break;
         case TYPE_BOOL: ba = a.bool_val; break;
         case TYPE_STRING: ba = !string_table[a.string_index].isEmpty(); break;
-        case TYPE_ARRAY: ba = true; break; // непустой массив
+        case TYPE_ARRAY: ba = true; break;
     }
     switch (b.type) {
         case TYPE_INT: bb = (b.int_val != 0); break;
@@ -917,7 +916,6 @@ void XenoVM::handleNEG(const XenoInstruction& instr) {
 }
 
 void XenoVM::handleARRAY_NEW(const XenoInstruction& instr) {
-    // Ожидаем размер на стеке
     XenoValue sizeVal;
     if (!Pop(sizeVal)) return;
     if (sizeVal.type != TYPE_INT) {
@@ -931,7 +929,6 @@ void XenoVM::handleARRAY_NEW(const XenoInstruction& instr) {
         running = false;
         return;
     }
-    // Создаём массив заданного размера, заполненный нулями
     std::vector<XenoValue> arr(size, XenoValue::makeInt(0));
     uint16_t idx = arrays.size();
     arrays.push_back(arr);
@@ -940,7 +937,6 @@ void XenoVM::handleARRAY_NEW(const XenoInstruction& instr) {
 }
 
 void XenoVM::handleARRAY_GET(const XenoInstruction& instr) {
-    // Ожидаем: [массив, индекс] на стеке (индекс сверху)
     XenoValue idxVal, arrVal;
     if (!Pop(idxVal)) return;
     if (!Pop(arrVal)) return;
@@ -971,7 +967,6 @@ void XenoVM::handleARRAY_GET(const XenoInstruction& instr) {
 }
 
 void XenoVM::handleARRAY_SET(const XenoInstruction& instr) {
-    // Ожидаем: [массив, индекс, значение] на стеке (значение сверху)
     XenoValue val, idxVal, arrVal;
     if (!Pop(val)) return;
     if (!Pop(idxVal)) return;
@@ -1061,6 +1056,21 @@ void XenoVM::handleDIGITAL_READ(const XenoInstruction& instr) {
     }
     int val = digitalRead(instr.arg1);
     if (!Push(XenoValue::makeInt(val))) return;
+}
+
+// Новый обработчик преобразования INT -> FLOAT
+void XenoVM::handleCONVERT_TO_FLOAT(const XenoInstruction& instr) {
+    XenoValue val;
+    if (!Peek(val)) return;
+    if (val.type == TYPE_INT) {
+        float f = static_cast<float>(val.int_val);
+        stack[stack_pointer - 1] = XenoValue::makeFloat(f);
+    } else if (val.type == TYPE_FLOAT) {
+        // уже float
+    } else {
+        Serial.println("ERROR: Cannot convert to float");
+        running = false;
+    }
 }
 
 // ---- КОНЕЦ НОВЫХ ОБРАБОТЧИКОВ ----

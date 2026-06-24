@@ -70,6 +70,8 @@ enum XenoOpcodes {
     OP_ANALOG_WRITE = 44,
     OP_DIGITAL_READ = 45,
 
+    OP_CONVERT_TO_FLOAT = 46,  // преобразование INT -> FLOAT
+
     OP_HALT = 255
 };
 
@@ -79,7 +81,8 @@ enum XenoDataType {
     TYPE_FLOAT = 1,
     TYPE_STRING = 2,
     TYPE_BOOL = 3,
-    TYPE_ARRAY = 4      // новый тип для массива
+    TYPE_ARRAY = 4,
+    TYPE_ANY = 5   // для неизвестного типа (например, элементы массива)
 };
 
 // Value structure that can hold different data types
