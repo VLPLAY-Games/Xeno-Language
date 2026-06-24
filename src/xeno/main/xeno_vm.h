@@ -24,12 +24,6 @@
 #include "../security/xeno_security.h"
 #include "../security/xeno_security_config.h"
 
-// ---- НОВАЯ СТРУКТУРА ДЛЯ ФРЕЙМА ВЫЗОВА (этап 1) ----
-struct CallFrame {
-    uint32_t return_address;   // Адрес возврата
-    // В дальнейшем будут добавлены локальные переменные и указатель фрейма
-};
-
 class XenoVM {
  private:
     std::vector<XenoInstruction> program;
@@ -41,7 +35,7 @@ class XenoVM {
     uint32_t stack_pointer;
     const uint32_t max_stack_size;
 
-    std::map<String, XenoValue> variables;
+    std::map<String, XenoValue> variables;       // Глобальные переменные
     std::vector<std::vector<XenoValue>> arrays;
     bool running;
     uint32_t instruction_count;
@@ -51,8 +45,11 @@ class XenoVM {
     XenoSecurity security;
     XenoSecurityConfig& security_config;
 
-    // ---- НОВЫЙ СТЕК ВЫЗОВОВ (этап 1) ----
+    // ---- Стек вызовов ----
     std::vector<CallFrame> call_stack;
+
+    // ---- Таблица функций (передаётся из компилятора) ----
+    std::map<String, FunctionInfo> function_table;
 
     friend class XenoLanguage;
 
@@ -89,6 +86,7 @@ class XenoVM {
     bool isInteger(const String& str);
     bool isFloat(const String& str);
     bool isBool(const String& str);
+
     void handleNOP(const XenoInstruction& instr);
     void handlePRINT(const XenoInstruction& instr);
     void handleLED_ON(const XenoInstruction& instr);
@@ -131,7 +129,9 @@ class XenoVM {
     void handleDIGITAL_READ(const XenoInstruction& instr);
     void handleCONVERT_TO_FLOAT(const XenoInstruction& instr);
 
+    // ---- Обработчики функций ----
     void handleCALL(const XenoInstruction& instr);
+    // void handleRETURN(const XenoInstruction& instr); // будет добавлен позже
 
  protected:
     explicit XenoVM(XenoSecurityConfig& config);
@@ -139,6 +139,7 @@ class XenoVM {
     void setMaxInstructions(uint32_t max_instr);
     void loadProgram(const std::vector<XenoInstruction>& bytecode,
                     const std::vector<String>& strings, bool less_output = true);
+    void setFunctionTable(const std::map<String, FunctionInfo>& functions); // новый метод
     bool step();
     void run(bool less_output = true);
     void stop();

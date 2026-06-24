@@ -59,7 +59,7 @@ enum XenoOpcodes {
     OP_COS = 33,
     OP_TAN = 34,
 
-    // Новые опкоды (этап 1)
+    // Новые опкоды
     OP_AND = 35,
     OP_OR  = 36,
     OP_NOT = 37,
@@ -73,7 +73,7 @@ enum XenoOpcodes {
     OP_DIGITAL_READ = 45,
     OP_CONVERT_TO_FLOAT = 46,
 
-    // Опкоды для функций (этап 1)
+    // Опкоды для функций
     OP_FUNC_START = 47,
     OP_FUNC_END   = 48,
     OP_CALL       = 49,
@@ -92,7 +92,7 @@ enum XenoDataType {
     TYPE_ANY = 5
 };
 
-// Value structure that can hold different data types
+// Value structure
 struct XenoValue {
     XenoDataType type;
     union {
@@ -112,7 +112,7 @@ struct XenoValue {
     static XenoValue makeArray(uint16_t arr_idx);
 };
 
-// Bytecode instruction structure
+// Bytecode instruction
 struct XenoInstruction {
     uint8_t opcode;
     uint32_t arg1;
@@ -123,7 +123,7 @@ struct XenoInstruction {
                          uint16_t a2 = 0);
 };
 
-// Structure for storing information about loop
+// Loop info
 struct LoopInfo {
     String var_name;
     int start_address;
@@ -131,18 +131,24 @@ struct LoopInfo {
     int end_jump_address;
 };
 
-// Структура для хранения контекста цепочки if-else if-else
+// If context
 struct IfContext {
     std::vector<int> if_jumps;
     std::vector<int> else_jumps;
 };
 
-// ---- НОВЫЕ СТРУКТУРЫ ДЛЯ ФУНКЦИЙ (этап 1) ----
+// Function info (for compiler)
 struct FunctionInfo {
-    String name;                       // Имя функции
-    std::vector<String> parameters;    // Список имён параметров
-    int address;                       // Индекс в байткоде, где начинается функция
-    int arity;                         // Количество параметров
+    String name;
+    std::vector<String> parameters;
+    int address;
+    int arity;
+};
+
+// ---- CallFrame for VM (расширен) ----
+struct CallFrame {
+    uint32_t return_address;                     // Адрес возврата
+    std::map<String, XenoValue> locals;          // Локальные переменные (включая параметры)
 };
 
 #endif  // SRC_XENO_XENO_COMMON_H_

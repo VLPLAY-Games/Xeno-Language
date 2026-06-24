@@ -120,6 +120,7 @@ class XenoCompiler {
     const std::vector<XenoInstruction>& getBytecode() const;
     const std::vector<String>& getStringTable() const;
     void printCompiledCode();
+    const std::map<String, FunctionInfo>& getFunctions() const { return functions; }
 };
 
 #endif  // SRC_XENO_XENO_COMPILER_H_
