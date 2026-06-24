@@ -31,7 +31,8 @@ class XenoCompiler {
     std::map<String, XenoValue> variable_map;  // хранит тип и значение по умолчанию (для определения типа)
     std::map<String, bool> is_array;          // для отслеживания переменных-массивов
     std::vector<IfContext> if_chain_stack;    // стек цепочек if-else if-else
-    std::vector<LoopInfo> loop_stack;
+    std::vector<LoopInfo> loop_stack;         // стек for-циклов
+    std::vector<LoopInfo> while_stack;        // стек while-циклов (используем ту же структуру: start_address и condition_address)
     XenoSecurityConfig& security_config;
     XenoSecurity security;
 

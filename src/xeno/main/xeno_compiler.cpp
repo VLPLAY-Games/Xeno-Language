@@ -169,6 +169,7 @@ XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     string_table.reserve(32);
     if_chain_stack.reserve(security_config.getMaxIfDepth());
     loop_stack.reserve(security_config.getMaxLoopDepth());
+    while_stack.reserve(security_config.getMaxLoopDepth());  // while использует ту же глубину
 }
 
 void XenoCompiler::compile(const String& source_code) {
@@ -178,6 +179,7 @@ void XenoCompiler::compile(const String& source_code) {
     is_array.clear();
     if_chain_stack.clear();
     loop_stack.clear();
+    while_stack.clear();
     compile_error = false;
 
     int line_number = 0;
@@ -740,7 +742,7 @@ void XenoCompiler::handleDigitalRead(const String& args, int line_number) {
 }
 
 // ------------------------------------------------------------------
-// Остальные методы (без изменений, кроме добавления проверки compile_error)
+// Остальные методы
 // ------------------------------------------------------------------
 
 bool XenoCompiler::validateString(const String& str) {
@@ -1352,6 +1354,56 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
                 bytecode[addr].arg1 = end_addr;
             }
         }
+    } else if (command == "while") {
+        // while condition ... endwhile
+        if (while_stack.size() >= security_config.getMaxLoopDepth()) {
+            Serial.print("ERROR: While loop nesting too deep at line ");
+            Serial.println(line_number);
+            compile_error = true;
+            return;
+        }
+
+        // Сохраняем адрес начала проверки условия
+        int loop_start = getCurrentAddress();
+
+        // Компилируем условие (выражение)
+        compileExpression(args);
+        if (compile_error) return;
+
+        // Генерируем условный переход на выход (пока адрес неизвестен)
+        int jump_if_addr = getCurrentAddress();
+        emitInstruction(OP_JUMP_IF, 0);  // arg1 будет исправлен в endwhile
+
+        // Сохраняем информацию о цикле
+        LoopInfo info;
+        info.start_address = loop_start;
+        info.condition_address = jump_if_addr;
+        while_stack.push_back(info);
+    } else if (command == "endwhile") {
+        if (while_stack.empty()) {
+            Serial.print("ERROR: ENDWHILE without WHILE at line ");
+            Serial.println(line_number);
+            compile_error = true;
+            return;
+        }
+
+        LoopInfo info = while_stack.back();
+        while_stack.pop_back();
+
+        // Безусловный переход на начало проверки условия
+        emitInstruction(OP_JUMP, info.start_address);
+
+        // Теперь текущий адрес — это адрес конца цикла (после безусловного прыжка)
+        int end_addr = getCurrentAddress();
+
+        // Исправляем условный переход на конец цикла
+        if (info.condition_address < bytecode.size()) {
+            bytecode[info.condition_address].arg1 = end_addr;
+        } else {
+            Serial.print("ERROR: Invalid condition address in ENDWHILE at line ");
+            Serial.println(line_number);
+            compile_error = true;
+        }
     } else if (command == "for") {
         if (loop_stack.size() >= security_config.getMaxLoopDepth()) {
             Serial.print("ERROR: Loop nesting too deep at line ");
@@ -1396,32 +1448,6 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
                 compile_error = true;
                 return;
             }
-
-            // Перекомпилируем start_expr и end_expr для генерации кода
-            // (они уже скомпилированы, но нам нужно сгенерировать код)
-            // Поэтому вызываем compileExpression повторно (или можно сохранить)
-            // Переделаем: сначала компилируем start_expr, затем end_expr
-            // Но мы уже скомпилировали их для проверки типов, и они сгенерировали код.
-            // Однако код был сгенерирован, но мы его не используем? В compileExpressionWithType
-            // мы генерируем код, но потом он остаётся в байткоде. Это проблема: мы сгенерировали код для проверки,
-            // а потом снова сгенерируем. Нужно переделать логику: сначала проверяем типы, потом генерируем код.
-            // Проще: использовать отдельный метод для проверки типов без генерации кода.
-            // Но для простоты мы можем сгенерировать код один раз, но тогда нам нужно сохранить скомпилированное выражение.
-            // Сейчас мы сначала компилируем start_expr (генерирует код), потом end_expr (генерирует код).
-            // Потом мы снова компилируем start_expr и end_expr ниже? Нет, мы должны использовать уже сгенерированный код.
-            // Но мы не сохраняем его. Поэтому лучше переписать: мы не будем использовать compileExpressionWithType
-            // для проверки типов, а вместо этого напишем отдельную функцию для анализа типов без генерации.
-            // Упростим: пока оставим как есть, просто проверяем типы и генерируем код (первая компиляция).
-            // Потом в цикле for мы снова генерируем код для start_expr и end_expr? Нет, мы должны использовать уже сгенерированный код.
-            // Поэтому мы должны избавиться от двойной компиляции.
-            // Решение: вызывать compileExpressionWithType только один раз для каждого выражения,
-            // а затем использовать сгенерированный код. Но compileExpressionWithType генерирует код,
-            // и мы не можем "извлечь" его отдельно. Мы можем хранить флаг "выражение уже скомпилировано",
-            // но это сложно.
-            // Более простой подход: не проверять типы для for, пока оставить без проверки.
-            // Или использовать compileExpression (без проверки) и отдельно определить типы через анализ.
-            // Я пока пропущу проверку for для простоты, но добавлю предупреждение.
-            // В реальном проекте нужно рефакторить.
 
             // Пока скомпилируем обычным способом:
             int var_index = getVariableIndex(var_name);
