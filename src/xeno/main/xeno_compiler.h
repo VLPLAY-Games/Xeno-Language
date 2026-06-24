@@ -38,12 +38,17 @@ class XenoCompiler {
 
     bool compile_error;
 
-    // ---- Таблица функций (этап 1) ----
+    // ---- Таблица функций ----
     std::map<String, FunctionInfo> functions;
 
-    // ---- Состояние парсинга функций (этап 2) ----
-    bool inside_function_declaration;   // Флаг: находимся ли внутри объявления функции
-    FunctionInfo pending_function;      // Текущая объявляемая функция (для сохранения адреса и т.д.)
+    // ---- Состояние парсинга функций ----
+    bool inside_function_declaration;
+    FunctionInfo pending_function;
+
+    // ---- Отдельный буфер для кода функций ----
+    std::vector<XenoInstruction> function_code;        // все функции
+    std::vector<XenoInstruction> current_function_code; // текущая компилируемая функция
+    std::vector<XenoInstruction>* current_output;      // указатель на целевой вектор (bytecode или current_function_code)
 
     struct Constant {
         const char* name;
@@ -52,7 +57,6 @@ class XenoCompiler {
     static const Constant constants[];
     static const size_t constants_count;
 
-    // ---- Переименовано для избежания конфликта с глобальной FunctionInfo ----
     struct MathFunctionInfo {
         const char* name;
         char open_bracket;
@@ -111,7 +115,6 @@ class XenoCompiler {
     void handleDigitalRead(const String& args, int line_number);
     void handleSetCommand(const String& args, int line_number);
 
-    // ---- Вспомогательные методы для функций (этап 2) ----
     void parseFunctionDeclaration(const String& args, int line_number);
 
  protected:
@@ -119,8 +122,8 @@ class XenoCompiler {
     void compile(const String& source_code);
     const std::vector<XenoInstruction>& getBytecode() const;
     const std::vector<String>& getStringTable() const;
-    void printCompiledCode();
     const std::map<String, FunctionInfo>& getFunctions() const { return functions; }
+    void printCompiledCode();
 };
 
 #endif  // SRC_XENO_XENO_COMPILER_H_

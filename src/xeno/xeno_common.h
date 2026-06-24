@@ -145,7 +145,7 @@ struct FunctionInfo {
     int arity;
 };
 
-// ---- CallFrame for VM (расширен) ----
+// CallFrame for VM
 struct CallFrame {
     uint32_t return_address;                     // Адрес возврата
     std::map<String, XenoValue> locals;          // Локальные переменные (включая параметры)

@@ -81,7 +81,7 @@ void XenoVM::initializeDispatchTable() {
 
     // Функции
     dispatch_table[OP_CALL] = &XenoVM::handleCALL;
-    // OP_RETURN будет добавлен позже
+    dispatch_table[OP_RETURN] = &XenoVM::handleRETURN;
 }
 
 // ------------------------------------------------------------------
@@ -114,12 +114,12 @@ void XenoVM::resetState() {
     variables.clear();
     string_lookup.clear();
     arrays.clear();
-    call_stack.clear();          // очищаем стек вызовов
-    function_table.clear();      // очищаем таблицу функций (она будет установлена извне)
+    call_stack.clear();
+    function_table.clear();
 }
 
 // ------------------------------------------------------------------
-// Установка таблицы функций (новый метод)
+// Установка таблицы функций
 // ------------------------------------------------------------------
 void XenoVM::setFunctionTable(const std::map<String, FunctionInfo>& functions) {
     function_table = functions;
@@ -603,7 +603,7 @@ bool XenoVM::isBool(const String& str) {
 }
 
 // ------------------------------------------------------------------
-// Обработчики инструкций (большинство без изменений)
+// Обработчики инструкций
 // ------------------------------------------------------------------
 
 void XenoVM::handleNOP(const XenoInstruction& instr) { /* Do nothing */ }
@@ -773,7 +773,6 @@ void XenoVM::handleINPUT(const XenoInstruction& instr) {
 
     if (input_str.isEmpty()) {
         Serial.println("TIMEOUT - using default value 0");
-        // Записываем в глобальную переменную
         variables[var_name] = XenoValue::makeInt(0);
         return;
     }
@@ -789,7 +788,6 @@ void XenoVM::handleINPUT(const XenoInstruction& instr) {
         input_value = XenoValue::makeString(addString(input_str));
     }
 
-    // INPUT всегда записывает в глобальную переменную (по задумке)
     variables[var_name] = input_value;
     Serial.print("-> ");
     Serial.println(input_str);
@@ -822,7 +820,7 @@ void XenoVM::handlePRINT_NUM(const XenoInstruction& instr) {
     }
 }
 
-// ---- ИЗМЕНЁННЫЙ handleSTORE ----
+// ---- STORE с поддержкой локальных ----
 void XenoVM::handleSTORE(const XenoInstruction& instr) {
     if (instr.arg1 >= string_table.size()) {
         Serial.println("ERROR: Invalid variable name index in STORE");
@@ -833,20 +831,20 @@ void XenoVM::handleSTORE(const XenoInstruction& instr) {
     if (!Pop(value)) return;
     String var_name = string_table[instr.arg1];
 
-    // Проверяем, есть ли локальная переменная с таким именем в текущем кадре
+    // Проверяем локальные переменные текущего кадра
     if (!call_stack.empty()) {
         CallFrame& frame = call_stack.back();
         auto it = frame.locals.find(var_name);
         if (it != frame.locals.end()) {
-            it->second = value;   // обновляем локальную
+            it->second = value;
             return;
         }
     }
-    // Если локальной нет, сохраняем в глобальные
+    // Иначе глобальные
     variables[var_name] = value;
 }
 
-// ---- ИЗМЕНЁННЫЙ handleLOAD ----
+// ---- LOAD с поддержкой локальных ----
 void XenoVM::handleLOAD(const XenoInstruction& instr) {
     if (instr.arg1 >= string_table.size()) {
         Serial.println("ERROR: Invalid variable name index in LOAD");
@@ -855,7 +853,7 @@ void XenoVM::handleLOAD(const XenoInstruction& instr) {
     }
     String var_name = string_table[instr.arg1];
 
-    // Сначала ищем в локальных переменных текущего кадра
+    // Сначала локальные
     if (!call_stack.empty()) {
         CallFrame& frame = call_stack.back();
         auto it = frame.locals.find(var_name);
@@ -864,7 +862,7 @@ void XenoVM::handleLOAD(const XenoInstruction& instr) {
             return;
         }
     }
-    // Иначе ищем в глобальных
+    // Потом глобальные
     auto it = variables.find(var_name);
     if (it != variables.end()) {
         if (!Push(it->second)) return;
@@ -1141,9 +1139,8 @@ void XenoVM::handleCONVERT_TO_FLOAT(const XenoInstruction& instr) {
     }
 }
 
-// ---- ОБРАБОТЧИК OP_CALL (реализация этапа 4) ----
+// ---- ОБРАБОТЧИК OP_CALL ----
 void XenoVM::handleCALL(const XenoInstruction& instr) {
-    // Получаем имя функции из строковой таблицы
     if (instr.arg1 >= string_table.size()) {
         Serial.println("ERROR: Invalid function name index in CALL");
         running = false;
@@ -1151,7 +1148,6 @@ void XenoVM::handleCALL(const XenoInstruction& instr) {
     }
     String funcName = string_table[instr.arg1];
 
-    // Ищем функцию в таблице
     auto it = function_table.find(funcName);
     if (it == function_table.end()) {
         Serial.print("ERROR: Function '");
@@ -1162,7 +1158,6 @@ void XenoVM::handleCALL(const XenoInstruction& instr) {
     }
     const FunctionInfo& funcInfo = it->second;
 
-    // Проверяем, достаточно ли аргументов на стеке
     if (stack_pointer < (uint32_t)funcInfo.arity) {
         Serial.print("ERROR: Not enough arguments on stack for function '");
         Serial.print(funcName);
@@ -1175,17 +1170,12 @@ void XenoVM::handleCALL(const XenoInstruction& instr) {
         return;
     }
 
-    // Сохраняем адрес возврата (следующая инструкция после CALL)
-    uint32_t return_address = program_counter; // program_counter уже указывает на следующую инструкцию
+    uint32_t return_address = program_counter; // уже указывает на следующую инструкцию
 
-    // Создаём новый кадр
     CallFrame frame;
     frame.return_address = return_address;
 
-    // Извлекаем аргументы со стека в порядке, обратном порядку на стеке
-    // Стек: arg1, arg2, ..., argN (argN на вершине)
-    // Нужно присвоить param[0] = arg1, param[1] = arg2, ...
-    // Поэтому извлекаем с вершины в обратном порядке
+    // Извлекаем аргументы
     std::vector<XenoValue> args(funcInfo.arity);
     for (int i = funcInfo.arity - 1; i >= 0; --i) {
         XenoValue val;
@@ -1193,7 +1183,7 @@ void XenoVM::handleCALL(const XenoInstruction& instr) {
             running = false;
             return;
         }
-        args[i] = val;  // args[0] = первый аргумент (самый нижний), args[N-1] = последний
+        args[i] = val;
     }
 
     // Заполняем локальные переменные параметрами
@@ -1202,11 +1192,42 @@ void XenoVM::handleCALL(const XenoInstruction& instr) {
         frame.locals[paramName] = args[i];
     }
 
-    // Помещаем кадр в стек вызовов
     call_stack.push_back(frame);
-
-    // Переходим к адресу функции
     program_counter = funcInfo.address;
+}
+
+// ---- ОБРАБОТЧИК OP_RETURN ----
+void XenoVM::handleRETURN(const XenoInstruction& instr) {
+    if (call_stack.empty()) {
+        Serial.println("ERROR: RETURN without active call frame");
+        running = false;
+        return;
+    }
+
+    // Извлекаем результат со стека (если есть)
+    XenoValue result = XenoValue::makeInt(0);
+    if (stack_pointer > 0) {
+        // Если на стеке есть значение, считаем его результатом
+        if (!Pop(result)) {
+            running = false;
+            return;
+        }
+    }
+
+    // Восстанавливаем кадр
+    CallFrame frame = call_stack.back();
+    call_stack.pop_back();
+
+    // Восстанавливаем program_counter на адрес возврата
+    program_counter = frame.return_address;
+
+    // Помещаем результат обратно на стек (для вызывающего кода)
+    if (!Push(result)) {
+        running = false;
+        return;
+    }
+
+    // Локальные переменные уничтожаются автоматически при удалении frame
 }
 
 // ------------------------------------------------------------------
@@ -1322,7 +1343,6 @@ void XenoVM::dumpState() {
     Serial.print("Max Stack Size: ");
     Serial.println(max_stack_size);
 
-    // Стек
     Serial.println("Stack: [");
     for (uint32_t i = 0; i < stack_pointer && i < 10; ++i) {
         String type_str;
@@ -1359,7 +1379,6 @@ void XenoVM::dumpState() {
     if (stack_pointer > 10) Serial.println("  ...");
     Serial.println("]");
 
-    // Глобальные переменные
     Serial.println("Global Variables: {");
     for (const auto& var : variables) {
         String type_str;
@@ -1395,7 +1414,6 @@ void XenoVM::dumpState() {
     }
     Serial.println("}");
 
-    // Локальные переменные текущего кадра
     if (!call_stack.empty()) {
         Serial.println("Local variables (top frame): {");
         const CallFrame& frame = call_stack.back();

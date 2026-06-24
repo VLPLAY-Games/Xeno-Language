@@ -41,8 +41,9 @@ bool XenoLanguage::compile(const String& source_code) {
 }
 
 bool XenoLanguage::run(bool less_output) {
-    vm->setFunctionTable(compiler->getFunctions()); // <-- добавляем перед загрузкой программы
+    // Сначала загружаем программу, затем устанавливаем таблицу функций
     vm->loadProgram(compiler->getBytecode(), compiler->getStringTable(), less_output);
+    vm->setFunctionTable(compiler->getFunctions());
     vm->run(less_output);
     return true;
 }
@@ -50,8 +51,8 @@ bool XenoLanguage::run(bool less_output) {
 bool XenoLanguage::compile_and_run(const String& source_code, bool less_output) {
     recreateObjects();
     compiler->compile(source_code);
-    vm->setFunctionTable(compiler->getFunctions());
     vm->loadProgram(compiler->getBytecode(), compiler->getStringTable(), less_output);
+    vm->setFunctionTable(compiler->getFunctions());
     vm->run(less_output);
     return true;
 }

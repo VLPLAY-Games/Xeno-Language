@@ -45,10 +45,10 @@ class XenoVM {
     XenoSecurity security;
     XenoSecurityConfig& security_config;
 
-    // ---- Стек вызовов ----
+    // Стек вызовов
     std::vector<CallFrame> call_stack;
 
-    // ---- Таблица функций (передаётся из компилятора) ----
+    // Таблица функций
     std::map<String, FunctionInfo> function_table;
 
     friend class XenoLanguage;
@@ -129,9 +129,9 @@ class XenoVM {
     void handleDIGITAL_READ(const XenoInstruction& instr);
     void handleCONVERT_TO_FLOAT(const XenoInstruction& instr);
 
-    // ---- Обработчики функций ----
+    // Обработчики функций
     void handleCALL(const XenoInstruction& instr);
-    // void handleRETURN(const XenoInstruction& instr); // будет добавлен позже
+    void handleRETURN(const XenoInstruction& instr);  // добавлен
 
  protected:
     explicit XenoVM(XenoSecurityConfig& config);
@@ -139,7 +139,7 @@ class XenoVM {
     void setMaxInstructions(uint32_t max_instr);
     void loadProgram(const std::vector<XenoInstruction>& bytecode,
                     const std::vector<String>& strings, bool less_output = true);
-    void setFunctionTable(const std::map<String, FunctionInfo>& functions); // новый метод
+    void setFunctionTable(const std::map<String, FunctionInfo>& functions);
     bool step();
     void run(bool less_output = true);
     void stop();

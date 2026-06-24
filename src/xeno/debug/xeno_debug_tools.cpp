@@ -83,6 +83,8 @@ void Debugger::printInstruction(size_t index, const XenoInstruction& instr,
         case OP_ARRAY_LEN: mnemonic = "ARRAY_LEN"; break;
         case OP_ANALOG_READ: mnemonic = "ANALOG_READ"; break;
         case OP_DIGITAL_READ: mnemonic = "DIGITAL_READ"; break;
+        case OP_CALL: mnemonic = "CALL"; break;
+        case OP_RETURN: mnemonic = "RETURN"; break;
 
         // OP_ANALOG_WRITE имеет аргументы, поэтому обрабатываем отдельно
         case OP_ANALOG_WRITE:
