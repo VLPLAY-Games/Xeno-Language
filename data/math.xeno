@@ -1,0 +1,8 @@
+// math.xeno - standard library of mathematical constants
+
+set M_PI 3.141592653589793
+set M_E 2.718281828459045
+set M_TAU 6.283185307179586
+set M_SQRT2 1.4142135623730951
+set M_SQRT3 1.7320508075688772
+set P_LIGHT_SPEED 299792458

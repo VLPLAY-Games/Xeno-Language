@@ -59,13 +59,6 @@ class XenoCompiler {
     std::vector<String> imported_files;     // Список уже импортированных файлов
     uint16_t import_depth;                  // Текущая глубина импорта (для проверки)
 
-    struct Constant {
-        const char* name;
-        const char* value;
-    };
-    static const Constant constants[];
-    static const size_t constants_count;
-
     struct MathFunctionInfo {
         const char* name;
         char open_bracket;
@@ -116,7 +109,6 @@ class XenoCompiler {
     void emitInstruction(uint8_t opcode, uint32_t arg1 = 0, uint16_t arg2 = 0);
     int getCurrentAddress();
     void compileLine(const String& line, int line_number);
-    void processConstants(String& expr);
 
     void handleArrayCommand(const String& args, int line_number);
     void handleAnalogRead(const String& args, int line_number);
