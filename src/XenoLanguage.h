@@ -30,13 +30,18 @@ class XenoLanguage {
 
     XenoSecurityConfig security_config;
 
-    XenoCompiler* compiler = new XenoCompiler(security_config);
-    XenoVM* vm = new XenoVM(security_config);
+    XenoCompiler* compiler;
+    XenoVM* vm;
 
     void recreateObjects();
 
+    // Запрещаем копирование и присваивание (во избежание двойного удаления)
+    XenoLanguage(const XenoLanguage&) = delete;
+    XenoLanguage& operator=(const XenoLanguage&) = delete;
+
  public:
     XenoLanguage();
+    ~XenoLanguage();
 
     bool compile(const String& source_code);
     bool run(bool less_output = true);

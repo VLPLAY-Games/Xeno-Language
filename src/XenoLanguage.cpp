@@ -18,16 +18,21 @@
 #include "XenoLanguage.h"
 
 XenoLanguage::XenoLanguage() {
-    recreateObjects();
-}
-
-void XenoLanguage::recreateObjects() {
-    if (compiler) delete compiler;
-    if (vm) delete vm;
     compiler = new XenoCompiler(security_config);
     vm = new XenoVM(security_config);
 }
 
+XenoLanguage::~XenoLanguage() {
+    delete compiler;
+    delete vm;
+}
+
+void XenoLanguage::recreateObjects() {
+    delete compiler;
+    delete vm;
+    compiler = new XenoCompiler(security_config);
+    vm = new XenoVM(security_config);
+}
 
 bool XenoLanguage::compile(const String& source_code) {
     recreateObjects();
