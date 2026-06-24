@@ -38,8 +38,12 @@ class XenoCompiler {
 
     bool compile_error;
 
-    // ---- НОВОЕ ПОЛЕ ДЛЯ ФУНКЦИЙ (этап 1) ----
+    // ---- Таблица функций (этап 1) ----
     std::map<String, FunctionInfo> functions;
+
+    // ---- Состояние парсинга функций (этап 2) ----
+    bool inside_function_declaration;   // Флаг: находимся ли внутри объявления функции
+    FunctionInfo pending_function;      // Текущая объявляемая функция (для сохранения адреса и т.д.)
 
     struct Constant {
         const char* name;
@@ -48,7 +52,8 @@ class XenoCompiler {
     static const Constant constants[];
     static const size_t constants_count;
 
-    struct FunctionInfo {
+    // ---- Переименовано для избежания конфликта с глобальной FunctionInfo ----
+    struct MathFunctionInfo {
         const char* name;
         char open_bracket;
         char close_bracket;
@@ -56,10 +61,10 @@ class XenoCompiler {
         int num_args;
     };
 
-    static const FunctionInfo math_functions[];
+    static const MathFunctionInfo math_functions[];
     static const size_t math_functions_count;
 
-    void compileMathFunction(const String& token, const FunctionInfo& func);
+    void compileMathFunction(const String& token, const MathFunctionInfo& func);
     void compileSimpleCommand(const String& command, uint8_t opcode);
 
     struct SimpleCommand {
@@ -105,6 +110,9 @@ class XenoCompiler {
     void handleAnalogWrite(const String& args, int line_number);
     void handleDigitalRead(const String& args, int line_number);
     void handleSetCommand(const String& args, int line_number);
+
+    // ---- Вспомогательные методы для функций (этап 2) ----
+    void parseFunctionDeclaration(const String& args, int line_number);
 
  protected:
     explicit XenoCompiler(XenoSecurityConfig& config);

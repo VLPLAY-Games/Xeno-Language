@@ -31,7 +31,8 @@ const XenoCompiler::Constant XenoCompiler::constants[] = {
 
 const size_t XenoCompiler::constants_count = std::size(constants);
 
-const XenoCompiler::FunctionInfo XenoCompiler::math_functions[] = {
+// ---- Используем MathFunctionInfo вместо FunctionInfo ----
+const XenoCompiler::MathFunctionInfo XenoCompiler::math_functions[] = {
     {"abs(", '[', ']', OP_ABS, 1},
     {"max(", '{', '}', OP_MAX, 2},
     {"min(", '|', '|', OP_MIN, 2},
@@ -62,7 +63,7 @@ const XenoCompiler::SimpleCommand XenoCompiler::simple_commands[] = {
 const size_t XenoCompiler::simple_commands_count = sizeof(simple_commands) / sizeof(simple_commands[0]);
 
 // ------------------------------------------------------------------
-// Вспомогательные функции для проверки типов
+// Вспомогательные функции для проверки типов (без изменений)
 // ------------------------------------------------------------------
 static inline bool isNumericType(XenoDataType t) {
     return t == TYPE_INT || t == TYPE_FLOAT;
@@ -169,7 +170,9 @@ XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     string_table.reserve(32);
     if_chain_stack.reserve(security_config.getMaxIfDepth());
     loop_stack.reserve(security_config.getMaxLoopDepth());
-    while_stack.reserve(security_config.getMaxLoopDepth());  // while использует ту же глубину
+    while_stack.reserve(security_config.getMaxLoopDepth());
+    // Инициализация состояния функций (этап 2)
+    inside_function_declaration = false;
 }
 
 void XenoCompiler::compile(const String& source_code) {
@@ -180,6 +183,8 @@ void XenoCompiler::compile(const String& source_code) {
     if_chain_stack.clear();
     loop_stack.clear();
     while_stack.clear();
+    functions.clear();           // очищаем таблицу функций (этап 1)
+    inside_function_declaration = false; // (этап 2)
     compile_error = false;
 
     int line_number = 0;
@@ -217,7 +222,7 @@ void XenoCompiler::compile(const String& source_code) {
 }
 
 // ------------------------------------------------------------------
-// Компиляция выражений с проверкой типов
+// Компиляция выражений с проверкой типов (без изменений)
 // ------------------------------------------------------------------
 
 void XenoCompiler::compileExpression(const String& expr) {
@@ -374,7 +379,7 @@ XenoDataType XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
         else {
             bool function_processed = false;
             for (size_t i = 0; i < math_functions_count; i++) {
-                const FunctionInfo& func = math_functions[i];
+                const MathFunctionInfo& func = math_functions[i];
                 if (token.startsWith(String(func.open_bracket)) &&
                     token.endsWith(String(func.close_bracket))) {
                     // Проверка типов аргументов (они уже скомпилированы)
@@ -437,7 +442,8 @@ XenoDataType XenoCompiler::compilePostfix(const std::vector<String>& postfix) {
     return typeStack.top();
 }
 
-void XenoCompiler::compileMathFunction(const String& token, const FunctionInfo& func) {
+// ---- Изменена сигнатура, использует MathFunctionInfo ----
+void XenoCompiler::compileMathFunction(const String& token, const MathFunctionInfo& func) {
     String innerExpr = token.substring(1, token.length() - 1);
 
     if (func.num_args == 1) {
@@ -463,7 +469,7 @@ void XenoCompiler::compileSimpleCommand(const String& command, uint8_t opcode) {
 }
 
 // ------------------------------------------------------------------
-// Обработчики команд с проверкой типов
+// Обработчики команд с проверкой типов (без изменений)
 // ------------------------------------------------------------------
 
 void XenoCompiler::handleSetCommand(const String& args, int line_number) {
@@ -669,8 +675,6 @@ void XenoCompiler::handleArrayCommand(const String& args, int line_number) {
         emitInstruction(OP_ARRAY_SET);
     }
     else if (subCmd == "get") {
-        // array get используется в выражениях, поэтому здесь не обрабатывается как команда
-        // но для совместимости оставим заглушку
         Serial.print("ERROR: 'array get' should be used inside expressions, not as a command at line ");
         Serial.println(line_number);
         compile_error = true;
@@ -742,7 +746,7 @@ void XenoCompiler::handleDigitalRead(const String& args, int line_number) {
 }
 
 // ------------------------------------------------------------------
-// Остальные методы
+// Остальные методы (без изменений, кроме processFunctions где использовался FunctionInfo)
 // ------------------------------------------------------------------
 
 bool XenoCompiler::validateString(const String& str) {
@@ -875,6 +879,7 @@ bool XenoCompiler::isRightAssociative(const String& op) {
     return op == "^";
 }
 
+// ---- Изменено использование MathFunctionInfo в processFunctions ----
 String XenoCompiler::processFunctions(const String& expr) {
     if (expr.length() > 1024) {
         Serial.println("ERROR: Expression too long");
@@ -887,7 +892,7 @@ String XenoCompiler::processFunctions(const String& expr) {
     processConstants(result);
 
     for (size_t i = 0; i < math_functions_count && depth < security_config.getMaxExpressionDepth(); i++) {
-        const FunctionInfo& func = math_functions[i];
+        const MathFunctionInfo& func = math_functions[i];
         int pos = result.indexOf(func.name);
 
         while (pos >= 0 && depth < security_config.getMaxExpressionDepth()) {
@@ -1117,6 +1122,106 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
     return tokens;
 }
 
+// ------------------------------------------------------------------
+// НОВАЯ ЛОГИКА ПАРСИНГА ФУНКЦИЙ (этап 2) - исправлено использование глобальной FunctionInfo
+// ------------------------------------------------------------------
+
+void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number) {
+    // Ожидается формат: name(arg1, arg2, ...)
+    int openParen = args.indexOf('(');
+    int closeParen = args.lastIndexOf(')');
+    if (openParen <= 0 || closeParen <= openParen) {
+        Serial.print("ERROR: Invalid function declaration at line ");
+        Serial.println(line_number);
+        compile_error = true;
+        return;
+    }
+
+    String funcName = args.substring(0, openParen);
+    funcName.trim();
+    if (!validateVariableName(funcName)) {
+        Serial.print("ERROR: Invalid function name '");
+        Serial.print(funcName);
+        Serial.print("' at line ");
+        Serial.println(line_number);
+        compile_error = true;
+        return;
+    }
+
+    // Проверка на дубликат имени
+    if (functions.find(funcName) != functions.end()) {
+        Serial.print("ERROR: Function '");
+        Serial.print(funcName);
+        Serial.print("' already defined at line ");
+        Serial.println(line_number);
+        compile_error = true;
+        return;
+    }
+
+    // Извлекаем аргументы
+    String paramsStr = args.substring(openParen + 1, closeParen);
+    paramsStr.trim();
+    std::vector<String> parameters;
+    if (!paramsStr.isEmpty()) {
+        int start = 0;
+        while (start < paramsStr.length()) {
+            int comma = paramsStr.indexOf(',', start);
+            String param;
+            if (comma >= 0) {
+                param = paramsStr.substring(start, comma);
+                start = comma + 1;
+            } else {
+                param = paramsStr.substring(start);
+                start = paramsStr.length();
+            }
+            param.trim();
+            if (!param.isEmpty()) {
+                if (!validateVariableName(param)) {
+                    Serial.print("ERROR: Invalid parameter name '");
+                    Serial.print(param);
+                    Serial.print("' at line ");
+                    Serial.println(line_number);
+                    compile_error = true;
+                    return;
+                }
+                // Проверка на дубликат параметра
+                for (const String& p : parameters) {
+                    if (p == param) {
+                        Serial.print("ERROR: Duplicate parameter name '");
+                        Serial.print(param);
+                        Serial.print("' at line ");
+                        Serial.println(line_number);
+                        compile_error = true;
+                        return;
+                    }
+                }
+                parameters.push_back(param);
+            }
+        }
+    }
+
+    // Создаём информацию о функции (глобальная структура)
+    FunctionInfo funcInfo;
+    funcInfo.name = funcName;
+    funcInfo.parameters = parameters;
+    funcInfo.arity = parameters.size();
+    funcInfo.address = getCurrentAddress();  // Адрес начала функции (пока байткод пуст)
+
+    // Сохраняем в таблицу
+    functions[funcName] = funcInfo;
+
+    // Устанавливаем флаг, что мы внутри объявления функции
+    inside_function_declaration = true;
+    pending_function = funcInfo;  // сохраняем для возможного использования (например, для endfunc)
+
+    // Никаких инструкций не генерируем, просто запоминаем адрес.
+    // Тело будет пропущено до endfunc.
+}
+
+// ------------------------------------------------------------------
+// Главный метод компиляции строки (без изменений)
+// ------------------------------------------------------------------
+
 void XenoCompiler::compileLine(const String& line, int line_number) {
     String cleanedLine = cleanLine(line);
     if (cleanedLine.isEmpty()) return;
@@ -1128,6 +1233,28 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
         return;
     }
 
+    // ---- Если внутри объявления функции, обрабатываем только endfunc ----
+    if (inside_function_declaration) {
+        if (cleanedLine.equalsIgnoreCase("endfunc")) {
+            inside_function_declaration = false;
+            // Можно добавить проверку, что функция имеет тело, но пока пропускаем
+            // В будущем здесь будет генерация OP_FUNC_END
+            return;
+        } else {
+            // Пропускаем все остальные строки внутри функции
+            return;
+        }
+    }
+
+    // ---- Обработка команды func ----
+    if (cleanedLine.startsWith("func ")) {
+        String args = cleanedLine.substring(5); // после "func "
+        args.trim();
+        parseFunctionDeclaration(args, line_number);
+        return;
+    }
+
+    // ---- Обычные команды (если не внутри функции) ----
     int firstSpace = cleanedLine.indexOf(' ');
     String command = (firstSpace > 0) ? cleanedLine.substring(0, firstSpace) : cleanedLine;
     String args = (firstSpace > 0) ? cleanedLine.substring(firstSpace + 1) : "";
@@ -1355,7 +1482,6 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             }
         }
     } else if (command == "while") {
-        // while condition ... endwhile
         if (while_stack.size() >= security_config.getMaxLoopDepth()) {
             Serial.print("ERROR: While loop nesting too deep at line ");
             Serial.println(line_number);
@@ -1363,18 +1489,13 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             return;
         }
 
-        // Сохраняем адрес начала проверки условия
         int loop_start = getCurrentAddress();
-
-        // Компилируем условие (выражение)
         compileExpression(args);
         if (compile_error) return;
 
-        // Генерируем условный переход на выход (пока адрес неизвестен)
         int jump_if_addr = getCurrentAddress();
-        emitInstruction(OP_JUMP_IF, 0);  // arg1 будет исправлен в endwhile
+        emitInstruction(OP_JUMP_IF, 0);
 
-        // Сохраняем информацию о цикле
         LoopInfo info;
         info.start_address = loop_start;
         info.condition_address = jump_if_addr;
@@ -1390,13 +1511,9 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
         LoopInfo info = while_stack.back();
         while_stack.pop_back();
 
-        // Безусловный переход на начало проверки условия
         emitInstruction(OP_JUMP, info.start_address);
 
-        // Теперь текущий адрес — это адрес конца цикла (после безусловного прыжка)
         int end_addr = getCurrentAddress();
-
-        // Исправляем условный переход на конец цикла
         if (info.condition_address < bytecode.size()) {
             bytecode[info.condition_address].arg1 = end_addr;
         } else {
@@ -1431,7 +1548,6 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             String end_expr = args.substring(toPos + 4);
             end_expr.trim();
 
-            // Проверка типов start_expr и end_expr
             XenoDataType startType = compileExpressionWithType(start_expr);
             if (compile_error) return;
             if (!isNumericType(startType)) {
@@ -1449,9 +1565,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
                 return;
             }
 
-            // Пока скомпилируем обычным способом:
             int var_index = getVariableIndex(var_name);
-            // Начальное значение
             compileExpression(start_expr);
             emitInstruction(OP_STORE, var_index);
 
