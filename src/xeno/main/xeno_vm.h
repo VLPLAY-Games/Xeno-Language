@@ -24,6 +24,12 @@
 #include "../security/xeno_security.h"
 #include "../security/xeno_security_config.h"
 
+// ---- НОВАЯ СТРУКТУРА ДЛЯ ФРЕЙМА ВЫЗОВА (этап 1) ----
+struct CallFrame {
+    uint32_t return_address;   // Адрес возврата
+    // В дальнейшем будут добавлены локальные переменные и указатель фрейма
+};
+
 class XenoVM {
  private:
     std::vector<XenoInstruction> program;
@@ -36,7 +42,7 @@ class XenoVM {
     const uint32_t max_stack_size;
 
     std::map<String, XenoValue> variables;
-    std::vector<std::vector<XenoValue>> arrays;   // глобальная таблица массивов
+    std::vector<std::vector<XenoValue>> arrays;
     bool running;
     uint32_t instruction_count;
     uint32_t max_instructions;
@@ -44,6 +50,9 @@ class XenoVM {
     static const uint32_t MAX_ITERATIONS = 100000;
     XenoSecurity security;
     XenoSecurityConfig& security_config;
+
+    // ---- НОВЫЙ СТЕК ВЫЗОВОВ (этап 1) ----
+    std::vector<CallFrame> call_stack;
 
     friend class XenoLanguage;
 

@@ -18,6 +18,8 @@
 #define SRC_XENO_XENO_COMMON_H_
 
 #include <Arduino.h>
+#include <vector>
+#include <map>
 
 // Operation codes for Xeno bytecode
 enum XenoOpcodes {
@@ -57,11 +59,11 @@ enum XenoOpcodes {
     OP_COS = 33,
     OP_TAN = 34,
 
-    // Новые опкоды
+    // Новые опкоды (этап 1)
     OP_AND = 35,
     OP_OR  = 36,
     OP_NOT = 37,
-    OP_NEG = 38,               // унарный минус
+    OP_NEG = 38,
     OP_ARRAY_NEW = 39,
     OP_ARRAY_GET = 40,
     OP_ARRAY_SET = 41,
@@ -69,8 +71,13 @@ enum XenoOpcodes {
     OP_ANALOG_READ  = 43,
     OP_ANALOG_WRITE = 44,
     OP_DIGITAL_READ = 45,
+    OP_CONVERT_TO_FLOAT = 46,
 
-    OP_CONVERT_TO_FLOAT = 46,  // преобразование INT -> FLOAT
+    // Опкоды для функций (этап 1)
+    OP_FUNC_START = 47,
+    OP_FUNC_END   = 48,
+    OP_CALL       = 49,
+    OP_RETURN     = 50,
 
     OP_HALT = 255
 };
@@ -82,7 +89,7 @@ enum XenoDataType {
     TYPE_STRING = 2,
     TYPE_BOOL = 3,
     TYPE_ARRAY = 4,
-    TYPE_ANY = 5   // для неизвестного типа (например, элементы массива)
+    TYPE_ANY = 5
 };
 
 // Value structure that can hold different data types
@@ -93,7 +100,7 @@ struct XenoValue {
         float float_val;
         uint16_t string_index;
         bool bool_val;
-        uint16_t array_index;   // индекс массива в глобальной таблице
+        uint16_t array_index;
     };
 
     XenoValue();
@@ -126,8 +133,16 @@ struct LoopInfo {
 
 // Структура для хранения контекста цепочки if-else if-else
 struct IfContext {
-    std::vector<int> if_jumps;    // адреса JUMP_IF для каждого условия
-    std::vector<int> else_jumps;  // адреса JUMP (безусловных) для пропуска
+    std::vector<int> if_jumps;
+    std::vector<int> else_jumps;
+};
+
+// ---- НОВЫЕ СТРУКТУРЫ ДЛЯ ФУНКЦИЙ (этап 1) ----
+struct FunctionInfo {
+    String name;                       // Имя функции
+    std::vector<String> parameters;    // Список имён параметров
+    int address;                       // Индекс в байткоде, где начинается функция
+    int arity;                         // Количество параметров
 };
 
 #endif  // SRC_XENO_XENO_COMMON_H_
