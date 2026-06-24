@@ -45,6 +45,9 @@ class XenoCompiler {
     bool inside_function_declaration;
     FunctionInfo pending_function;
 
+    // ---- Имена параметров текущей функции (для временного добавления в variable_map) ----
+    std::vector<String> function_param_names;
+
     // ---- Отдельный буфер для кода функций ----
     std::vector<XenoInstruction> function_code;        // все функции
     std::vector<XenoInstruction> current_function_code; // текущая компилируемая функция

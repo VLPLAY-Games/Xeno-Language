@@ -171,7 +171,8 @@ XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     loop_stack.reserve(security_config.getMaxLoopDepth());
     while_stack.reserve(security_config.getMaxLoopDepth());
     inside_function_declaration = false;
-    current_output = &bytecode;  // по умолчанию пишем в основной байткод
+    current_output = &bytecode;
+    function_param_names.clear();
 }
 
 void XenoCompiler::compile(const String& source_code) {
@@ -185,6 +186,7 @@ void XenoCompiler::compile(const String& source_code) {
     functions.clear();
     function_code.clear();
     current_function_code.clear();
+    function_param_names.clear();
     inside_function_declaration = false;
     current_output = &bytecode;
     compile_error = false;
@@ -231,19 +233,13 @@ void XenoCompiler::compile(const String& source_code) {
 
     // Добавляем все функции в конец байткода
     if (!function_code.empty()) {
-        // Сохраняем размер байткода до добавления функций
         size_t main_size = bytecode.size();
-        // Вставляем функции
         bytecode.insert(bytecode.end(), function_code.begin(), function_code.end());
-        // Обновляем адреса функций в таблице: они смещаются на main_size
         for (auto& entry : functions) {
             FunctionInfo& info = entry.second;
-            info.address += main_size;  // так как address хранил смещение внутри function_code
+            info.address += main_size;
         }
     }
-
-    // Если есть функции, они уже добавлены, и адреса обновлены
-    // Если байткод пуст, добавим HALT (уже сделано)
 }
 
 // ------------------------------------------------------------------
@@ -1223,7 +1219,7 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
 }
 
 // ------------------------------------------------------------------
-// Парсинг функций (без изменений)
+// Парсинг функций (добавлены параметры в variable_map)
 // ------------------------------------------------------------------
 
 void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number) {
@@ -1300,7 +1296,6 @@ void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number)
     funcInfo.name = funcName;
     funcInfo.parameters = parameters;
     funcInfo.arity = parameters.size();
-    // адрес будет установлен позже, после добавления функции в общий код
     funcInfo.address = 0;
 
     functions[funcName] = funcInfo;
@@ -1308,11 +1303,17 @@ void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number)
     inside_function_declaration = true;
     pending_function = funcInfo;
     current_function_code.clear();
-    current_output = &current_function_code;  // переключаем вывод в буфер функции
+    current_output = &current_function_code;
+
+    // Добавляем параметры в variable_map для использования внутри функции
+    function_param_names = parameters;
+    for (const String& param : parameters) {
+        variable_map[param] = XenoValue::makeInt(0); // заглушка
+    }
 }
 
 // ------------------------------------------------------------------
-// Главный метод компиляции строки (изменена обработка func/endfunc)
+// Главный метод компиляции строки (добавлено удаление параметров)
 // ------------------------------------------------------------------
 
 void XenoCompiler::compileLine(const String& line, int line_number) {
@@ -1326,7 +1327,6 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
         return;
     }
 
-    // ---- Определяем команду и аргументы ----
     int firstSpace = cleanedLine.indexOf(' ');
     String command = (firstSpace > 0) ? cleanedLine.substring(0, firstSpace) : cleanedLine;
     String args = (firstSpace > 0) ? cleanedLine.substring(firstSpace + 1) : "";
@@ -1337,23 +1337,26 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
     if (inside_function_declaration) {
         if (command == "endfunc") {
             // Завершаем функцию
-            emitInstruction(OP_RETURN); // автоматический возврат
+            emitInstruction(OP_RETURN);
             inside_function_declaration = false;
+
             // Сохраняем скомпилированное тело функции в общий буфер
             int offset = function_code.size();
             function_code.insert(function_code.end(), current_function_code.begin(), current_function_code.end());
-            // Обновляем адрес функции: он будет равен смещению в function_code
-            // но позже при добавлении в конец bytecode адрес сдвинется на размер bytecode
-            // поэтому пока сохраняем смещение
             auto it = functions.find(pending_function.name);
             if (it != functions.end()) {
                 it->second.address = offset;
             }
-            // Сбрасываем указатель вывода обратно на основной байткод
             current_output = &bytecode;
+
+            // Удаляем параметры из variable_map
+            for (const String& param : function_param_names) {
+                variable_map.erase(param);
+            }
+            function_param_names.clear();
+
             return;
         } else if (command == "return") {
-            // return внутри функции
             if (!args.isEmpty()) {
                 compileExpression(args);
                 if (compile_error) return;
@@ -1362,17 +1365,11 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             return;
         } else {
             // Обычная команда внутри функции - компилируем в current_function_code
-            // Но нам нужно выполнить компиляцию с текущим current_output
-            // Для этого мы можем вызвать ту же логику, но не переопределяя current_output
-            // Мы просто передаём управление вниз, где все emitInstruction пойдут в current_output
-            // Поэтому мы не возвращаемся, а продолжаем выполнение обычного кода
-            // Но мы должны быть уверены, что current_output указывает на current_function_code
-            // Это уже установлено при входе в функцию
+            // (продолжаем выполнение)
         }
     }
 
     // ---- Если мы не внутри функции или уже обработали return/endfunc, продолжаем ----
-    // (здесь мы оставляем только обычные команды, но они будут компилироваться в current_output)
 
     // ---- Обработка FUNC (вне функции) ----
     if (command == "func" && !inside_function_declaration) {
@@ -1796,7 +1793,6 @@ XenoValue XenoCompiler::createValueFromString(const String& str, XenoDataType ty
 }
 
 void XenoCompiler::emitInstruction(uint8_t opcode, uint32_t arg1, uint16_t arg2) {
-    // Добавляем в текущий выходной буфер
     if (current_output == nullptr) {
         current_output = &bytecode;
     }
@@ -1809,7 +1805,6 @@ void XenoCompiler::emitInstruction(uint8_t opcode, uint32_t arg1, uint16_t arg2)
 }
 
 int XenoCompiler::getCurrentAddress() {
-    // Возвращаем текущий размер выходного буфера
     return current_output ? current_output->size() : 0;
 }
 
