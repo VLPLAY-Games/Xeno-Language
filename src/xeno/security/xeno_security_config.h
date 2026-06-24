@@ -20,6 +20,7 @@
 #include <Arduino.h>
 #include <vector>
 #include <cstdint>
+#include "../xeno_common.h"   // для XENO_MAX_IMPORT_DEPTH_DEFAULT и др.
 
 class XenoSecurityConfig {
  private:
@@ -34,6 +35,10 @@ class XenoSecurityConfig {
 
     std::vector<uint8_t> allowed_pins = { };
 
+    uint16_t max_import_depth = XENO_MAX_IMPORT_DEPTH_DEFAULT;
+    uint16_t max_import_count = XENO_MAX_IMPORT_COUNT_DEFAULT;
+
+    // Константы минимальных и максимальных значений (static)
     static constexpr uint16_t MIN_STRING_LENGTH = 1;
     static constexpr uint16_t MAX_STRING_LENGTH_LIMIT = 4096;
 
@@ -58,6 +63,11 @@ class XenoSecurityConfig {
     static constexpr uint8_t MIN_PIN_NUMBER = 0;
     static constexpr uint8_t MAX_PIN_NUMBER = 255;
 
+    static constexpr uint16_t MIN_IMPORT_DEPTH = 1;
+    static constexpr uint16_t MAX_IMPORT_DEPTH_LIMIT = 32;
+    static constexpr uint16_t MIN_IMPORT_COUNT = 1;
+    static constexpr uint16_t MAX_IMPORT_COUNT_LIMIT = 256;
+
     bool validateSizeLimit(uint16_t value, uint16_t min_val, uint16_t max_val, const char* param_name);
 
  protected:
@@ -65,8 +75,10 @@ class XenoSecurityConfig {
     friend class XenoCompiler;
     friend class XenoVM;
     friend class XenoSecurity;
+
     XenoSecurityConfig() = default;
 
+    // Геттеры для текущих значений (не статические)
     uint16_t getMaxStringLength() const { return max_string_length; }
     uint16_t getMaxVariableNameLength() const { return max_variable_name_length; }
     uint16_t getMaxExpressionDepth() const { return max_expression_depth; }
@@ -75,7 +87,27 @@ class XenoSecurityConfig {
     uint16_t getMaxStackSize() const { return max_stack_size; }
     uint32_t getCurrentMaxInstructions() const { return current_max_instructions; }
     const std::vector<uint8_t>& getAllowedPins() const { return allowed_pins; }
+    uint16_t getMaxImportDepth() const { return max_import_depth; }
+    uint16_t getMaxImportCount() const { return max_import_count; }
 
+    // Сеттеры (не статические)
+    bool setMaxStringLength(uint16_t length);
+    bool setMaxVariableNameLength(uint16_t length);
+    bool setMaxExpressionDepth(uint16_t depth);
+    bool setMaxLoopDepth(uint16_t depth);
+    bool setMaxIfDepth(uint16_t depth);
+    bool setMaxStackSize(uint16_t size);
+    bool setCurrentMaxInstructions(uint32_t max_instr);
+    bool setAllowedPins(const std::vector<uint8_t>& pins);
+    bool setMaxImportDepth(uint16_t depth);
+    bool setMaxImportCount(uint16_t count);
+
+    bool isPinAllowed(uint8_t pin) const;
+    bool validateConfig() const;
+    String getSecurityLimitsInfo() const;
+
+ public:
+    // Статические методы для получения константных лимитов (используются в XenoLanguage)
     static constexpr uint16_t getMinStringLength() { return MIN_STRING_LENGTH; }
     static constexpr uint16_t getMaxStringLengthLimit() { return MAX_STRING_LENGTH_LIMIT; }
     static constexpr uint16_t getMinVariableNameLength() { return MIN_VARIABLE_NAME_LENGTH; }
@@ -93,20 +125,11 @@ class XenoSecurityConfig {
     static constexpr uint8_t getMinPinNumber() { return MIN_PIN_NUMBER; }
     static constexpr uint8_t getMaxPinNumber() { return MAX_PIN_NUMBER; }
 
-    bool setMaxStringLength(uint16_t length);
-    bool setMaxVariableNameLength(uint16_t length);
-    bool setMaxExpressionDepth(uint16_t depth);
-    bool setMaxLoopDepth(uint16_t depth);
-    bool setMaxIfDepth(uint16_t depth);
-    bool setMaxStackSize(uint16_t size);
-    bool setCurrentMaxInstructions(uint32_t max_instr);
-    bool setAllowedPins(const std::vector<uint8_t>& pins);
-
-    bool isPinAllowed(uint8_t pin) const;
-
-    bool validateConfig() const;
-
-    String getSecurityLimitsInfo() const;
+    // Для импорта
+    static constexpr uint16_t getMinImportDepth() { return MIN_IMPORT_DEPTH; }
+    static constexpr uint16_t getMaxImportDepthLimit() { return MAX_IMPORT_DEPTH_LIMIT; }
+    static constexpr uint16_t getMinImportCount() { return MIN_IMPORT_COUNT; }
+    static constexpr uint16_t getMaxImportCountLimit() { return MAX_IMPORT_COUNT_LIMIT; }
 };
 
-#endif  // SRC_XENO_XENO_SECURITY_CONFIG_H_
+#endif  // SRC_XENO_SECURITY_XENO_SECURITY_CONFIG_H_

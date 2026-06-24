@@ -20,6 +20,7 @@
 XenoLanguage::XenoLanguage() {
     compiler = new XenoCompiler(security_config);
     vm = new XenoVM(security_config);
+    filesystem = nullptr;
 }
 
 XenoLanguage::~XenoLanguage() {
@@ -31,6 +32,9 @@ void XenoLanguage::recreateObjects() {
     delete compiler;
     delete vm;
     compiler = new XenoCompiler(security_config);
+    if (filesystem != nullptr) {
+        compiler->setFileSystem(filesystem);
+    }
     vm = new XenoVM(security_config);
 }
 
@@ -41,7 +45,6 @@ bool XenoLanguage::compile(const String& source_code) {
 }
 
 bool XenoLanguage::run(bool less_output) {
-    // Сначала загружаем программу, затем устанавливаем таблицу функций
     vm->loadProgram(compiler->getBytecode(), compiler->getStringTable(), less_output);
     vm->setFunctionTable(compiler->getFunctions());
     vm->run(less_output);

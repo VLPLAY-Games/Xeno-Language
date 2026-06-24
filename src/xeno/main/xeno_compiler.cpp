@@ -173,8 +173,11 @@ XenoCompiler::XenoCompiler(XenoSecurityConfig& config)
     inside_function_declaration = false;
     current_output = &bytecode;
     function_param_names.clear();
+    filesystem = nullptr;
+    import_depth = 0;
 }
 
+// ---- Публичный compile: сбрасывает состояние и запускает компиляцию ----
 void XenoCompiler::compile(const String& source_code) {
     bytecode.clear();
     string_table.clear();
@@ -190,34 +193,14 @@ void XenoCompiler::compile(const String& source_code) {
     inside_function_declaration = false;
     current_output = &bytecode;
     compile_error = false;
+    imported_files.clear();    // очищаем список импортированных при новой компиляции
+    import_depth = 0;
 
-    int line_number = 0;
-    int startPos = 0;
-    int endPos = source_code.indexOf('\n');
+    compileStringInternal(source_code);
 
-    while (endPos >= 0) {
-        String line = source_code.substring(startPos, endPos);
-        ++line_number;
-
-        if (!line.isEmpty()) {
-            compileLine(line, line_number);
-            if (compile_error) {
-                Serial.println("Compilation aborted due to errors.");
-                return;
-            }
-        }
-
-        startPos = endPos + 1;
-        endPos = source_code.indexOf('\n', startPos);
-    }
-
-    String lastLine = source_code.substring(startPos);
-    if (!lastLine.isEmpty()) {
-        compileLine(lastLine, ++line_number);
-        if (compile_error) {
-            Serial.println("Compilation aborted due to errors.");
-            return;
-        }
+    if (compile_error) {
+        Serial.println("Compilation aborted due to errors.");
+        return;
     }
 
     if (inside_function_declaration) {
@@ -239,6 +222,125 @@ void XenoCompiler::compile(const String& source_code) {
             FunctionInfo& info = entry.second;
             info.address += main_size;
         }
+    }
+}
+
+// ---- Внутренний метод: компилирует строку без сброса глобального состояния ----
+void XenoCompiler::compileStringInternal(const String& source_code, int line_offset) {
+    int line_number = 0 + line_offset;
+    int startPos = 0;
+    int endPos = source_code.indexOf('\n');
+
+    while (endPos >= 0) {
+        String line = source_code.substring(startPos, endPos);
+        ++line_number;
+        if (!line.isEmpty()) {
+            compileLine(line, line_number);
+            if (compile_error) {
+                return;
+            }
+        }
+        startPos = endPos + 1;
+        endPos = source_code.indexOf('\n', startPos);
+    }
+
+    String lastLine = source_code.substring(startPos);
+    if (!lastLine.isEmpty()) {
+        compileLine(lastLine, ++line_number);
+    }
+}
+
+// ------------------------------------------------------------------
+// Обработка импорта
+// ------------------------------------------------------------------
+void XenoCompiler::handleImport(const String& args, int line_number) {
+    if (filesystem == nullptr) {
+        Serial.println("ERROR: No filesystem set for import");
+        compile_error = true;
+        return;
+    }
+
+    // Извлекаем имя файла (поддерживаем кавычки)
+    String filename = args;
+    filename.trim();
+    if (filename.startsWith("\"") && filename.endsWith("\"")) {
+        filename = filename.substring(1, filename.length() - 1);
+    }
+    if (filename.isEmpty()) {
+        Serial.print("ERROR: Import filename missing at line ");
+        Serial.println(line_number);
+        compile_error = true;
+        return;
+    }
+
+    // Если нет расширения, добавляем .xeno
+    if (!filename.endsWith(".xeno")) {
+        filename += ".xeno";
+    }
+
+    // Проверка глубины импорта
+    if (import_depth >= security_config.getMaxImportDepth()) {
+        Serial.print("ERROR: Import depth limit exceeded (max ");
+        Serial.print(security_config.getMaxImportDepth());
+        Serial.print(") at line ");
+        Serial.println(line_number);
+        compile_error = true;
+        return;
+    }
+
+    // Проверка количества импортов
+    if (imported_files.size() >= security_config.getMaxImportCount()) {
+        Serial.print("ERROR: Import count limit exceeded (max ");
+        Serial.print(security_config.getMaxImportCount());
+        Serial.print(") at line ");
+        Serial.println(line_number);
+        compile_error = true;
+        return;
+    }
+
+    // Проверяем, не импортирован ли уже этот файл
+    for (const String& f : imported_files) {
+        if (f == filename) {
+            // Уже импортирован, пропускаем
+            return;
+        }
+    }
+
+    // Открываем файл
+    File file = filesystem->open(filename, "r");
+    if (!file) {
+        Serial.print("ERROR: Cannot open file for import: ");
+        Serial.println(filename);
+        compile_error = true;
+        return;
+    }
+
+    // Читаем содержимое
+    String content;
+    while (file.available()) {
+        content += (char)file.read();
+    }
+    file.close();
+
+    if (content.isEmpty()) {
+        Serial.print("ERROR: Imported file is empty: ");
+        Serial.println(filename);
+        compile_error = true;
+        return;
+    }
+
+    // Добавляем в список импортированных
+    imported_files.push_back(filename);
+    import_depth++;
+
+    // Рекурсивно компилируем содержимое
+    compileStringInternal(content, line_number);
+
+    import_depth--;
+
+    if (compile_error) {
+        Serial.print("ERROR: Compilation error in imported file: ");
+        Serial.println(filename);
     }
 }
 
@@ -519,7 +621,7 @@ void XenoCompiler::compileSimpleCommand(const String& command, uint8_t opcode) {
 }
 
 // ------------------------------------------------------------------
-// Обработчики команд (без изменений)
+// Обработчики команд (без изменений, кроме добавления import)
 // ------------------------------------------------------------------
 
 void XenoCompiler::handleSetCommand(const String& args, int line_number) {
@@ -1219,7 +1321,7 @@ std::vector<String> XenoCompiler::tokenizeExpression(const String& expr) {
 }
 
 // ------------------------------------------------------------------
-// Парсинг функций (добавлены параметры в variable_map)
+// Парсинг функций (без изменений)
 // ------------------------------------------------------------------
 
 void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number) {
@@ -1305,15 +1407,14 @@ void XenoCompiler::parseFunctionDeclaration(const String& args, int line_number)
     current_function_code.clear();
     current_output = &current_function_code;
 
-    // Добавляем параметры в variable_map для использования внутри функции
     function_param_names = parameters;
     for (const String& param : parameters) {
-        variable_map[param] = XenoValue::makeInt(0); // заглушка
+        variable_map[param] = XenoValue::makeInt(0);
     }
 }
 
 // ------------------------------------------------------------------
-// Главный метод компиляции строки (добавлено удаление параметров)
+// Главный метод компиляции строки (добавлен import)
 // ------------------------------------------------------------------
 
 void XenoCompiler::compileLine(const String& line, int line_number) {
@@ -1333,14 +1434,18 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
     args.trim();
     command.toLowerCase();
 
+    // ---- Обработка import (всегда, даже внутри функций) ----
+    if (command == "import") {
+        handleImport(args, line_number);
+        return;
+    }
+
     // ---- Если мы внутри функции, обрабатываем только endfunc и return ----
     if (inside_function_declaration) {
         if (command == "endfunc") {
-            // Завершаем функцию
             emitInstruction(OP_RETURN);
             inside_function_declaration = false;
 
-            // Сохраняем скомпилированное тело функции в общий буфер
             int offset = function_code.size();
             function_code.insert(function_code.end(), current_function_code.begin(), current_function_code.end());
             auto it = functions.find(pending_function.name);
@@ -1349,7 +1454,6 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             }
             current_output = &bytecode;
 
-            // Удаляем параметры из variable_map
             for (const String& param : function_param_names) {
                 variable_map.erase(param);
             }
@@ -1364,12 +1468,9 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
             emitInstruction(OP_RETURN);
             return;
         } else {
-            // Обычная команда внутри функции - компилируем в current_function_code
-            // (продолжаем выполнение)
+            // Обычная команда внутри функции
         }
     }
-
-    // ---- Если мы не внутри функции или уже обработали return/endfunc, продолжаем ----
 
     // ---- Обработка FUNC (вне функции) ----
     if (command == "func" && !inside_function_declaration) {
@@ -1386,7 +1487,7 @@ void XenoCompiler::compileLine(const String& line, int line_number) {
         return;
     }
 
-    // ---- Остальные команды (компилируются в текущий выходной буфер) ----
+    // ---- Остальные команды ----
     bool simple_command_found = false;
     for (size_t i = 0; i < simple_commands_count; i++) {
         if (command == simple_commands[i].name) {

@@ -107,6 +107,23 @@ bool XenoSecurityConfig::setAllowedPins(const std::vector<uint8_t>& pins) {
     return true;
 }
 
+// Новые методы для импорта
+bool XenoSecurityConfig::setMaxImportDepth(uint16_t depth) {
+    if (!validateSizeLimit(depth, MIN_IMPORT_DEPTH, MAX_IMPORT_DEPTH_LIMIT, "MAX_IMPORT_DEPTH")) {
+        return false;
+    }
+    max_import_depth = depth;
+    return true;
+}
+
+bool XenoSecurityConfig::setMaxImportCount(uint16_t count) {
+    if (!validateSizeLimit(count, MIN_IMPORT_COUNT, MAX_IMPORT_COUNT_LIMIT, "MAX_IMPORT_COUNT")) {
+        return false;
+    }
+    max_import_count = count;
+    return true;
+}
+
 bool XenoSecurityConfig::isPinAllowed(uint8_t pin) const {
     for (uint8_t allowed_pin : allowed_pins) {
         if (pin == allowed_pin) {
@@ -125,7 +142,9 @@ bool XenoSecurityConfig::validateConfig() const {
            temp.setMaxIfDepth(max_if_depth) &&
            temp.setMaxStackSize(max_stack_size) &&
            temp.setCurrentMaxInstructions(current_max_instructions) &&
-           temp.setAllowedPins(allowed_pins);
+           temp.setAllowedPins(allowed_pins) &&
+           temp.setMaxImportDepth(max_import_depth) &&
+           temp.setMaxImportCount(max_import_count);
 }
 
 String XenoSecurityConfig::getSecurityLimitsInfo() const {
@@ -165,6 +184,14 @@ String XenoSecurityConfig::getSecurityLimitsInfo() const {
     info += MIN_PIN_NUMBER;
     info += " - ";
     info += MAX_PIN_NUMBER;
+    info += "\nImport Depth: ";
+    info += MIN_IMPORT_DEPTH;
+    info += " - ";
+    info += MAX_IMPORT_DEPTH_LIMIT;
+    info += "\nImport Count: ";
+    info += MIN_IMPORT_COUNT;
+    info += " - ";
+    info += MAX_IMPORT_COUNT_LIMIT;
 
     return info;
 }

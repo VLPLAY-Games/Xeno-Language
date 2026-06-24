@@ -147,8 +147,12 @@ struct FunctionInfo {
 
 // CallFrame for VM
 struct CallFrame {
-    uint32_t return_address;                     // Адрес возврата
-    std::map<String, XenoValue> locals;          // Локальные переменные (включая параметры)
+    uint32_t return_address;
+    std::map<String, XenoValue> locals;
 };
+
+// Constants for import limits (used in XenoSecurityConfig)
+#define XENO_MAX_IMPORT_DEPTH_DEFAULT 8
+#define XENO_MAX_IMPORT_COUNT_DEFAULT 64
 
 #endif  // SRC_XENO_XENO_COMMON_H_

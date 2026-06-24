@@ -18,13 +18,14 @@
 #define SRC_XENOLANGUAGE_H_
 
 #include <vector>
+#include <FS.h>                     // Для файловых систем
 #include "xeno/main/xeno_compiler.h"
 #include "xeno/main/xeno_vm.h"
 #include "xeno/security/xeno_security_config.h"
 
 class XenoLanguage {
  private:
-    static constexpr const char* xeno_language_version = "v0.1.4";
+    static constexpr const char* xeno_language_version = "v0.1.5";
     static constexpr const char* xeno_language_date = "27.11.2025";
     static constexpr const char* xeno_language_name = "Xeno Language";
 
@@ -33,15 +34,20 @@ class XenoLanguage {
     XenoCompiler* compiler;
     XenoVM* vm;
 
+    fs::FS* filesystem = nullptr;   // Указатель на файловую систему для импорта
+
     void recreateObjects();
 
-    // Запрещаем копирование и присваивание (во избежание двойного удаления)
+    // Запрещаем копирование и присваивание
     XenoLanguage(const XenoLanguage&) = delete;
     XenoLanguage& operator=(const XenoLanguage&) = delete;
 
  public:
     XenoLanguage();
     ~XenoLanguage();
+
+    // Установка файловой системы для импорта
+    void setFileSystem(fs::FS& fs) { filesystem = &fs; }
 
     bool compile(const String& source_code);
     bool run(bool less_output = true);
@@ -68,6 +74,10 @@ class XenoLanguage {
     bool addAllowedPin(uint8_t pin);
     bool removeAllowedPin(uint8_t pin);
 
+    // Новые методы для настройки импорта
+    bool setImportDepth(uint16_t depth) { return security_config.setMaxImportDepth(depth); }
+    bool setImportCount(uint16_t count) { return security_config.setMaxImportCount(count); }
+
     bool validateSecurityConfig() const;
 
     String getSecurityLimitsInfo() const;
@@ -80,6 +90,8 @@ class XenoLanguage {
     uint16_t getMaxStackSize() const { return security_config.getMaxStackSize(); }
     uint32_t getCurrentMaxInstructions() const { return security_config.getCurrentMaxInstructions(); }
     const std::vector<uint8_t>& getAllowedPins() const { return security_config.getAllowedPins(); }
+    uint16_t getMaxImportDepth() const { return security_config.getMaxImportDepth(); }
+    uint16_t getMaxImportCount() const { return security_config.getMaxImportCount(); }
 
     static constexpr uint16_t getMinStringLength() { return XenoSecurityConfig::getMinStringLength(); }
     static constexpr uint16_t getMaxStringLengthLimit() { return XenoSecurityConfig::getMaxStringLengthLimit(); }
@@ -97,6 +109,10 @@ class XenoLanguage {
     static constexpr uint32_t getMaxInstructionsLimitValue() { return XenoSecurityConfig::getMaxInstructionsLimitValue(); }
     static constexpr uint8_t getMinPinNumber() { return XenoSecurityConfig::getMinPinNumber(); }
     static constexpr uint8_t getMaxPinNumber() { return XenoSecurityConfig::getMaxPinNumber(); }
+    static constexpr uint16_t getMinImportDepth() { return XenoSecurityConfig::getMinImportDepth(); }
+    static constexpr uint16_t getMaxImportDepthLimit() { return XenoSecurityConfig::getMaxImportDepthLimit(); }
+    static constexpr uint16_t getMinImportCount() { return XenoSecurityConfig::getMinImportCount(); }
+    static constexpr uint16_t getMaxImportCountLimit() { return XenoSecurityConfig::getMaxImportCountLimit(); }
 
     static constexpr const char* getLanguageVersion() noexcept { return xeno_language_version; }
     static constexpr const char* getLanguageDate() noexcept { return xeno_language_date; }

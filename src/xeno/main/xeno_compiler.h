@@ -21,6 +21,7 @@
 #include <map>
 #include <stack>
 #include <algorithm>
+#include <FS.h>                     // Для работы с файловыми системами
 #include "../xeno_common.h"
 #include "../security/xeno_security.h"
 
@@ -45,13 +46,18 @@ class XenoCompiler {
     bool inside_function_declaration;
     FunctionInfo pending_function;
 
-    // ---- Имена параметров текущей функции (для временного добавления в variable_map) ----
+    // ---- Имена параметров текущей функции ----
     std::vector<String> function_param_names;
 
     // ---- Отдельный буфер для кода функций ----
-    std::vector<XenoInstruction> function_code;        // все функции
-    std::vector<XenoInstruction> current_function_code; // текущая компилируемая функция
-    std::vector<XenoInstruction>* current_output;      // указатель на целевой вектор (bytecode или current_function_code)
+    std::vector<XenoInstruction> function_code;
+    std::vector<XenoInstruction> current_function_code;
+    std::vector<XenoInstruction>* current_output;
+
+    // ---- Поддержка импорта ----
+    fs::FS* filesystem;                     // Указатель на файловую систему
+    std::vector<String> imported_files;     // Список уже импортированных файлов
+    uint16_t import_depth;                  // Текущая глубина импорта (для проверки)
 
     struct Constant {
         const char* name;
@@ -120,6 +126,12 @@ class XenoCompiler {
 
     void parseFunctionDeclaration(const String& args, int line_number);
 
+    // ---- Обработка импорта ----
+    void handleImport(const String& args, int line_number);
+
+    // ---- Внутренний метод компиляции строки (без сброса состояния) ----
+    void compileStringInternal(const String& source_code, int line_offset = 0);
+
  protected:
     explicit XenoCompiler(XenoSecurityConfig& config);
     void compile(const String& source_code);
@@ -127,6 +139,9 @@ class XenoCompiler {
     const std::vector<String>& getStringTable() const;
     const std::map<String, FunctionInfo>& getFunctions() const { return functions; }
     void printCompiledCode();
+
+    // Установка файловой системы
+    void setFileSystem(fs::FS* fs) { filesystem = fs; }
 };
 
 #endif  // SRC_XENO_XENO_COMPILER_H_
